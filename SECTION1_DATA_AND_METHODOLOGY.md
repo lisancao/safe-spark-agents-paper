@@ -154,6 +154,8 @@ For each hypothesis: **claim** (paraphrased from `PAPER.md` §6.2) · **metric/f
 
 ### H3 — COMPUTE COST (data-processing; cluster-relevant)
 
+> **Full H3 dump:** the complete methodology, stage-diff measurement, raw-data field spec, and Phase-2b EKS runbook live in **`repro/H3_PLAN.md`** + **`repro/h3_eks/`**. The per-attempt-compute code prerequisite (§6.6(3)) is **implemented** — branch `h3-per-attempt-compute`, offline tests green (stamps per-attempt `executor_seconds`/`cpu_seconds`/`intercepted_at_dry_run` into `per_iteration`, adds an analyze.py H3 reader `H3_1_wasted_compute_on_failed_attempts` / `H3_2_total_compute_to_correct`). The remaining gate is the **uniform EKS substrate + remote Arm-B SDP (L3)** — not instrument capability.
+
 #### H3.1 Wasted-compute-on-failed-attempts
 - **Claim:** SDP's gate rejects failed attempts before execution (~0 data processed); imperative failures execute and burn compute.
 - **Metric/field:** per-attempt `executor_seconds`/`cpu_seconds` on failed attempts; gate-caught attempts contribute ~0.
@@ -163,7 +165,7 @@ For each hypothesis: **claim** (paraphrased from `PAPER.md` §6.2) · **metric/f
   git show $RAW | python3 -c "import sys,json;r=[json.loads(l) for l in sys.stdin if l.strip()];print({a:sum(x.get('executor_seconds') is not None for x in r if x['arm']==a) for a in ('A','A2','B','B1','B2')})"
   ```
 - **Value (verified):** populated `{A:2, A2:1, B:60, B1:61, B2:1}`.
-- **Status:** **NOT measurable** from this data — no per-attempt compute, and arms ran on different substrates (imperative classic Spark vs SDP Connect). Needs §6.6(3) **and** a uniform Connect substrate (Phase 2b).
+- **Status:** **not yet measured** — but the per-attempt-compute code (§6.6(3)) is now **implemented** (branch `h3-per-attempt-compute`, tests green), so the remaining gate is purely the **uniform EKS substrate** + remote Arm-B SDP (L3), not instrument capability. The N=3 arms ran on split substrates, so their `executor_seconds` are not cross-arm comparable; the confirmatory H3 numbers come from the Phase-2b EKS run (`repro/H3_PLAN.md`).
 
 #### H3.2 Total-compute-to-correct
 - **Claim:** total data-processing compute to a correct pipeline, A vs B. Direction OPEN.
