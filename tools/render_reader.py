@@ -108,6 +108,9 @@ body = body.replace("<p>[[[SVG-SECTION3]]]</p>",
 body = body.replace("<p>[[[SVG-SECTION4]]]</p>",
     figure(load_svg("section4_omnigent_orchestration.svg"),
            "Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody (dotted) is the frontier keystone."))
+body = body.replace("<p>[[[SVG-COST]]]</p>",
+    figure(load_svg("cost_tokens_conciseness.svg"),
+           "The cost of the declarative paradigm, arm B relative to arm A (= 100%): SDP writes far less code and spends more tokens. Bars show B as a percentage of A; absolute medians beneath."))
 
 # --- wrap wide tables so the page never scrolls sideways ---
 body = body.replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")
