@@ -1,0 +1,28 @@
+# Chaos engine config — the "messy" half of "real + messy data".
+#
+# Every value is a per-event probability that the corresponding data-quality
+# defect is injected by generator/chaos.py during generation (batch) or replay
+# (streaming). These are the knobs the bronze->silver cleansing/quarantine logic
+# is meant to exercise. Loaded by generator.config.load_chaos_config and passed
+# with `python -m generator generate --chaos-config chaos.yaml`.
+#
+# Set enabled: false (or pass --no-chaos) to produce a clean dataset.
+
+enabled: true
+
+# Fraction of events that get one field nullified (location_id, order_id, or a
+# random key inside the body JSON). Tests NOT NULL / completeness rules.
+null_rate: 0.05
+
+# Fraction of events delayed / shuffled out of timestamp order, simulating
+# late-arriving data. Tests watermarking and out-of-order handling.
+late_event_rate: 0.03
+
+# Fraction of events emitted twice (sometimes with a slightly bumped timestamp).
+# Tests dedup / idempotency on (event_id) or (order_id, sequence).
+duplicate_rate: 0.02
+
+# Fraction of events whose body JSON is corrupted (truncated, missing brace /
+# quote, trailing comma). Tests malformed-record quarantine — from_json yields
+# nulls rather than throwing, so these survive into bronze for silver to catch.
+malformed_json_rate: 0.01

@@ -1,0 +1,24 @@
+# PodDisruptionBudget for the singleton Connect-server/driver pod.
+# ---------------------------------------------------------------------------------------------
+# This is a stateful singleton (replicas: 1, live server-local sessions). A PDB cannot give a
+# singleton true HA — with one replica there is no "other" pod to keep available. What it DOES do
+# is protect the live driver from CASUAL voluntary eviction: minAvailable: 1 means the node
+# autoscaler / a routine `kubectl drain` will NOT silently evict the only driver (which would kill
+# every in-flight Spark session). An operator who really must move it deletes the pod consciously
+# (or scales the Deployment), accepting that clients will reconnect. That deliberate friction is
+# the point for a stateful driver; it is NOT a substitute for multi-replica HA, which the session
+# model doesn't support (see deployment.yaml).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: spark-connect
+  labels:
+    app.kubernetes.io/name: spark-connect
+    app.kubernetes.io/component: connect-server
+    app.kubernetes.io/part-of: reference-lakehouse
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spark-connect
+      app.kubernetes.io/component: connect-server

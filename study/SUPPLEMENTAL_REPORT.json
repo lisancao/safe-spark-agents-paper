@@ -1,0 +1,235 @@
+{
+  "meta": {
+    "results_path": "results.supplemental.new_lineitem_reconcile.jsonl",
+    "n_rows": 24,
+    "n_rows_total": 24,
+    "n_quarantined": 0,
+    "n_cells": 12,
+    "arms": [
+      "A",
+      "B"
+    ],
+    "backend": "local",
+    "bootstrap_B": 10000,
+    "bootstrap_seed": 20260623,
+    "ci_method": "percentile",
+    "resample_unit": "(task, seed)",
+    "alpha": 0.05,
+    "multiple_comparison": "Holm across 5 arm contrasts",
+    "holm_p_value_source": "mcnemar_fallback",
+    "headline_n_valid": true,
+    "h2_metric": {
+      "field": "executor_seconds_wallclock_to_correct",
+      "label": "uniform wall-clock executor-seconds proxy (cross-arm comparable)",
+      "backend": "local",
+      "selection": "backend='local': local substrate measured field is not cross-arm comparable"
+    },
+    "quarantine_excluded_from_H1_H4": true,
+    "complexity_join": {
+      "tasks_path": "TASKS.lock.json",
+      "n_rows_with_complexity": 24,
+      "by_bin": {
+        "high": 24
+      }
+    }
+  },
+  "H1_per_arm": {
+    "A": {
+      "silent_defect_rate": 1.0,
+      "k": 12,
+      "n": 12,
+      "ci95": [
+        1.0,
+        1.0
+      ]
+    },
+    "B": {
+      "silent_defect_rate": 1.0,
+      "k": 12,
+      "n": 12,
+      "ci95": [
+        1.0,
+        1.0
+      ]
+    }
+  },
+  "H1_contrasts": {
+    "A-B": {
+      "diff_silent_rate": 0.0,
+      "bootstrap_ci95": [
+        0.0,
+        0.0
+      ],
+      "mcnemar_p": 1.0,
+      "holm_adjusted_p": 1.0,
+      "holm_p_source": "mcnemar_fallback",
+      "significant_holm": false
+    }
+  },
+  "H1_glmm": {
+    "ref_A": null,
+    "ref_A_error": "GLMM not identifiable: silent_defect has no variation (all 1); report rates/CIs only.",
+    "ref_B": null,
+    "ref_B_error": "GLMM not identifiable: silent_defect has no variation (all 1); report rates/CIs only.",
+    "ame_source": "unavailable",
+    "observed_rates_descriptive": {
+      "A": 1.0,
+      "B": 1.0
+    },
+    "p_value_source_for_holm": "mcnemar_fallback",
+    "glmm_contrast_error": "GLMM not identifiable: silent_defect has no variation (all 1); report rates/CIs only."
+  },
+  "H1_power": {
+    "ci_half_width_target": 0.05,
+    "observed_sd_paired_AminusB": 0.0,
+    "required_n_cells": 1,
+    "current_n_cells": 12,
+    "meets_power": true,
+    "rule": "N >= (1.96*sd/0.05)^2 on the A-B paired silent-defect-rate diff"
+  },
+  "H2_compute_to_correct": {
+    "B": {
+      "metric_field": "executor_seconds_wallclock_to_correct",
+      "itt": {
+        "mode": "intention_to_treat",
+        "n_pairs": 12,
+        "median_exec_s_saved": 10.96169900894165,
+        "mean_exec_s_saved": -14.644033908843994,
+        "ci95_exec_s_saved": [
+          -36.85539584954579,
+          6.224570381641388
+        ],
+        "total_usd_saved_at_scale": 0.018612408055013022
+      },
+      "complete_case": {
+        "mode": "complete_case",
+        "n_pairs": 12,
+        "median_exec_s_saved": 10.96169900894165,
+        "mean_exec_s_saved": -14.644033908843994,
+        "ci95_exec_s_saved": [
+          -36.40255795915922,
+          6.2048255542914035
+        ],
+        "total_usd_saved_at_scale": 0.018612408055013022
+      },
+      "failing_iterations": 17,
+      "dry_run_intercepts": 13,
+      "intercept_fraction": 0.7647058823529411
+    }
+  },
+  "H5_conciseness": {
+    "contrast": "B-vs-A",
+    "declarative_arm": "B",
+    "imperative_arm": "A",
+    "direction": "difference reported as imperative(A) - declarative(B); positive = declarative is smaller",
+    "n_pairs": 12,
+    "per_metric": {
+      "final_program_loc": {
+        "metric": "final_program_loc",
+        "n_pairs": 12,
+        "mean_declarative": 108.91666666666667,
+        "mean_imperative": 184.5,
+        "mean_diff_imp_minus_decl": 75.58333333333333,
+        "median_diff_imp_minus_decl": 65.0,
+        "bootstrap_ci95_diff": [
+          50.833333333333336,
+          106.16874999999997
+        ],
+        "pct_smaller_than_imperative": 0.4096657633242999
+      },
+      "final_program_loc_body": {
+        "metric": "final_program_loc_body",
+        "n_pairs": 12,
+        "mean_declarative": 100.41666666666667,
+        "mean_imperative": 175.66666666666666,
+        "mean_diff_imp_minus_decl": 75.25,
+        "median_diff_imp_minus_decl": 66.0,
+        "bootstrap_ci95_diff": [
+          52.083333333333336,
+          103.91666666666667
+        ],
+        "pct_smaller_than_imperative": 0.42836812144212527
+      },
+      "ast_node_count": {
+        "metric": "ast_node_count",
+        "n_pairs": 12,
+        "mean_declarative": 946.5833333333334,
+        "mean_imperative": 1654.25,
+        "mean_diff_imp_minus_decl": 707.6666666666666,
+        "median_diff_imp_minus_decl": 686.5,
+        "bootstrap_ci95_diff": [
+          549.4979166666667,
+          894.1729166666665
+        ],
+        "pct_smaller_than_imperative": 0.42778701324870283
+      },
+      "ast_node_count_body": {
+        "metric": "ast_node_count_body",
+        "n_pairs": 12,
+        "mean_declarative": 925.9166666666666,
+        "mean_imperative": 1629.3333333333333,
+        "mean_diff_imp_minus_decl": 703.4166666666666,
+        "median_diff_imp_minus_decl": 686.5,
+        "bootstrap_ci95_diff": [
+          546.7458333333334,
+          878.75
+        ],
+        "pct_smaller_than_imperative": 0.43172054009819966
+      }
+    }
+  },
+  "error_taxonomy": {
+    "A": {
+      "by_group": {
+        "structural": {
+          "dry_run": 0,
+          "runtime": 0,
+          "never": 0
+        },
+        "semantic": {
+          "dry_run": 0,
+          "runtime": 0,
+          "never": 12
+        },
+        "state": {
+          "dry_run": 0,
+          "runtime": 0,
+          "never": 0
+        }
+      },
+      "dry_run_intercepts": 0,
+      "runtime_error_events": 4,
+      "gate_error_events": 0,
+      "n_cells": 12
+    },
+    "B": {
+      "by_group": {
+        "structural": {
+          "dry_run": 0,
+          "runtime": 0,
+          "never": 0
+        },
+        "semantic": {
+          "dry_run": 0,
+          "runtime": 0,
+          "never": 14
+        },
+        "state": {
+          "dry_run": 0,
+          "runtime": 0,
+          "never": 0
+        }
+      },
+      "dry_run_intercepts": 13,
+      "runtime_error_events": 4,
+      "gate_error_events": 12,
+      "n_cells": 12
+    }
+  },
+  "quarantine": {
+    "n_quarantined": 0,
+    "by_arm": {},
+    "by_reason": {},
+    "cells": []
+  }
+}

@@ -1,0 +1,39 @@
+# Non-secret, per-environment runtime values consumed by the PR #6 image's entrypoint.sh, which
+# renders them into $SPARK_CONF_DIR/spark-defaults.conf at pod start (__PLACEHOLDER__ -> env).
+# Base ships placeholders; the overlay replaces them with real values from the PR #5 outputs.
+# Secrets (the PSK) are NOT here — they live in the `spark-connect-psk` Secret.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spark-connect-env
+  labels:
+    app.kubernetes.io/name: spark-connect
+    app.kubernetes.io/component: spark
+    app.kubernetes.io/part-of: reference-lakehouse
+data:
+  # Iceberg JDBC-catalog Postgres endpoint. The Iceberg catalog is a JDBC catalog backed by RDS
+  # Postgres (a SEPARATE database from the Hive Metastore schema — see overlay), so the Iceberg
+  # TABLE path no longer depends on the HMS thrift service at all. This removes the Hive
+  # 2.3.10-client vs Hive-4.0.1-server thrift mismatch that blocked Iceberg table ops over HMS.
+  # Non-secret (URL only); the jdbc user/password come from the `spark-iceberg-jdbc` Secret.
+  # <-- RDS endpoint + catalog db; the overlay replaces the placeholder with the real value.
+  ICEBERG_JDBC_URL: "jdbc:postgresql://REPLACE-rds-endpoint:5432/iceberg_catalog"
+
+  # Iceberg catalog name. Tables are addressed as `iceberg.<db>.<table>`; this is also the
+  # session defaultCatalog (set by the image template). Match what the sandbox clients expect.
+  ICEBERG_CATALOG: "iceberg"
+
+  # Iceberg warehouse root on S3 (s3a:// is the hadoop-aws scheme). <-- bucket from PR #5 output
+  # `warehouse_bucket` (default name `<name_prefix>-warehouse-<account_id>`). Overlay replaces it.
+  WAREHOUSE: "s3a://REPLACE-warehouse-bucket/warehouse"
+
+  # The SA the driver authenticates as to manage executors (must equal serviceaccount.yaml's
+  # name and the terraform `spark_service_account`). The image template wires
+  # spark.kubernetes.authenticate.driver.serviceAccountName from this.
+  SPARK_SERVICE_ACCOUNT: "spark"
+
+  # The PR #6 image, used in TWO places that k8s keeps separate: (1) the Deployment container
+  # image — set by the overlay's kustomize `images:` transformer; (2) THIS value, which the
+  # driver passes as spark.kubernetes.container.image so Spark launches executors from the same
+  # image. The overlay MUST set both to the identical pushed tag (documented in README §Wiring).
+  SPARK_KUBERNETES_CONTAINER_IMAGE: "REPLACE-account.dkr.ecr.us-east-1.amazonaws.com/spark-connect-iceberg:4.1.2-iceberg1.11.0"

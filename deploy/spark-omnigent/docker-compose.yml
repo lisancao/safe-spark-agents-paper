@@ -1,0 +1,60 @@
+# spark-omnigent sandbox, Option A wiring (Envoy mTLS egress sidecar + identity pinning).
+#
+# Two containers, ONE network namespace, ONE source of identity (AGENT_PRINCIPAL):
+#
+#   sandbox (thin client)  --plaintext h2c, 127.0.0.1:15002-->  egress (Envoy)  --mTLS-->  remote
+#
+# Key isolation is the whole reason for the split: the per-principal client cert/key are mounted
+# ONLY into `egress`. The `sandbox` service (where the agent code runs) never sees them, so a
+# misbehaving agent cannot exfiltrate its client cert. Both services derive their identity from the
+# same ${AGENT_PRINCIPAL}, so the DEFAULT gRPC user_id (sandbox) matches the cert SAN (verified in
+# the sidecar). Authoritative user_id==principal enforcement is server-side (deploy/auth interceptor);
+# this split just makes the cert un-stealable and the honest default correct.
+#
+# Provide identity + secrets via a .env file or the shell environment, e.g.:
+#   AGENT_PRINCIPAL=agent_42 REMOTE_HOST=connect.example.internal GIT_REPO=lisancao/safe-spark-agents \
+#   GIT_TOKEN=ghp_xxx docker compose up
+# and drop the cert material in ./certs/ (see certs/README.md). Nothing secret is committed.
+
+services:
+  egress:
+    build: ./sidecar
+    image: spark-omnigent-egress:dev
+    environment:
+      AGENT_PRINCIPAL: ${AGENT_PRINCIPAL:?set AGENT_PRINCIPAL (per-agent identity)}
+      REMOTE_HOST: ${REMOTE_HOST:?set REMOTE_HOST (remote NLB / on-box Envoy)}
+      REMOTE_PORT: ${REMOTE_PORT:-443}
+      LISTEN_PORT: ${LISTEN_PORT:-15002}
+      SNI_HOST: ${SNI_HOST:-}
+    volumes:
+      # Cert material lives ONLY here. Issue via deploy/auth/certs/issue-client-cert.sh.
+      - ./certs/${AGENT_PRINCIPAL}.crt:/etc/egress/client.crt:ro
+      - ./certs/${AGENT_PRINCIPAL}.key:/etc/egress/client.key:ro
+      - ./certs/ca.crt:/etc/egress/ca.crt:ro
+    healthcheck:
+      # Thin client must not connect until Envoy is live. Admin is on a UNIX socket (no TCP), so we
+      # probe /ready over the socket from inside the sidecar; the sandbox container cannot reach it.
+      test: ["CMD", "curl", "-fsS", "--unix-socket", "/tmp/envoy-admin.sock", "http://localhost/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  sandbox:
+    build: .
+    image: spark-omnigent:dev
+    # Share the sidecar's netns: reach Envoy at 127.0.0.1:LISTEN_PORT; inherit no cert mounts.
+    network_mode: "service:egress"
+    depends_on:
+      egress:
+        condition: service_healthy
+    environment:
+      AGENT_PRINCIPAL: ${AGENT_PRINCIPAL:?set AGENT_PRINCIPAL (per-agent identity)}
+      SIDECAR_GRPC_ADDR: 127.0.0.1:${LISTEN_PORT:-15002}
+      GIT_REPO: ${GIT_REPO:?set GIT_REPO (owner/name of the pipeline repo)}
+      GIT_TOKEN: ${GIT_TOKEN:?set GIT_TOKEN (fine-grained, short TTL)}
+      SDP_SKILL_REF: ${SDP_SKILL_REF:-main}
+      SDP_SKILL_TOKEN: ${SDP_SKILL_TOKEN:-}
+    # AGENT_SCHEMA is derived (sandbox_${AGENT_PRINCIPAL}); SPARK_REMOTE is derived in entrypoint.
+    stdin_open: true
+    tty: true

@@ -1,0 +1,22 @@
+# Container alternative to the systemd unit for running the Spark Connect mTLS auth proxy.
+#
+# Render the config first (the committed envoy.yaml carries the __CONNECT_PSK__ placeholder):
+#   CONNECT_PSK=... ENVOY_TEMPLATE=../envoy/envoy.yaml ENVOY_RENDERED=./envoy.rendered.yaml \
+#     ../systemd/render-config.sh
+# Place server.crt/server.key/connect-ca.crt in ./certs (from deploy/auth/certs/out/), then:
+#   docker compose up -d
+#
+# network_mode: host so the upstream 127.0.0.1:15002 resolves to the host's Connect server and
+# :15009 is published directly. (On non-Linux, drop host mode and set the upstream address in the
+# config to host.docker.internal:15002 and publish 15009.)
+services:
+  connect-auth-proxy:
+    image: envoyproxy/envoy:v1.31-latest
+    restart: unless-stopped
+    network_mode: host
+    command: ["-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
+    volumes:
+      - ./envoy.rendered.yaml:/etc/envoy/envoy.yaml:ro
+      - ./certs/server.crt:/etc/envoy/certs/server.crt:ro
+      - ./certs/server.key:/etc/envoy/certs/server.key:ro
+      - ./certs/connect-ca.crt:/etc/envoy/certs/connect-ca.crt:ro

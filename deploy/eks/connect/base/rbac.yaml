@@ -1,0 +1,47 @@
+# RBAC for client-mode Spark-on-Kubernetes: the driver manages its executors via the k8s API.
+# ---------------------------------------------------------------------------------------------
+# In client mode the Connect server IS the Spark driver, and it asks the API server (as the
+# `spark` SA) to create executor pods, the per-application config map Spark mounts into them, and
+# the headless executor service Spark may create. These rights are NAMESPACE-SCOPED (Role, not
+# ClusterRole): the driver can only touch its own namespace — it cannot see or delete pods
+# elsewhere. This is exactly the permission set in Spark's "Running on Kubernetes" RBAC guide,
+# narrowed to the resources a client-mode driver actually uses.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-driver
+  labels:
+    app.kubernetes.io/name: spark-connect
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: reference-lakehouse
+rules:
+  # Executors are pods: create them, watch them for liveness, delete them on scale-down/shutdown.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  # Spark may create a headless service for the driver and per-exec services.
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  # Spark writes a config map (spark.properties + the rendered pod env) and mounts it into execs.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-driver
+  labels:
+    app.kubernetes.io/name: spark-connect
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: reference-lakehouse
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: spark-driver
+subjects:
+  - kind: ServiceAccount
+    name: spark
+    # namespace is intentionally omitted: the overlay's `namespace:` stamps it onto the SA and
+    # the binding subject alike, keeping the base environment-agnostic.

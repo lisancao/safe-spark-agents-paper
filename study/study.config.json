@@ -1,0 +1,20 @@
+{
+  "_comment": "Shared (controlled) configuration. Every arm uses these identical values; only the arm-manifest loop fields vary (pre-reg §3). executor_config is carried verbatim into every result row so the $ figure is traceable to a declared price at a declared scale. Edit before the live sweep to match the finalized Connect/k8s cluster; the values below are the declared defaults for a small EKS Spark cluster.",
+
+  "base_model_id": "claude-opus-4-8",
+  "task_prompt_path": "prompts/task_prompt.md",
+
+  "executor_config": {
+    "instances": 4,
+    "cores_per_executor": 4,
+    "memory_gb_per_executor": 16.0,
+    "price_usd_per_executor_hour": 0.192,
+    "provider": "k8s",
+    "instance_type": "m5.xlarge-equivalent"
+  },
+
+  "spark_remote": "sc://localhost:15002",
+  "spark_rest_url": null,
+  "image_digest": "uncontainerized",
+  "generator": "infra/gen_messy_orders.py"
+}

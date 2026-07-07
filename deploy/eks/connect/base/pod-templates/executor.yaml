@@ -1,0 +1,48 @@
+# Executor pod template (spark.kubernetes.executor.podTemplateFile).
+# ---------------------------------------------------------------------------------------------
+# Spark launches executors as pods using the SAME PR #6 image as the driver (the image comes from
+# spark.kubernetes.container.image, set on the driver — do NOT hard-code it here). Spark MERGES
+# its own settings (image, resources from spark.executor.cores/memory, the IRSA ServiceAccount,
+# env, volumes for shuffle) onto this template, so this file carries ONLY what Spark will not set
+# itself: the placement contract for the executor node group provisioned by PR #5 (CLUSTER).
+#
+# PR #5's executor managed node group is:
+#   label  workload=spark-executor
+#   taint  spark-role=executor:NoSchedule
+# So executors MUST nodeSelector onto that label and tolerate that taint, or they will (a) land on
+# the system node group, or (b) fail to schedule. The driver/Connect-server pod, by contrast, has
+# NO toleration and so stays on the untainted system pool — driver and executors are physically
+# separated onto their intended pools.
+#
+# This is a metadata-free Pod template by design: kustomize does NOT process it (it is consumed by
+# Spark at runtime via a file mount, not applied to the API server), so it needs no apiVersion
+# churn. `kubeconform` is pointed only at the kustomize build output, not at this file.
+apiVersion: v1
+kind: Pod
+spec:
+  nodeSelector:
+    workload: spark-executor
+  tolerations:
+    - key: "spark-role"
+      operator: "Equal"
+      value: "executor"
+      effect: "NoSchedule"
+  # Spread executors across nodes so one node loss can't take a whole stage's tasks at once.
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          spark-role: executor
+  containers:
+    # Name MUST be `spark-kubernetes-executor` — Spark merges its generated container (image,
+    # resources, env, shuffle volumes) onto the container with this exact name.
+    - name: spark-kubernetes-executor
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault

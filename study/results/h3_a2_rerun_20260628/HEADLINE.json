@@ -1,0 +1,220 @@
+{
+  "meta": {
+    "results_path": "results.h3_combined.jsonl",
+    "n_rows": 198,
+    "n_rows_total": 198,
+    "n_quarantined": 0,
+    "n_cells": 66,
+    "arms": [
+      "A2",
+      "B",
+      "B1"
+    ],
+    "backend": "local",
+    "bootstrap_B": 10000,
+    "bootstrap_seed": 20260623,
+    "ci_method": "percentile",
+    "resample_unit": "(task, seed)",
+    "alpha": 0.05,
+    "multiple_comparison": "Holm across 5 arm contrasts",
+    "holm_p_value_source": "mcnemar_fallback",
+    "headline_n_valid": false,
+    "h2_metric": {
+      "field": "executor_seconds_wallclock_to_correct",
+      "label": "uniform wall-clock executor-seconds proxy (cross-arm comparable)",
+      "backend": "local",
+      "selection": "backend='local': local substrate measured field is not cross-arm comparable"
+    },
+    "quarantine_excluded_from_H1_H4": true,
+    "complexity_join": {
+      "tasks_path": "/tmp/sasa-a2rerun/experiments/safe_agent_study/TASKS.lock.json",
+      "n_rows_with_complexity": 198,
+      "by_bin": {
+        "high": 81,
+        "medium": 36,
+        "low": 81
+      }
+    }
+  },
+  "H1_per_arm": {
+    "A2": {
+      "silent_defect_rate": 0.3484848484848485,
+      "k": 23,
+      "n": 66,
+      "ci95": [
+        0.24242424242424243,
+        0.4696969696969697
+      ]
+    },
+    "B": {
+      "silent_defect_rate": 0.3484848484848485,
+      "k": 23,
+      "n": 66,
+      "ci95": [
+        0.24242424242424243,
+        0.4696969696969697
+      ]
+    },
+    "B1": {
+      "silent_defect_rate": 0.3484848484848485,
+      "k": 23,
+      "n": 66,
+      "ci95": [
+        0.24242424242424243,
+        0.4696969696969697
+      ]
+    }
+  },
+  "H1_contrasts": {
+    "A-B": {
+      "diff_silent_rate": null,
+      "bootstrap_ci95": null,
+      "mcnemar_p": null,
+      "holm_adjusted_p": NaN,
+      "holm_p_source": "mcnemar_fallback",
+      "significant_holm": null
+    },
+    "A-B1": {
+      "diff_silent_rate": null,
+      "bootstrap_ci95": null,
+      "mcnemar_p": null,
+      "holm_adjusted_p": NaN,
+      "holm_p_source": "mcnemar_fallback",
+      "significant_holm": null
+    },
+    "A-B2": {
+      "diff_silent_rate": null,
+      "bootstrap_ci95": null,
+      "mcnemar_p": null,
+      "holm_adjusted_p": NaN,
+      "holm_p_source": "mcnemar_fallback",
+      "significant_holm": null
+    },
+    "B-B1": {
+      "diff_silent_rate": 0.0,
+      "bootstrap_ci95": [
+        -0.09090909090909091,
+        0.09090909090909091
+      ],
+      "mcnemar_p": 1.0,
+      "holm_adjusted_p": 1.0,
+      "holm_p_source": "mcnemar_fallback",
+      "significant_holm": false
+    },
+    "B-B2": {
+      "diff_silent_rate": null,
+      "bootstrap_ci95": null,
+      "mcnemar_p": null,
+      "holm_adjusted_p": NaN,
+      "holm_p_source": "mcnemar_fallback",
+      "significant_holm": null
+    }
+  },
+  "H1_glmm": {
+    "ref_A": null,
+    "ref_A_error": "cannot fit GLMM: need >=2 arms incl. reference 'A'; have ['A2', 'B', 'B1']",
+    "ref_B": null,
+    "ref_B_error": "GLMM fit failed: No module named 'statsmodels'",
+    "ame_source": "unavailable",
+    "observed_rates_descriptive": {
+      "A2": 0.3484848484848485,
+      "B": 0.3484848484848485,
+      "B1": 0.3484848484848485
+    },
+    "p_value_source_for_holm": "mcnemar_fallback",
+    "glmm_contrast_error": "cannot fit GLMM: need >=2 arms incl. reference 'A'; have ['A2', 'B', 'B1']"
+  },
+  "H1_power": {
+    "ci_half_width_target": 0.05,
+    "observed_sd_paired_AminusB": null,
+    "required_n_cells": null,
+    "current_n_cells": 0,
+    "meets_power": false,
+    "rule": "N >= (1.96*sd/0.05)^2 on the A-B paired silent-defect-rate diff"
+  },
+  "H2_compute_to_correct": {
+    "B": {
+      "metric_field": "executor_seconds_wallclock_to_correct",
+      "itt": {
+        "mode": "intention_to_treat",
+        "n_pairs": 0,
+        "note": "no matched cells"
+      },
+      "complete_case": {
+        "mode": "complete_case",
+        "n_pairs": 0,
+        "note": "no matched cells"
+      },
+      "failing_iterations": 153,
+      "dry_run_intercepts": 74,
+      "intercept_fraction": 0.48366013071895425
+    }
+  },
+  "H5_conciseness": {
+    "contrast": "B-vs-A2",
+    "declarative_arm": "B",
+    "imperative_arm": "A2",
+    "direction": "difference reported as A2 - B; positive = declarative is smaller",
+    "n_pairs": 40,
+    "per_metric": {
+      "final_program_loc": {
+        "metric": "final_program_loc",
+        "n_pairs": 40,
+        "mean_declarative_B": 68.125,
+        "mean_imperative_A2": 116.675,
+        "mean_diff_A2_minus_B": 48.55,
+        "median_diff_A2_minus_B": 49.5,
+        "bootstrap_ci95_diff": [
+          41.675,
+          55.65
+        ],
+        "pct_smaller_than_A2": 0.4161131347760874
+      },
+      "final_program_loc_body": {
+        "metric": "final_program_loc_body",
+        "n_pairs": 40,
+        "mean_declarative_B": 62.025,
+        "mean_imperative_A2": 109.625,
+        "mean_diff_A2_minus_B": 47.6,
+        "median_diff_A2_minus_B": 48.0,
+        "bootstrap_ci95_diff": [
+          41.1,
+          54.525
+        ],
+        "pct_smaller_than_A2": 0.43420752565564424
+      },
+      "ast_node_count": {
+        "metric": "ast_node_count",
+        "n_pairs": 40,
+        "mean_declarative_B": 638.85,
+        "mean_imperative_A2": 1024.45,
+        "mean_diff_A2_minus_B": 385.6,
+        "median_diff_A2_minus_B": 367.5,
+        "bootstrap_ci95_diff": [
+          322.449375,
+          455.075
+        ],
+        "pct_smaller_than_A2": 0.3763970911220655
+      },
+      "ast_node_count_body": {
+        "metric": "ast_node_count_body",
+        "n_pairs": 40,
+        "mean_declarative_B": 624.375,
+        "mean_imperative_A2": 998.125,
+        "mean_diff_A2_minus_B": 373.75,
+        "median_diff_A2_minus_B": 357.5,
+        "bootstrap_ci95_diff": [
+          310.695625,
+          442.250625
+        ],
+        "pct_smaller_than_A2": 0.3744520976831559
+      }
+    }
+  },
+  "quarantine": {
+    "n_quarantined": 0,
+    "by_arm": {},
+    "by_reason": {},
+    "cells": []
+  }
+}

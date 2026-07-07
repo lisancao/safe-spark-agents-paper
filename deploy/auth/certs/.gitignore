@@ -1,0 +1,3 @@
+# Generated CA, server, and per-principal client material — never commit secrets/keys.
+out/
+*.srl

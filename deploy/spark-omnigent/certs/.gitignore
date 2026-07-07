@@ -1,0 +1,4 @@
+# Never commit cert material. Issue it at provision time via deploy/auth.
+*
+!.gitignore
+!README.md

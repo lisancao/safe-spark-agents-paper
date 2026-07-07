@@ -1,0 +1,179 @@
+# Hive Metastore — serving Deployment.
+#
+# HA: the metastore is stateless (all state lives in Postgres), so replicas are horizontally
+# scalable; >1 replica run safely against the same RDS database. We default to 2 here for
+# rolling-update availability. The schema is owned by the init Job, NOT by these pods
+# (IS_RESUME=true skips the entrypoint's schematool; schema.verification=true in hive-site.xml
+# makes a pod refuse to serve against a schema it doesn't match).
+#
+# Each container/initContainer first renders hive-site.xml from env (DB creds from the Secret,
+# warehouse/region from the env ConfigMap) — see configmap-hive-site.yaml for why.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+    app.kubernetes.io/part-of: reference-lakehouse
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hive-metastore
+      app.kubernetes.io/component: metastore
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hive-metastore
+        app.kubernetes.io/component: metastore
+        app.kubernetes.io/part-of: reference-lakehouse
+    spec:
+      serviceAccountName: hive-metastore
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      # Spread replicas across nodes/AZs so a node loss can't take the whole metastore down.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: hive-metastore
+              app.kubernetes.io/component: metastore
+      # Block serving pods until the schema-init Job has created the schema, so we never
+      # crash-loop on an empty DB. Renders hive-site.xml, then polls the real DB.
+      initContainers:
+        - name: wait-for-schema
+          image: hive-metastore-pg:4.0.1 # overlay overrides image (newName/newTag)
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -uo pipefail
+              bash /hms-conf/render-hive-site.sh /hms-conf/hive-site.xml.tmpl
+              for i in $(seq 1 60); do
+                if "${HIVE_HOME}"/bin/schematool -dbType postgres -info >/dev/null 2>&1; then
+                  echo "[wait-for-schema] schema present — proceeding."
+                  exit 0
+                fi
+                echo "[wait-for-schema] schema not ready (attempt ${i}/60); is the schema-init Job done? sleeping 5s"
+                sleep 5
+              done
+              echo "[wait-for-schema] timed out after ~5m waiting for the metastore schema." >&2
+              exit 1
+          envFrom:
+            - secretRef:
+                name: hive-metastore-db
+          env:
+            - name: HMS_WAREHOUSE_DIR
+              valueFrom:
+                configMapKeyRef: { name: hive-metastore-env, key: HMS_WAREHOUSE_DIR }
+            - name: HMS_S3A_REGION
+              valueFrom:
+                configMapKeyRef: { name: hive-metastore-env, key: HMS_S3A_REGION }
+          volumeMounts:
+            - name: hive-conf-tmpl
+              mountPath: /hms-conf
+              readOnly: true
+          resources:
+            requests: { cpu: "50m", memory: "256Mi" }
+            limits: { memory: "768Mi" }
+      containers:
+        - name: metastore
+          image: hive-metastore-pg:4.0.1 # overlay overrides image (newName/newTag)
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+          # Render hive-site.xml from env (DB creds + warehouse/region), then hand off to the
+          # stock image entrypoint, which starts `hive --service metastore` on 9083.
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              bash /hms-conf/render-hive-site.sh /hms-conf/hive-site.xml.tmpl
+              exec /entrypoint.sh
+          ports:
+            - name: thrift
+              containerPort: 9083
+              protocol: TCP
+          env:
+            - name: SERVICE_NAME
+              value: metastore
+            - name: DB_DRIVER
+              value: postgres
+            # Serving pods must not touch the schema — the init Job owns it.
+            - name: IS_RESUME
+              value: "true"
+            - name: METASTORE_PORT
+              value: "9083"
+            # Non-secret tunables consumed by the render step → hive-site.xml.
+            - name: HMS_WAREHOUSE_DIR
+              valueFrom:
+                configMapKeyRef: { name: hive-metastore-env, key: HMS_WAREHOUSE_DIR }
+            - name: HMS_S3A_REGION
+              valueFrom:
+                configMapKeyRef: { name: hive-metastore-env, key: HMS_S3A_REGION }
+          # DB connection (URL/user/password/driver) from the Secret.
+          envFrom:
+            - secretRef:
+                name: hive-metastore-db
+          readinessProbe:
+            tcpSocket:
+              port: thrift
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: thrift
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # startupProbe gives a cold JVM + DB connect time before liveness starts counting.
+          startupProbe:
+            tcpSocket:
+              port: thrift
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1536Mi"
+            limits:
+              memory: "2560Mi"
+          volumeMounts:
+            - name: hive-conf-tmpl
+              mountPath: /hms-conf
+              readOnly: true
+      volumes:
+        - name: hive-conf-tmpl
+          configMap:
+            name: hive-metastore-site
+            items:
+              - key: hive-site.xml.tmpl
+                path: hive-site.xml.tmpl
+              - key: render-hive-site.sh
+                path: render-hive-site.sh

@@ -1,0 +1,16 @@
+## D-CORPUS-V31 (2026-07-01) — additive non-CDC High task (`new_lineitem_reconcile`); corpus v3 22-task → v3.1 23-task
+
+**Status: legitimate pre-data deviation (no data collected on this task; logged per the pre-reg preamble).** Owner-approved 2026-07-01. This revision re-freezes `TASKS.lock.json` (`3.0.0-corpus22` → `3.0.0-corpus23`). It **adds one task**; it changes **no** hypothesis, arm, metric, grader contract, or analysis plan, and does **not** alter the primary 22-task pre-registered corpus or its headline analysis.
+
+**Why (the gap this closes).** The High-complexity tier of corpus v3 is **CDC-heavy: 5 of 7 High tasks** are CDC/SCD-flavored (`p2_cdc`, `p10_scd2`, `p13_cdc_windowed`, `new_scd2_as_of_join`, `HC1_fx_trade_ledger`), leaving only **2 non-CDC High** tasks (`p14_fx_settlement`, `HC2_session_funnel`). Because SCD/CDC native support is Spark-version-dependent (this instrument runs **4.1.0.dev4**, which has no native AutoCDC — see the version-dependence caveat queued for the revision gate), a planned **non-CDC-subset sensitivity analysis** (report H1 with and without CDC tasks) would rest on only 2 High tasks. Adding a 3rd non-CDC High task keeps that subset from collapsing at the top of the complexity range if the CDC tasks are later discounted.
+
+**What changed.**
+- Added task **`new_lineitem_reconcile`** — domain `lineitem_reconcile`, substrate `orders`, `graded_by: output_oracle`, `spec_ref: agent-authored`, complexity **36 / High** (axes `{A1:3,A2:2,A3:2,A4:2,A5:3,A6:1,A7:3,A8:0}`, verified by `harness/complexity.py`). Defects in scope **D1, D5, D6, D7, D8**. A line-item order-revenue mart: flatten itemized orders to true line-item revenue, dedup replays to one survivor per order, quarantine unprocessable rows, roll up daily revenue, and enforce two cross-stage invariants (kept+rejected = received; daily total ties to kept orders' line-item revenue) — the reconciliation invariant (A7=3) is the High-maker, achieved without CDC/SCD or streaming.
+- `version` `3.0.0-corpus22` → `3.0.0-corpus23`; `corpus_status.locked_n_tasks` 22 → 23; `complexity_distribution` High 7 → 8 (Med 8 / Low 7 unchanged; Σ=23).
+- `coverage_matrix`: D1 19→20, D5 6→7, D6 9→10, D7 8→9, D8 10→11 (every class remains ≥5). **Notably restores non-CDC coverage of D5 (2→3 non-CDC tasks) and D6 (4→5 non-CDC tasks)** — the two defects that thinned in the non-CDC subset.
+
+**Instrument reuse (no measurement change, no reference-number movement).** The task reuses the **frozen** orders generator `infra/gen_messy_orders.py --v3` and the existing `quantify.d6/d7/d8` (+ `d8_nested`) output-oracle path. **No new generator, no new oracle function, no change to any locked oracle number.** D5 is structural (log signature `CANNOT_MODIFY_CONFIG`/`46110`) and requires no data injection or oracle.
+
+**Execution.** Runs as a **24-cell addendum** (arms A,B × 12 seeds) at the identical frozen instrument (same commit / brain / recipe) **after** the primary 22-task sweep and its `analyze.py` complete. The new task is analyzed **only** in the non-CDC-subset sensitivity analysis; the primary 22-task headline is unchanged. Register-before-run: this entry precedes any `new_lineitem_reconcile` data.
+
+**Cross-reference.** `PREREGISTRATION.md` Addendum (pre-data amendments), item **K** (first amendment after the A–J set that constituted D-CORPUS-V3).

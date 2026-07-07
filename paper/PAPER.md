@@ -61,12 +61,12 @@ Two measurement choices make these outcomes trustworthy. First, we separate the 
 
 [[[SVG-RUNLOOP]]]
 
-**Where to find it** — study repo [`lisancao/safe-spark-agents`](https://github.com/lisancao/safe-spark-agents) (paths under `experiments/safe_agent_study/`):
-- **Reproduction runbook** → [`repro/REPRODUCE.md`](https://github.com/lisancao/safe-spark-agents/blob/dev/experiments/safe_agent_study/repro/REPRODUCE.md)
-- **Frozen corpus & seeds** → [`TASKS.lock.json`](https://github.com/lisancao/safe-spark-agents/blob/dev/experiments/safe_agent_study/TASKS.lock.json), [`SEEDS.lock.json`](https://github.com/lisancao/safe-spark-agents/blob/dev/experiments/safe_agent_study/SEEDS.lock.json)
-- **Arms & config** → [`arms/A.json`](https://github.com/lisancao/safe-spark-agents/blob/dev/experiments/safe_agent_study/arms/A.json), [`arms/B.json`](https://github.com/lisancao/safe-spark-agents/blob/dev/experiments/safe_agent_study/arms/B.json), [`study.config.json`](https://github.com/lisancao/safe-spark-agents/blob/dev/experiments/safe_agent_study/study.config.json)
-- **Harness & analysis** → [`harness/`](https://github.com/lisancao/safe-spark-agents/tree/dev/experiments/safe_agent_study/harness), [`analysis/analyze.py`](https://github.com/lisancao/safe-spark-agents/blob/dev/experiments/safe_agent_study/analysis/analyze.py)
-- **EKS compute run (H3)** → [`repro/h3_eks/`](https://github.com/lisancao/safe-spark-agents/tree/dev/experiments/safe_agent_study/repro/h3_eks) (runbook + `H3_EKS_INTEGRATION_LOG.md`)
+**Where to find it** — study repo [`lisancao/safe-spark-agents`](../study/) (paths under `study/`):
+- **Reproduction runbook** → [`repro/REPRODUCE.md`](../study/repro/REPRODUCE.md)
+- **Frozen corpus & seeds** → [`TASKS.lock.json`](../study/TASKS.lock.json), [`SEEDS.lock.json`](../study/SEEDS.lock.json)
+- **Arms & config** → [`arms/A.json`](../study/arms/A.json), [`arms/B.json`](../study/arms/B.json), [`study.config.json`](../study/study.config.json)
+- **Harness & analysis** → [`harness/`](../study/harness), [`analysis/analyze.py`](../study/analysis/analyze.py)
+- **EKS compute run (H3)** → [`repro/h3_eks/`](../study/repro/h3_eks) (runbook + `H3_EKS_INTEGRATION_LOG.md`)
 - **Raw results behind the numbers** → `results.powered.AB.n12.final.jsonl` (528 rows), `results.tzfix.jsonl` (the D7 skill-swap)
 
 *(GitHub links resolve once the study repo is public; the committed result JSONLs are the data behind every number, while the 100s of MB of raw generated data and agent transcripts are reproducible from the seeded generators rather than shipped.)*
@@ -84,7 +84,7 @@ Independent variable: **paradigm** (SDP vs imperative), tested as **two arms** (
 | **A** | imperative | none (bare) | none | bare imperative — imperative as it natively is |
 | **B** | SDP (declarative) | framework dry-run (intrinsic) | `pyspark-sdp` API skill | declarative treatment |
 
-**Headline contrast = A vs B.** This is deliberately a *paradigm-package* contrast, not a single-variable manipulation: the declarative paradigm brings its structural dry-run **by construction** (framing F1, §4.2), imperative has no equivalent, and injecting one would contaminate it (F2, rejected). So the gate is **part of the treatment, not a held-constant covariate** — that asymmetry *is* the finding. The earlier A2 (imperative+gate+skill) and B1 (SDP, no skill) arms are retired to `arms/supplementary/`; the `spark-safety` skill was scrapped everywhere (it moved silent-defect by 0.000 in pilot and was the largest reviewer confound). `[arms: experiments/safe_agent_study/arms/{A,B}.json]`
+**Headline contrast = A vs B.** This is deliberately a *paradigm-package* contrast, not a single-variable manipulation: the declarative paradigm brings its structural dry-run **by construction** (framing F1, §4.2), imperative has no equivalent, and injecting one would contaminate it (F2, rejected). So the gate is **part of the treatment, not a held-constant covariate** — that asymmetry *is* the finding. The earlier A2 (imperative+gate+skill) and B1 (SDP, no skill) arms are retired to `arms/supplementary/`; the `spark-safety` skill was scrapped everywhere (it moved silent-defect by 0.000 in pilot and was the largest reviewer confound). `[arms: study/arms/{A,B}.json]`
 
 ## 4. Results
 The results tell four connected stories. First, **structural catching** (§4.2): where each paradigm intercepts the faults a gate can see. Second, the **silent semantic residue** (§4.1) — the defects no gate can catch — where a raw gap appears to favor imperative. Third, the **root-cause attribution** of that gap (§4.1.2), which a controlled skill-swap traces to a teachable idiom rather than the paradigm. Fourth, **cost** (§4.3): code size, tokens, and compute. Read together, they support a single claim — declarative structure buys an early, real safety margin on structural faults, and is not, by itself, less safe on semantic ones.
@@ -235,7 +235,7 @@ Every empirical number in this paper is immediately followed by a source tag so 
 
 > `[src: <file> · <field> · <row-filter> · recompute: <command>]`
 
-- **Primary raw data:** `experiments/safe_agent_study/results/h3_a2_rerun_20260628/results.h3_combined.jsonl` (198 rows; 66 each for arms A2, B, B1; committed on `origin/dev`, instrument SHA `1d28563a`).
+- **Primary raw data:** `study/results/h3_a2_rerun_20260628/results.h3_combined.jsonl` (198 rows; 66 each for arms A2, B, B1; committed on `origin/dev`, instrument SHA `1d28563a`).
 - **Code definitions** are cited as `file:line` against `origin/dev`.
 - Any number not yet carrying a source tag is a **placeholder** and is marked `[PENDING]`. No hand-typed numbers.
 
@@ -350,7 +350,7 @@ This section is the study's pre-registration and reproducibility apparatus: the 
 ### 6.8 Literal commands (verified against runner.py argparse, `runner.py:1321-1344`)
 Calibration (local backend, few tasks, N=3):
 ```bash
-cd /home/lnc/repos/safe-spark-agents/experiments/safe_agent_study
+cd study
 ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" python3 harness/runner.py \
   --backend local --config study.config.json --arms-dir arms \
   --tasks TASKS.lock.json --seeds SEEDS.lock.json \

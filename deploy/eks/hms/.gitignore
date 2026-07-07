@@ -1,0 +1,5 @@
+# NEVER commit a real Secret. Only secret.example.yaml (the template) belongs in git.
+secret.yaml
+secret.*.yaml
+*-secret.yaml
+!secret.example.yaml

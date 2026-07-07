@@ -1,0 +1,13 @@
+{"order_id": "A-1001", "seq": 1, "event_time": "2024-03-01T08:15:00Z", "amount": 19.99, "customer": "c-01", "status": "placed"}
+{"order_id": "A-1001", "seq": 2, "event_time": "2024-03-01T08:16:30Z", "amount": 19.99, "customer": "c-01", "status": "confirmed"}
+{"order_id": "A-1002", "seq": 1, "event_time": 1709282100000, "amount": "42.50", "customer": "c-02", "status": "placed"}
+{"order_id": "A-1003", "seq": 1, "event_time": "2024-03-01T23:55:10Z", "amount": "7.00", "customer": null, "status": "placed"}
+{"order_id": "A-1003", "seq": 2, "event_time": 1709337600000, "amount": 7.0, "customer": "c-03", "status": "confirmed"}
+{"order_id": "A-1004", "seq": 1, "event_time": "2024-03-02T00:05:00Z", "amount": 100, "status": "placed"}
+{"order_id": "A-1005", "seq": 1, "event_time": "2024-03-02T11:30:00Z", "amount": "250.00", "customer": "c-05", "status": "placed"}
+this is not valid json at all, a malformed line
+{"order_id": "A-1006", "seq": 1, "event_time": 1709376600000, "amount": null, "customer": "c-06", "status": "placed"}
+{"order_id": "A-1006", "seq": 2, "event_time": "2024-03-02T14:10:00Z", "amount": "13.37", "customer": "c-06", "status": "confirmed"}
+{"order_id": "A-1002", "seq": 2, "event_time": "2024-03-01T08:20:00Z", "amount": "42.50", "customer": "c-02", "status": "confirmed"}
+{"order_id": "A-1007", "seq": 1, "event_time": "2024-03-03T09:00:00Z", "amount": 5, "customer": "c-07"}
+{"order_id": "A-1008", "seq": 1, "event_time": "2024-03-03T18:45:22Z", "amount": "88.88", "customer": "c-08", "status": "placed"}

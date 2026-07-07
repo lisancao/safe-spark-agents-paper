@@ -1,0 +1,9 @@
+# Python deps for the generator + streaming producer (the loader side runs under
+# spark-submit and uses the cluster's PySpark, which is NOT pinned here).
+#
+# Install:  pip install -r requirements.txt
+numpy>=1.24
+pyarrow>=14.0
+pandas>=2.0          # producer.py replays via a pandas frame
+kafka-python>=2.0    # streaming producer -> Kafka
+PyYAML>=6.0          # chaos.yaml loading

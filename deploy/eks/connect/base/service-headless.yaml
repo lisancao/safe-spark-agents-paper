@@ -1,0 +1,36 @@
+# Headless service for driver <-> executor RPC (NOT an ingress; carries NO mTLS / no 15002).
+# ---------------------------------------------------------------------------------------------
+# In client mode the executors must reach the driver's RPC + block-manager ports. We advertise the
+# driver via its pod IP (spark.driver.host=$(POD_IP)), and this headless service publishes that
+# pod IP as a DNS A record plus names the two fixed ports so they're discoverable and so a
+# NetworkPolicy can select them. clusterIP: None => DNS returns the pod IP directly (no VIP).
+#
+# publishNotReadyAddresses: true — executors may need to dial the driver while the driver is still
+# marked not-ready (it isn't "ready" until the Connect gRPC port is up, which can lag the Spark
+# RPC subsystem). Without this, early executor registration could race the readiness gate.
+#
+# This service deliberately does NOT expose 15002 or 15009: cluster-internal Spark plumbing only.
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-connect-driver-headless
+  labels:
+    app.kubernetes.io/name: spark-connect
+    app.kubernetes.io/component: connect-server
+    app.kubernetes.io/part-of: reference-lakehouse
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: spark-connect
+    app.kubernetes.io/component: connect-server
+  ports:
+    - name: driver-rpc
+      port: 7078
+      targetPort: driver-rpc
+      protocol: TCP
+    - name: blockmanager
+      port: 7079
+      targetPort: blockmanager
+      protocol: TCP

@@ -1,0 +1,9 @@
+# The Spark namespace. The name MUST equal the terraform `spark_namespace` (default `spark`):
+# the PR #5 IRSA trust policy authorizes system:serviceaccount:<spark_namespace>:<spark_sa>, so a
+# mismatch here breaks the S3 web-identity token exchange.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spark
+  labels:
+    app.kubernetes.io/part-of: reference-lakehouse

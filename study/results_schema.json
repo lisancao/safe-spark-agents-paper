@@ -1,0 +1,251 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "safe_agent_study results.jsonl row",
+  "type": "object",
+  "required": [
+    "run_id",
+    "task",
+    "arm",
+    "seed",
+    "spark_version",
+    "image_digest",
+    "git_sha",
+    "base_model_id",
+    "executor_config",
+    "silent_defect",
+    "defect_classes",
+    "detection_stage",
+    "iterations",
+    "wall_s",
+    "executor_seconds_wallclock",
+    "usd",
+    "exit_class"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "task": {
+      "type": "string"
+    },
+    "arm": {
+      "type": "string",
+      "enum": [
+        "A",
+        "A2",
+        "B",
+        "B1",
+        "B2"
+      ]
+    },
+    "seed": {
+      "type": "integer"
+    },
+    "spark_version": {
+      "type": "string"
+    },
+    "image_digest": {
+      "type": "string"
+    },
+    "git_sha": {
+      "type": "string"
+    },
+    "base_model_id": {
+      "type": "string"
+    },
+    "executor_config": {
+      "type": "object"
+    },
+    "silent_defect": {
+      "type": "boolean"
+    },
+    "defect_classes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "detection_stage": {
+      "type": "string",
+      "enum": [
+        "dry_run",
+        "runtime",
+        "never",
+        "n/a"
+      ]
+    },
+    "iterations": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "wall_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "executor_seconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "usd": {
+      "type": "number",
+      "minimum": 0
+    },
+    "exit_class": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "analysis_error",
+        "runtime_error",
+        "max_iterations",
+        "harness_error",
+        "PROPOSE_TIMEOUT",
+        "PROPOSE_API_ERROR",
+        "PROPOSE_RATE_LIMIT",
+        "HARNESS_EXCEPTION",
+        "HARNESS_ERROR"
+      ]
+    },
+    "task_success": {
+      "type": "boolean"
+    },
+    "reached_correct": {
+      "type": "boolean"
+    },
+    "iterations_to_green": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "wall_s_to_green": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "executor_seconds_to_correct": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cpu_seconds": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "cpu_seconds_to_correct": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "executor_seconds_wallclock": {
+      "type": "number",
+      "minimum": 0
+    },
+    "executor_seconds_wallclock_to_correct": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "dry_run_intercepts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failing_iterations": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "per_defect_detection": {
+      "type": "object"
+    },
+    "per_iteration": {
+      "type": "array"
+    },
+    "final_program": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "final_program_loc": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "final_program_loc_body": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "ast_node_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "ast_node_count_body": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "input_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "output_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "harness_fault_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "backend": {
+      "type": "string"
+    },
+    "transcript_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "timestamp_utc": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

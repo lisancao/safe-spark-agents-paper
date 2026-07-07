@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Everything that is environment-specific lives in THIS overlay. The base is reused verbatim.
+# All REPLACE-* values below come from eks-cluster-iac outputs (see ../../README.md → "Dependency
+# on eks-cluster-iac").
+
+# HMS MUST live in namespace `hive-metastore`: the HMS IRSA role trust policy authorizes
+# system:serviceaccount:hive-metastore:hive-metastore, and the Spark Connect overlay points at
+# thrift://hive-metastore.hive-metastore.svc.cluster.local:9083. (Was `data-platform`, which would
+# have broken both the IRSA OIDC `sub` match and the cross-namespace FQDN.)
+namespace: hive-metastore
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+# Point at the real registry/tag. newName -> your ECR repo for the image built from ../../image.
+images:
+  - name: hive-metastore-pg
+    newName: ${ECR_REGISTRY}/ssa-spark/hive-metastore
+    newTag: "4.0.1"
+
+patches:
+  # 1. IRSA role ARN on the ServiceAccount (eks-cluster-iac output `hms_irsa_role_arn`).
+  - target:
+      kind: ServiceAccount
+      name: hive-metastore
+    patch: |
+      - op: replace
+        path: /metadata/annotations/eks.amazonaws.com~1role-arn
+        value: arn:aws:iam::${AWS_ACCOUNT_ID}:role/ssa-spark-irsa-hms
+
+  # 2. Warehouse location + region (eks-cluster-iac outputs `warehouse_bucket`, `aws_region`).
+  - target:
+      kind: ConfigMap
+      name: hive-metastore-env
+    patch: |
+      - op: replace
+        path: /data/HMS_WAREHOUSE_DIR
+        value: s3a://${WAREHOUSE_BUCKET}/warehouse
+      - op: replace
+        path: /data/HMS_S3A_REGION
+        value: us-east-1

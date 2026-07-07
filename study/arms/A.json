@@ -1,0 +1,16 @@
+{
+  "arm_id": "A",
+  "description": "Baseline ('traditional'): imperative PySpark, execute-to-debug, NO structural gate. The agent writes pyspark.sql code and learns about defects only by running the job on the cluster (or hitting an eager-analysis error). pre-reg §3 Arm A.",
+
+  "base_model_id": "claude-opus-4-8",
+  "task_prompt_ref": "prompts/task_prompt.md@v1",
+  "max_iterations": 12,
+  "temperature": 0.0,
+  "top_p": 1.0,
+
+  "paradigm": "imperative_pyspark",
+  "dry_run_gate": false,
+  "safety_skill": false,
+  "skills": [],
+  "allowed_commands": ["python", "spark-submit"]
+}

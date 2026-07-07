@@ -1,0 +1,1125 @@
+{
+ "version": "3.0.0-corpus23",
+ "frozen_utc": "2026-06-24",
+ "description": "Frozen task corpus v3 for the safe-agent study (pre-reg \u00a74 + logged pre-data deviation; see DEVIATIONS). 22 ticket-style Spark data-engineering tasks across SIX substrates (orders / customer-CDC / multi-currency payments / FX-rate feed / trades / clickstream / emails). Each task carries a ticket `prompt` (business symptom, output contract pinned, identical across arms, no fix/API/defect-name leak -- see tests/test_prompt_no_leak.py), an a-priori `complexity_score` + `complexity_axes` (the H4 covariate, scored via harness/complexity.py), `defects_in_scope` (D1-D9 opportunities; gradable taxonomy = D1,D2,D4-D8, with D3/D9 narrated as future-work), `oracles` (output-oracle quantifiers for D2/D6/D7/D8) and, for cross-stage/HC/UDF tasks, `invariants` graded by quantify_hc / quantify_udf. Aggressive complexity gradient: Low 7 / Med 8 / High 7.",
+ "corpus_status": {
+  "locked_n_tasks": 23,
+  "prereg_target_n_tasks": 12,
+  "below_target": false,
+  "complexity_distribution": {
+   "Med": 8,
+   "High": 8,
+   "Low": 7
+  },
+  "resolution": "Corpus v3 pre-data revision (DEVIATIONS D-CORPUS-V3): extends the v2 15-task corpus to 22 via ticket reframe (\u00a71), aggressive complexity gradient (\u00a72/3), 4 new pattern tasks + 1 UDF task + 2 high-complexity platform-in-miniature tasks (\u00a75/6/7), and elevation of p2/p10/p13/p14 into High via cross-stage reconciliation + idempotent MERGE. Every D1-D9 class exhibited by >=5 tasks (coverage_matrix)."
+ },
+ "substrates": {
+  "orders": {
+   "generator": "infra/gen_messy_orders.py",
+   "reference_seed": 42,
+   "quantifiers": {
+    "D2": "quantify.d2",
+    "D6": "quantify.d6",
+    "D7": "quantify.d7",
+    "D8": "quantify.d8",
+    "D8_nested": "quantify.d8_nested"
+   }
+  },
+  "cdc": {
+   "generator": "infra/gen_customers_cdc.py",
+   "reference_seed": 7,
+   "quantifiers": {
+    "D6": "quantify_ext.cdc_d6"
+   }
+  },
+  "payments": {
+   "generator": "infra/gen_payments.py",
+   "reference_seed": 42,
+   "quantifiers": {
+    "D7": "quantify_ext.pay_d7",
+    "D8": "quantify_ext.pay_d8",
+    "pay_daily_usd": "quantify_hc.pay_daily_usd"
+   }
+  },
+  "emails": {
+   "generator": "infra/gen_emails.py",
+   "reference_seed": 42,
+   "quantifiers": {
+    "UDF": "quantify_udf.udf"
+   }
+  },
+  "trades": {
+   "generator": "infra/gen_trades.py",
+   "reference_seed": 42,
+   "aux_generator": "infra/gen_fx_rates_cdc.py",
+   "quantifiers": {
+    "positions": "quantify_hc.hc1_positions",
+    "reconcile": "quantify_hc.hc1_reconcile",
+    "no_overlap": "quantify_hc.scd2_no_overlap"
+   }
+  },
+  "clickstream": {
+   "generator": "infra/gen_clickstream.py",
+   "reference_seed": 42,
+   "aux_generator": "infra/gen_customers_cdc.py",
+   "quantifiers": {
+    "funnel": "quantify_hc.hc2_truth",
+    "accounting": "quantify_hc.hc2_event_accounting"
+   }
+  }
+ },
+ "coverage_matrix": {
+  "_note": "count of tasks presenting an opportunity for each class; every class >=5; D1,D2,D4-D8 are offline-graded (output oracle or HC/UDF invariant), D3/D9 narrated as future-work",
+  "D1": 20,
+  "D2": 8,
+  "D3": 8,
+  "D4": 9,
+  "D5": 7,
+  "D6": 10,
+  "D7": 9,
+  "D8": 11,
+  "D9": 7
+ },
+ "tasks": [
+  {
+   "id": "orders_silver_gold",
+   "title": "Kafka orders -> silver (clean/dedup/enrich) -> gold daily revenue rollup",
+   "domain": "medallion_streaming",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "sandbox-b/orders_pipeline/spark-pipeline.yml",
+   "defects_in_scope": [
+    "D1",
+    "D2",
+    "D3",
+    "D6",
+    "D7",
+    "D8"
+   ],
+   "oracles": {
+    "D2": "quantify.d2",
+    "D6": "quantify.d6",
+    "D7": "quantify.d7",
+    "D8": "quantify.d8"
+   },
+   "prompt": "Finance says the daily-revenue dashboard can't be trusted: some days look inflated, and a handful of rows show dates far in the future that can't be real. The raw `orders` event feed is known to be messy \u2014 the same order sometimes shows up more than once, some events carry a time that's clearly wrong, amounts are recorded inconsistently, and a few lines are outright corrupt. We need a trustworthy per-day revenue view and a clean one-row-per-order table the rest of the business can join against, and corrupt lines must not just vanish.\nOutput contract: table `gold_daily(event_date DATE [UTC calendar day], revenue, order_id, amount, category)`; table `silver_orders` keyed by `order_id` carrying `amount, category`.",
+   "output_contract": {
+    "table": "gold_daily",
+    "revenue_col": "revenue",
+    "date_col": "event_date",
+    "substrate": "orders",
+    "dedup_table": "silver_orders",
+    "key_col": "order_id",
+    "payload_cols": [
+     "amount",
+     "category"
+    ]
+   },
+   "complexity_score": 22,
+   "complexity_bin": "Med",
+   "complexity_axes": {
+    "A1": 2,
+    "A2": 1,
+    "A3": 2,
+    "A4": 1,
+    "A5": 2,
+    "A6": 1,
+    "A7": 1,
+    "A8": 0
+   },
+   "input_args": [
+    "--v3"
+   ],
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p1_medallion",
+   "title": "Bronze -> silver -> gold medallion ETL over messy orders",
+   "domain": "medallion_streaming",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "pipelines/p1_medallion/spark-pipeline.yml",
+   "defects_in_scope": [
+    "D1",
+    "D2",
+    "D4",
+    "D8"
+   ],
+   "oracles": {
+    "D2": "quantify.d2",
+    "D8": "quantify.d8"
+   },
+   "prompt": "Our revenue numbers look suspiciously low next to the order count \u2014 it's as if value is being dropped on the floor when the `orders` feed is loaded. The feed records the same fields inconsistently (amounts sometimes as numbers, sometimes as text; event times in more than one format). Build a layered pipeline (raw, validated, aggregated) that lands a daily revenue total reflecting every real order.\nOutput contract: table `gold_daily(event_date DATE [UTC calendar day], revenue)`.",
+   "output_contract": {
+    "table": "gold_daily",
+    "revenue_col": "revenue",
+    "date_col": "event_date",
+    "substrate": "orders"
+   },
+   "complexity_score": 16,
+   "complexity_bin": "Med",
+   "complexity_axes": {
+    "A1": 2,
+    "A2": 1,
+    "A3": 1,
+    "A4": 0,
+    "A5": 2,
+    "A6": 0,
+    "A7": 1,
+    "A8": 0
+   },
+   "input_args": [
+    "--v3"
+   ],
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p2_cdc",
+   "title": "Hand-rolled SCD Type 1 + Type 2 over a Kafka CDC stream (window functions)",
+   "domain": "cdc",
+   "substrate": "cdc",
+   "input": "infra/gen_customers_cdc.py",
+   "spec_ref": "pipelines/p2_cdc/spark-pipeline.yml",
+   "defects_in_scope": [
+    "D1",
+    "D4",
+    "D5",
+    "D6"
+   ],
+   "oracles": {
+    "D6": "quantify_ext.cdc_d6"
+   },
+   "prompt": "Customer master data is unreliable. Support sees one tier/region for a customer on the live profile screen while the audit team sees a different value in the change-history export \u2014 the two disagree \u2014 and after a nightly reload some customers show up twice. The `customers_cdc` feed delivers every insert, change, and removal for each customer, but the events arrive in a jumbled order. We need a current-state table that always reflects each customer's most recent real state, a full change-history table, and the two must agree with each other and with the source event log; running the same events again must not change the answer.\nOutput contract: table `customers_current` keyed by `customer_id` carrying `tier, region`; table `customers_history` (one row per version); current-vs-history and counts-vs-source must reconcile.",
+   "output_contract": {
+    "table": "customers_current",
+    "key_col": "customer_id",
+    "payload_cols": [
+     "tier",
+     "region"
+    ],
+    "substrate": "cdc"
+   },
+   "complexity_score": 34,
+   "complexity_bin": "High",
+   "complexity_axes": {
+    "A1": 3,
+    "A2": 2,
+    "A3": 2,
+    "A4": 1,
+    "A5": 1,
+    "A6": 2,
+    "A7": 3,
+    "A8": 0
+   },
+   "invariants": [
+    {
+     "name": "current_history_source_reconcile",
+     "oracle": "quantify_hc.cdc_current",
+     "description": "current state, history, and source event log reconcile"
+    },
+    {
+     "name": "idempotent_merge",
+     "oracle": "quantify_ext.cdc_d6",
+     "description": "reprocessing the same feed reproduces the same current/history"
+    }
+   ],
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p3_windows",
+   "title": "Event-time windowed revenue aggregation (1-hour windows x category)",
+   "domain": "windowed_aggregation",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "pipelines/p3_windows/spark-pipeline.yml",
+   "defects_in_scope": [
+    "D2",
+    "D3",
+    "D7",
+    "D9"
+   ],
+   "oracles": {
+    "D2": "quantify.d2",
+    "D7": "quantify.d7"
+   },
+   "prompt": "Product wants an hourly revenue trend per category, but today's hourly chart has spikes that don't match the daily totals and gaps where there should be activity. Build an hourly revenue breakdown per category over the `orders` feed whose buckets line up with real wall-clock hours and whose totals tie out to the daily revenue.\nOutput contract: table `gold_daily(event_date DATE [UTC calendar day], revenue)`.",
+   "output_contract": {
+    "table": "gold_daily",
+    "revenue_col": "revenue",
+    "date_col": "event_date",
+    "substrate": "orders"
+   },
+   "complexity_score": 7,
+   "complexity_bin": "Low",
+   "complexity_axes": {
+    "A1": 1,
+    "A2": 1,
+    "A3": 1,
+    "A4": 0,
+    "A5": 0,
+    "A6": 0,
+    "A7": 0,
+    "A8": 0
+   },
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p4_fanout",
+   "title": "One parsed orders stream fans out to two streaming tables",
+   "domain": "fanout_streaming",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "pipelines/p4_fanout/spark-pipeline.yml",
+   "defects_in_scope": [
+    "D1",
+    "D3",
+    "D4",
+    "D8",
+    "D9"
+   ],
+   "oracles": {
+    "D8": "quantify.d8"
+   },
+   "prompt": "Two dashboards that read the same `orders` feed \u2014 a per-merchant running total and a per-category breakdown \u2014 keep drifting apart, and merchants complain their totals are missing sales. Produce both views from the one feed so that neither one quietly loses rows.\nOutput contract: table `merchant_totals(revenue)`.",
+   "output_contract": {
+    "table": "merchant_totals",
+    "revenue_col": "revenue",
+    "substrate": "orders"
+   },
+   "complexity_score": 11,
+   "complexity_bin": "Low",
+   "complexity_axes": {
+    "A1": 2,
+    "A2": 1,
+    "A3": 1,
+    "A4": 2,
+    "A5": 0,
+    "A6": 0,
+    "A7": 0,
+    "A8": 0
+   },
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p5_mart",
+   "title": "Self-contained customer-segment mart from the CDC feed",
+   "domain": "mart_batch",
+   "substrate": "cdc",
+   "input": "infra/gen_customers_cdc.py",
+   "spec_ref": "pipelines/p5_mart/spark-pipeline.yml",
+   "defects_in_scope": [
+    "D1",
+    "D4"
+   ],
+   "oracles": {},
+   "prompt": "The analytics team needs a simple customer-segment count built straight from the `customers_cdc` feed: how many customers currently fall into each tier-and-region combination. It must reflect each customer's current real state and exclude customers who have been removed.\nOutput contract: table `customer_segments(tier, region, n)` \u2014 counts by current tier x region.",
+   "complexity_score": 7,
+   "complexity_bin": "Low",
+   "complexity_axes": {
+    "A1": 1,
+    "A2": 1,
+    "A3": 1,
+    "A4": 0,
+    "A5": 0,
+    "A6": 0,
+    "A7": 0,
+    "A8": 0
+   },
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p6_dedup_watermark",
+   "title": "Streaming dedup of orders WITH a watermark (bounded state)",
+   "domain": "dedup_streaming",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D3",
+    "D6",
+    "D9"
+   ],
+   "oracles": {
+    "D6": "quantify.d6"
+   },
+   "prompt": "During retries the `orders` feed redelivers the same order several times, which double-counts revenue. We need a clean stream with exactly one row per order, and it has to stay bounded in memory as volume grows so the job doesn't fall over at scale.\nOutput contract: table `silver_orders` keyed by `order_id` carrying `amount, category`.",
+   "output_contract": {
+    "table": "silver_orders",
+    "dedup_table": "silver_orders",
+    "key_col": "order_id",
+    "payload_cols": [
+     "amount",
+     "category"
+    ],
+    "substrate": "orders"
+   },
+   "complexity_score": 8,
+   "complexity_bin": "Low",
+   "complexity_axes": {
+    "A1": 1,
+    "A2": 2,
+    "A3": 0,
+    "A4": 0,
+    "A5": 0,
+    "A6": 0,
+    "A7": 0,
+    "A8": 0
+   },
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p7_late_data",
+   "title": "Late / out-of-order orders with allowed-lateness windows",
+   "domain": "late_data_streaming",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D2",
+    "D3",
+    "D7",
+    "D9"
+   ],
+   "oracles": {
+    "D2": "quantify.d2",
+    "D7": "quantify.d7"
+   },
+   "prompt": "Mobile clients sync hours after the fact, so order events often arrive well after they happened. The daily revenue report keeps shifting for days that should already be closed, and late sales land on the wrong day. Build a daily revenue aggregate where every order counts on the day it actually occurred, even when it shows up late.\nOutput contract: table `gold_daily(event_date DATE [UTC calendar day], revenue)`.",
+   "output_contract": {
+    "table": "gold_daily",
+    "revenue_col": "revenue",
+    "date_col": "event_date",
+    "substrate": "orders"
+   },
+   "complexity_score": 10,
+   "complexity_bin": "Low",
+   "complexity_axes": {
+    "A1": 1,
+    "A2": 2,
+    "A3": 1,
+    "A4": 0,
+    "A5": 0,
+    "A6": 0,
+    "A7": 0,
+    "A8": 0
+   },
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p8_currency_normalize",
+   "title": "Multi-currency payments normalized to USD (FX as-of UTC date)",
+   "domain": "currency_normalization",
+   "substrate": "payments",
+   "input": "infra/gen_payments.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D4",
+    "D7",
+    "D8"
+   ],
+   "oracles": {
+    "D7": "quantify_ext.pay_d7",
+    "D8": "quantify_ext.pay_d8"
+   },
+   "prompt": "Finance needs all payment revenue reported in USD per day, but the `payments` feed is multi-currency and the conversion is wrong: foreign value goes missing from the totals and some days are converted at the wrong rate. Convert every payment to USD using the rate that applied on the day the payment actually occurred, lose none of the value, and set aside payments whose currency we don't recognize.\nOutput contract: table `usd_daily(settlement_date DATE [UTC calendar day], usd_total)`.",
+   "output_contract": {
+    "table": "usd_daily",
+    "revenue_col": "usd_total",
+    "date_col": "settlement_date",
+    "substrate": "payments"
+   },
+   "complexity_score": 22,
+   "complexity_bin": "Med",
+   "complexity_axes": {
+    "A1": 2,
+    "A2": 1,
+    "A3": 2,
+    "A4": 1,
+    "A5": 2,
+    "A6": 0,
+    "A7": 2,
+    "A8": 0
+   },
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p9_enrich_join",
+   "title": "Stream-static enrichment join (orders x merchants) with unknown-key handling",
+   "domain": "enrichment_join",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D3",
+    "D4",
+    "D8"
+   ],
+   "oracles": {
+    "D8": "quantify.d8"
+   },
+   "prompt": "Orders get merchant attributes attached for reporting, but ever since a new merchant onboarded, the enriched revenue total dropped below the raw total \u2014 some orders disappear during enrichment. Attach merchant attributes to each order so that every order survives (including ones whose merchant isn't in our directory yet) and the enriched total still ties to the source.\nOutput contract: table `enriched_totals(revenue)`.",
+   "output_contract": {
+    "table": "enriched_totals",
+    "revenue_col": "revenue",
+    "substrate": "orders"
+   },
+   "complexity_score": 9,
+   "complexity_bin": "Low",
+   "complexity_axes": {
+    "A1": 1,
+    "A2": 0,
+    "A3": 1,
+    "A4": 0,
+    "A5": 1,
+    "A6": 0,
+    "A7": 1,
+    "A8": 0
+   },
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p10_scd2",
+   "title": "Full SCD Type 2 with effective_from/to and a no-overlap invariant",
+   "domain": "cdc_scd2",
+   "substrate": "cdc",
+   "input": "infra/gen_customers_cdc.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D4",
+    "D5",
+    "D6"
+   ],
+   "oracles": {
+    "D6": "quantify_ext.cdc_d6"
+   },
+   "prompt": "Compliance needs a complete, historically-accurate record of every customer's tier and region: for any past date we must be able to state exactly what a customer's attributes were at that moment. Today the history has overlapping or contradictory periods and the 'current' record sometimes shows a stale value. Build the versioned history (each version stamped with the period it was valid and a current flag) plus a current-state table; a customer's periods must never overlap, the current record must reflect that customer's latest real change, and reprocessing the same feed must reproduce the same history.\nOutput contract: table `customers_current` keyed by `customer_id` carrying `tier, region`; table `customers_history` with non-overlapping validity periods that reconcile to the source.",
+   "output_contract": {
+    "table": "customers_current",
+    "key_col": "customer_id",
+    "payload_cols": [
+     "tier",
+     "region"
+    ],
+    "substrate": "cdc"
+   },
+   "complexity_score": 35,
+   "complexity_bin": "High",
+   "complexity_axes": {
+    "A1": 3,
+    "A2": 3,
+    "A3": 1,
+    "A4": 1,
+    "A5": 1,
+    "A6": 2,
+    "A7": 3,
+    "A8": 0
+   },
+   "invariants": [
+    {
+     "name": "no_overlap_reconcile",
+     "oracle": "quantify_hc.cdc_current",
+     "description": "history versions do not overlap and reconcile to source; current is latest"
+    },
+    {
+     "name": "idempotent_merge",
+     "oracle": "quantify_ext.cdc_d6",
+     "description": "reprocessing reproduces the same history (MERGE-idempotent)"
+    }
+   ],
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p11_schema_evolution",
+   "title": "Schema-evolution-tolerant ingest with backfilled defaults",
+   "domain": "schema_evolution",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D2",
+    "D5",
+    "D8"
+   ],
+   "oracles": {
+    "D2": "quantify.d2",
+    "D8": "quantify.d8"
+   },
+   "prompt": "Upstream changed the `orders` payload without warning: some records are missing fields, and the amount now sometimes arrives as a list of line items instead of a single number. Our loader either rejects these records or under-counts revenue. Ingest the feed tolerantly so both the older and newer record shapes load, missing fields get sensible defaults, and the revenue total stays complete across the format change.\nOutput contract: table `gold_daily(event_date DATE [UTC calendar day], revenue)`.",
+   "output_contract": {
+    "table": "gold_daily",
+    "revenue_col": "revenue",
+    "date_col": "event_date",
+    "substrate": "orders"
+   },
+   "complexity_score": 21,
+   "complexity_bin": "Med",
+   "complexity_axes": {
+    "A1": 2,
+    "A2": 1,
+    "A3": 1,
+    "A4": 0,
+    "A5": 3,
+    "A6": 0,
+    "A7": 2,
+    "A8": 0
+   },
+   "input_args": [
+    "--v3"
+   ],
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p12_quarantine_dlq",
+   "title": "Explicit dead-letter quarantine of malformed orders",
+   "domain": "quarantine_dlq",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D2",
+    "D6",
+    "D8"
+   ],
+   "oracles": {
+    "D2": "quantify.d2",
+    "D6": "quantify.d6",
+    "D8": "quantify.d8"
+   },
+   "prompt": "Auditors require that no order is ever silently discarded: every record we can't process must be retained with a reason, and the kept records plus the rejected records must add back up to exactly what we received. Build the daily revenue rollup plus a holding area for bad records, and be able to prove nothing was lost.\nOutput contract: table `gold_daily(event_date DATE [UTC calendar day], revenue, order_id, amount, category)`; table `clean_orders` keyed by `order_id` carrying `amount, category`; a rejected-records table with a reason column; kept + rejected must reconcile to the source count.",
+   "output_contract": {
+    "table": "gold_daily",
+    "revenue_col": "revenue",
+    "date_col": "event_date",
+    "dedup_table": "clean_orders",
+    "key_col": "order_id",
+    "payload_cols": [
+     "amount",
+     "category"
+    ],
+    "substrate": "orders"
+   },
+   "complexity_score": 23,
+   "complexity_bin": "Med",
+   "complexity_axes": {
+    "A1": 2,
+    "A2": 1,
+    "A3": 1,
+    "A4": 2,
+    "A5": 3,
+    "A6": 0,
+    "A7": 2,
+    "A8": 0
+   },
+   "input_args": [
+    "--v3"
+   ],
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p13_cdc_windowed",
+   "title": "Windowed change-rate aggregation over the CDC stream",
+   "domain": "cdc_windowed",
+   "substrate": "cdc",
+   "input": "infra/gen_customers_cdc.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D3",
+    "D6",
+    "D9"
+   ],
+   "oracles": {
+    "D6": "quantify_ext.cdc_d6"
+   },
+   "prompt": "Operations wants an hourly view of customer-change activity per region \u2014 how many records were added, changed, or removed each hour \u2014 and it has to agree with the current customer master. Right now the activity counts don't add up to the number of customers we actually have, and the current state derived by this job disagrees with the master. Build the hourly activity view and a reconciled current-state table; reprocessing must not change the totals.\nOutput contract: table `customers_current` keyed by `customer_id` carrying `tier, region`; an activity-by-hour-and-region table that reconciles to `customers_current` and to the source.",
+   "output_contract": {
+    "table": "customers_current",
+    "key_col": "customer_id",
+    "payload_cols": [
+     "tier",
+     "region"
+    ],
+    "substrate": "cdc"
+   },
+   "complexity_score": 32,
+   "complexity_bin": "High",
+   "complexity_axes": {
+    "A1": 3,
+    "A2": 2,
+    "A3": 1,
+    "A4": 1,
+    "A5": 1,
+    "A6": 2,
+    "A7": 3,
+    "A8": 0
+   },
+   "invariants": [
+    {
+     "name": "activity_reconciles_to_current",
+     "oracle": "quantify_hc.cdc_current",
+     "description": "windowed insert/update/delete activity reconciles to the current master and source count"
+    },
+    {
+     "name": "idempotent_merge",
+     "oracle": "quantify_ext.cdc_d6",
+     "description": "reprocessing does not change the totals"
+    }
+   ],
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "p14_fx_settlement",
+   "title": "Daily FX settlement totals per currency with UTC day-close",
+   "domain": "fx_settlement",
+   "substrate": "payments",
+   "input": "infra/gen_payments.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D5",
+    "D7",
+    "D8",
+    "D9"
+   ],
+   "oracles": {
+    "D7": "quantify_ext.pay_d7",
+    "D8": "quantify_ext.pay_d8"
+   },
+   "prompt": "Treasury settles daily and our settlement file must match the bank's: per day, the total settled value in USD plus a per-currency breakdown, with USD converted at the rate effective that day. The bank sends an independent settlements feed and our numbers currently don't fully line up against it \u2014 some days are off and a few currencies are missing entirely. Produce the daily settlement totals and reconcile them line by line against the external settlements feed; reprocessing a day must reproduce the same totals.\nOutput contract: table `settlement_daily(settlement_date DATE [UTC calendar day], usd_total)`; a per-currency breakdown and a reconciliation against the external settlements feed.",
+   "output_contract": {
+    "table": "settlement_daily",
+    "revenue_col": "usd_total",
+    "date_col": "settlement_date",
+    "substrate": "payments"
+   },
+   "complexity_score": 32,
+   "complexity_bin": "High",
+   "complexity_axes": {
+    "A1": 3,
+    "A2": 1,
+    "A3": 3,
+    "A4": 1,
+    "A5": 2,
+    "A6": 1,
+    "A7": 3,
+    "A8": 0
+   },
+   "invariants": [
+    {
+     "name": "full_outer_reconcile_external",
+     "oracle": "quantify_hc.pay_daily_usd",
+     "description": "daily USD totals reconcile line-by-line to the external settlements truth (full-outer)"
+    }
+   ],
+   "graded_by": "output_oracle"
+  },
+  {
+   "id": "new_merge_upsert",
+   "title": "Idempotent MERGE/upsert of orders into a keyed silver table",
+   "domain": "idempotent_upsert",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "input_args": [
+    "--v3"
+   ],
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D5",
+    "D6"
+   ],
+   "oracles": {
+    "D6": "quantify.d6"
+   },
+   "graded_by": "output_oracle",
+   "complexity_axes": {
+    "A1": 1,
+    "A2": 1,
+    "A3": 0,
+    "A4": 0,
+    "A5": 1,
+    "A6": 3,
+    "A7": 1,
+    "A8": 0
+   },
+   "prompt": "Our nightly load re-reads the last few hours of the `orders` feed to catch stragglers, but every run the per-order table grows -- the same orders get written again and totals creep up. The load has to be safe to re-run: the keyed order table must end up with exactly one row per order no matter how many overlapping batches are replayed, and that row must reflect the order's real values.\nOutput contract: table `silver_orders` keyed by `order_id` carrying `amount, category` -- exactly one row per `order_id`, stable across re-runs.",
+   "output_contract": {
+    "table": "silver_orders",
+    "dedup_table": "silver_orders",
+    "key_col": "order_id",
+    "payload_cols": [
+     "amount",
+     "category"
+    ],
+    "substrate": "orders"
+   },
+   "invariants": [
+    {
+     "name": "idempotent_replay",
+     "oracle": "quantify.d6",
+     "description": "re-running overlapping batches leaves exactly one row per order_id; survivor is the latest real value"
+    }
+   ],
+   "complexity_score": 19,
+   "complexity_bin": "Med"
+  },
+  {
+   "id": "new_stream_stream_join",
+   "title": "Stream-stream temporal join of payments to a live FX-rate feed",
+   "domain": "stream_stream_join",
+   "substrate": "payments",
+   "input": "infra/gen_payments.py",
+   "aux_inputs": [
+    "infra/gen_fx_rates_cdc.py"
+   ],
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D3",
+    "D7",
+    "D8",
+    "D9"
+   ],
+   "oracles": {
+    "D7": "quantify_ext.pay_d7",
+    "D8": "quantify_ext.pay_d8"
+   },
+   "graded_by": "output_oracle",
+   "complexity_axes": {
+    "A1": 2,
+    "A2": 2,
+    "A3": 2,
+    "A4": 0,
+    "A5": 1,
+    "A6": 0,
+    "A7": 2,
+    "A8": 0
+   },
+   "prompt": "Finance wants every payment shown in USD, but the exchange rates arrive on their own live feed that updates through the day, separately from the payments. Today payments are converted with whatever rate happens to be loaded, so the USD value is often taken from a rate that didn't exist yet when the payment happened. Join each payment to the rate that was in effect at the moment the payment occurred, carry the rate's timestamp through for audit, and report USD per day -- without losing foreign value and without using a rate stamped after the payment.\nOutput contract: table `usd_daily(settlement_date DATE [UTC calendar day], usd_total)`; each enriched payment must also carry the as-applied rate timestamp.",
+   "output_contract": {
+    "table": "usd_daily",
+    "revenue_col": "usd_total",
+    "date_col": "settlement_date",
+    "substrate": "payments"
+   },
+   "invariants": [
+    {
+     "name": "as_of_rate_not_future",
+     "oracle": "quantify_hc.pay_daily_usd",
+     "description": "each payment joins the latest rate event at-or-before its event time; no future rate; daily USD ties to truth"
+    }
+   ],
+   "complexity_score": 22,
+   "complexity_bin": "Med"
+  },
+  {
+   "id": "new_scd2_as_of_join",
+   "title": "Point-in-time as-of join of payments to the SCD2 FX-rate dimension",
+   "domain": "as_of_scd2_join",
+   "substrate": "payments",
+   "input": "infra/gen_payments.py",
+   "aux_inputs": [
+    "infra/gen_fx_rates_cdc.py"
+   ],
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D4",
+    "D7"
+   ],
+   "oracles": {
+    "D7": "quantify_ext.pay_d7"
+   },
+   "graded_by": "output_oracle",
+   "complexity_axes": {
+    "A1": 2,
+    "A2": 3,
+    "A3": 2,
+    "A4": 0,
+    "A5": 1,
+    "A6": 1,
+    "A7": 3,
+    "A8": 0
+   },
+   "prompt": "Auditors are challenging our historical USD figures: when a rate is corrected after the fact, our restated reports quietly re-value already-booked payments with the corrected rate, which isn't allowed. Each payment must be valued using the rate that was officially in effect on its own date -- the version that applied then, not a later correction -- and the daily USD totals must be reproducible from that rule.\nOutput contract: table `usd_daily(settlement_date DATE [UTC calendar day], usd_total)` valued at the rate version effective on each payment's own date.",
+   "output_contract": {
+    "table": "usd_daily",
+    "revenue_col": "usd_total",
+    "date_col": "settlement_date",
+    "substrate": "payments"
+   },
+   "invariants": [
+    {
+     "name": "scd2_no_overlap",
+     "oracle": "quantify_hc.scd2_no_overlap",
+     "description": "rate-version validity periods do not overlap per currency"
+    },
+    {
+     "name": "as_of_version",
+     "oracle": "quantify_hc.pay_daily_usd",
+     "description": "payment valued at the rate VERSION effective on its own date, not a later correction"
+    }
+   ],
+   "complexity_score": 31,
+   "complexity_bin": "High"
+  },
+  {
+   "id": "new_cdc_tombstone",
+   "title": "CDC tombstones / hard-deletes remove customers from current state",
+   "domain": "cdc_tombstone",
+   "substrate": "cdc",
+   "input": "infra/gen_customers_cdc.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D6"
+   ],
+   "oracles": {
+    "D6": "quantify_ext.cdc_d6"
+   },
+   "graded_by": "output_oracle",
+   "complexity_axes": {
+    "A1": 2,
+    "A2": 2,
+    "A3": 0,
+    "A4": 1,
+    "A5": 1,
+    "A6": 2,
+    "A7": 1,
+    "A8": 0
+   },
+   "prompt": "When a customer is deleted upstream the deletion is published as a change event with an empty record. Our customer table is keeping these deleted customers around -- they still show up in segments and mailings, which is a compliance problem. Process the change feed so a deletion actually removes the customer from the current table, while genuine attribute changes still update it.\nOutput contract: table `customers_current` keyed by `customer_id` carrying `tier, region` -- excludes every deleted customer and reflects each surviving customer's latest real values.",
+   "output_contract": {
+    "table": "customers_current",
+    "key_col": "customer_id",
+    "payload_cols": [
+     "tier",
+     "region"
+    ],
+    "substrate": "cdc"
+   },
+   "invariants": [
+    {
+     "name": "tombstone_removes",
+     "oracle": "quantify_hc.cdc_current",
+     "description": "a null-payload op=D event removes the customer from current state"
+    }
+   ],
+   "complexity_score": 22,
+   "complexity_bin": "Med"
+  },
+  {
+   "id": "new_udf_classifier",
+   "title": "Email-subject classifier UDF (imperative + SDP/Connect)",
+   "domain": "udf_classifier",
+   "substrate": "emails",
+   "input": "infra/gen_emails.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1"
+   ],
+   "oracles": {},
+   "graded_by": "invariants",
+   "complexity_axes": {
+    "A1": 1,
+    "A2": 0,
+    "A3": 0,
+    "A4": 0,
+    "A5": 1,
+    "A6": 0,
+    "A7": 0,
+    "A8": 3
+   },
+   "prompt": "Support is drowning because inbound email isn't being routed: an automated triage is supposed to tag each email's subject as urgent, spam, routing, or info, but messages with blank subjects and non-English subjects get tagged wrong and land in the wrong queue. Build the subject tagger and apply it to the feed so every email gets the correct tag, including the blank and non-English ones.\nOutput contract: table `classified_emails(email_id, subject, category)` where `category` is one of urgent / spam / routing / info.",
+   "output_contract": {
+    "table": "classified_emails",
+    "key_col": "email_id",
+    "payload_cols": [
+     "subject",
+     "category"
+    ],
+    "substrate": "emails"
+   },
+   "invariants": [
+    {
+     "name": "udf_misclassification",
+     "oracle": "quantify_udf.udf",
+     "description": "null/empty subject -> routing, non-ASCII urgency -> urgent; counts silent misclassifications vs ground truth"
+    }
+   ],
+   "notes": "UDF must register & run in BOTH imperative (spark.udf.register) and SDP/Connect; optional pandas_udf variant.",
+   "complexity_score": 7,
+   "complexity_bin": "Low"
+  },
+  {
+   "id": "HC1_fx_trade_ledger",
+   "title": "HC-1: multi-stage FX trade ledger (SCD2 rates -> as-of USD -> MERGE positions)",
+   "domain": "hc_fx_trade_ledger",
+   "substrate": "trades",
+   "input": "infra/gen_trades.py",
+   "aux_inputs": [
+    "infra/gen_fx_rates_cdc.py"
+   ],
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D2",
+    "D4",
+    "D5",
+    "D7"
+   ],
+   "oracles": {
+    "positions": "quantify_hc.hc1_positions",
+    "reconcile": "quantify_hc.hc1_reconcile",
+    "no_overlap": "quantify_hc.scd2_no_overlap"
+   },
+   "graded_by": "invariants",
+   "complexity_axes": {
+    "A1": 3,
+    "A2": 2,
+    "A3": 3,
+    "A4": 1,
+    "A5": 1,
+    "A6": 2,
+    "A7": 3,
+    "A8": 0
+   },
+   "prompt": "Treasury can't close the books: the trade ledger, the USD valuation, and the per-currency position report don't tie out to one another. Trades come in many currencies and the FX rates arrive on a separate change feed that occasionally gets corrected. We need each trade valued in USD at the rate in effect when it was traded, a position report totalling USD exposure per currency, and every layer to reconcile -- the valuation must tie to trades times rates, and the position report must tie to the valuation. Re-running must not change the positions.\nOutput contract: table `gold_trades` (each trade with a non-null `amount_usd` at the trade-time rate); table `mart_positions(currency, position_usd)` whose per-currency totals tie to `gold_trades`; the rate dimension must have no overlapping validity periods.",
+   "output_contract": {
+    "table": "mart_positions",
+    "gold_table": "gold_trades",
+    "key_col": "currency",
+    "value_col": "position_usd",
+    "usd_col": "amount_usd",
+    "substrate": "trades"
+   },
+   "invariants": [
+    {
+     "name": "gold_ties_to_trades",
+     "oracle": "quantify_hc.hc1_positions",
+     "description": "sum(amount_usd) per currency in gold_trades equals trades x as-of rate (truth)"
+    },
+    {
+     "name": "mart_ties_to_gold",
+     "oracle": "quantify_hc.hc1_reconcile",
+     "description": "mart_positions per-currency total reconciles to gold_trades"
+    },
+    {
+     "name": "scd2_no_overlap",
+     "oracle": "quantify_hc.scd2_no_overlap",
+     "description": "rate-dimension validity periods do not overlap per currency"
+    }
+   ],
+   "complexity_score": 36,
+   "complexity_bin": "High"
+  },
+  {
+   "id": "HC2_session_funnel",
+   "title": "HC-2: streaming e-commerce session funnel (sessionize -> funnel + DLQ)",
+   "domain": "hc_session_funnel",
+   "substrate": "clickstream",
+   "input": "infra/gen_clickstream.py",
+   "aux_inputs": [
+    "infra/gen_customers_cdc.py"
+   ],
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D2",
+    "D6",
+    "D8"
+   ],
+   "oracles": {
+    "funnel": "quantify_hc.hc2_truth",
+    "accounting": "quantify_hc.hc2_event_accounting"
+   },
+   "graded_by": "invariants",
+   "complexity_axes": {
+    "A1": 3,
+    "A2": 3,
+    "A3": 1,
+    "A4": 1,
+    "A5": 2,
+    "A6": 0,
+    "A7": 3,
+    "A8": 0
+   },
+   "prompt": "Growth needs a trustworthy conversion funnel, but the current one is unreliable: clicks that arrive late get dropped, a user's activity is sometimes split into the wrong number of visits, and the funnel counts don't match the number of real users. Group each user's clickstream into visits (a new visit begins after 30 minutes of inactivity), enrich each event with the user's current profile, and produce a funnel of how many distinct users reached each stage -- view, cart, checkout, purchase. No click may be dropped or counted twice; anything unparseable goes to a holding area.\nOutput contract: table `silver_sessions` (each clean event assigned to a user visit, late events included); table `gold_funnel(stage, users)` with distinct-user counts per stage; clean + held-aside must reconcile to the source count.",
+   "output_contract": {
+    "table": "gold_funnel",
+    "sessions_table": "silver_sessions",
+    "stage_col": "stage",
+    "users_col": "users",
+    "substrate": "clickstream"
+   },
+   "invariants": [
+    {
+     "name": "no_event_lost",
+     "oracle": "quantify_hc.hc2_event_accounting",
+     "description": "clean + DLQ == source; no click dropped or double-counted"
+    },
+    {
+     "name": "funnel_unique_users",
+     "oracle": "quantify_hc.hc2_truth",
+     "description": "distinct-user funnel counts match the 30-min-inactivity sessionization truth"
+    }
+   ],
+   "complexity_score": 31,
+   "complexity_bin": "High"
+  },
+  {
+   "id": "new_lineitem_reconcile",
+   "title": "Line-item order-revenue mart with dedup and cross-stage reconciliation",
+   "domain": "lineitem_reconcile",
+   "substrate": "orders",
+   "input": "infra/gen_messy_orders.py",
+   "spec_ref": "agent-authored",
+   "defects_in_scope": [
+    "D1",
+    "D5",
+    "D6",
+    "D7",
+    "D8"
+   ],
+   "oracles": {
+    "D6": "quantify.d6",
+    "D7": "quantify.d7",
+    "D8": "quantify.d8"
+   },
+   "prompt": "Finance is disputing our daily order revenue. Two problems keep surfacing: some orders are itemized \u2014 a list of line items, each with its own quantity and price \u2014 and our headline revenue for those days comes in low; and when an order is re-sent it lands in the numbers twice on some days and vanishes on others, so the same day totals differently each time we reprocess. We need daily revenue we can trust: every order counted once, itemized orders valued at their true line-item total, amounts and dates handled consistently, and the figures must tie out \u2014 the published daily total must equal the revenue of the orders we actually kept, and every order we received must be either counted or set aside for review with a reason, never silently lost. Reprocessing a day must reproduce the same totals.\nOutput contract: table `gold_daily(event_date DATE [UTC calendar day], revenue, order_id, amount, category)`; table `silver_orders` keyed by `order_id` carrying `amount, category`; a rejected-records table with a reason column; the kept plus rejected records must reconcile to what was received, and the daily revenue must tie to the kept orders' line-item totals.",
+   "output_contract": {
+    "table": "gold_daily",
+    "revenue_col": "revenue",
+    "date_col": "event_date",
+    "substrate": "orders",
+    "dedup_table": "silver_orders",
+    "key_col": "order_id",
+    "payload_cols": [
+     "amount",
+     "category"
+    ]
+   },
+   "complexity_score": 36,
+   "complexity_bin": "High",
+   "complexity_axes": {
+    "A1": 3,
+    "A2": 2,
+    "A3": 2,
+    "A4": 2,
+    "A5": 3,
+    "A6": 1,
+    "A7": 3,
+    "A8": 0
+   },
+   "input_args": [
+    "--v3"
+   ],
+   "graded_by": "output_oracle"
+  }
+ ]
+}

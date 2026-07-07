@@ -1,0 +1,49 @@
+{
+  "id": "new_lineitem_reconcile",
+  "title": "Line-item order-revenue mart with dedup and cross-stage reconciliation",
+  "domain": "lineitem_reconcile",
+  "substrate": "orders",
+  "input": "infra/gen_messy_orders.py",
+  "spec_ref": "agent-authored",
+  "defects_in_scope": [
+    "D1",
+    "D5",
+    "D6",
+    "D7",
+    "D8"
+  ],
+  "oracles": {
+    "D6": "quantify.d6",
+    "D7": "quantify.d7",
+    "D8": "quantify.d8"
+  },
+  "prompt": "Finance is disputing our daily order revenue. Two problems keep surfacing: some orders are itemized \u2014 a list of line items, each with its own quantity and price \u2014 and our headline revenue for those days comes in low; and when an order is re-sent it lands in the numbers twice on some days and vanishes on others, so the same day totals differently each time we reprocess. We need daily revenue we can trust: every order counted once, itemized orders valued at their true line-item total, amounts and dates handled consistently, and the figures must tie out \u2014 the published daily total must equal the revenue of the orders we actually kept, and every order we received must be either counted or set aside for review with a reason, never silently lost. Reprocessing a day must reproduce the same totals.\nOutput contract: table `gold_daily(event_date DATE [UTC calendar day], revenue, order_id, amount, category)`; table `silver_orders` keyed by `order_id` carrying `amount, category`; a rejected-records table with a reason column; the kept plus rejected records must reconcile to what was received, and the daily revenue must tie to the kept orders' line-item totals.",
+  "output_contract": {
+    "table": "gold_daily",
+    "revenue_col": "revenue",
+    "date_col": "event_date",
+    "substrate": "orders",
+    "dedup_table": "silver_orders",
+    "key_col": "order_id",
+    "payload_cols": [
+      "amount",
+      "category"
+    ]
+  },
+  "complexity_score": 36,
+  "complexity_bin": "High",
+  "complexity_axes": {
+    "A1": 3,
+    "A2": 2,
+    "A3": 2,
+    "A4": 2,
+    "A5": 3,
+    "A6": 1,
+    "A7": 3,
+    "A8": 0
+  },
+  "input_args": [
+    "--v3"
+  ],
+  "graded_by": "output_oracle"
+}

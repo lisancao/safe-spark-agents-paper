@@ -1,0 +1,67 @@
+[Unit]
+Description=Apache Spark Connect server (OSS Spark 4.1.1, JDK 17)
+Documentation=file:///opt/safe-spark-agents/deploy/connect-server/README.md
+# gRPC server; bring it up after the network is routable.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+# Dedicated, unprivileged service account. Create it in the AWS user-data:
+#   useradd --system --home-dir /srv/spark --shell /usr/sbin/nologin spark
+User=spark
+Group=spark
+
+# --- environment ----------------------------------------------------------------------------
+# Generic fallback defaults ONLY. The real deployment values (JAVA_HOME — Amazon Corretto on the
+# AWS AMI, not the Debian path — plus SPARK_HOME, port, warehouse, driver-memory) come from
+# /etc/spark-connect.env, written by the AWS IaC. EnvironmentFile is read AFTER Environment=, so
+# the file's values win. It is prefixed with '-' so the unit still starts for local/manual use
+# when the file is absent (the launcher then derives SPARK_HOME from pyspark and JAVA_HOME from
+# the system java). Do NOT hardcode a distro-specific JAVA_HOME here.
+Environment=SPARK_HOME=/opt/spark
+Environment=SPARK_CONF_DIR=/opt/safe-spark-agents/deploy/connect-server/conf
+Environment=SPARK_CONNECT_PORT=15002
+Environment=SPARK_CONNECT_WAREHOUSE_DIR=/srv/spark/warehouse
+Environment=SPARK_CONNECT_DRIVER_MEMORY=20g
+Environment=SPARK_CONNECT_PID_FILE=/srv/spark/run/spark-connect.pid
+Environment=SPARK_CONNECT_LOG_FILE=/srv/spark/logs/spark-connect.log
+# Production source of JAVA_HOME/SPARK_HOME/port/warehouse/driver-memory (and, if you put it
+# there, SPARK_CONNECT_AUTHENTICATE_TOKEN). Optional ('-') so dev runs work without it.
+EnvironmentFile=-/etc/spark-connect.env
+
+# --- launch -----------------------------------------------------------------------------------
+# Type=notify: the launcher (a) starts the JVM as a child, (b) runs the readiness loop, (c) calls
+# systemd-notify --ready ONLY once the gRPC port accepts TCP, (d) waits on the child. So systemd
+# considers the unit "started" only after the port is listening — not the instant exec succeeds —
+# while Restart=always still supervises the real JVM (it shares this unit's cgroup, and the
+# launcher exits exactly when the JVM does). NotifyAccess=all lets the systemd-notify helper
+# (a child of the launcher, not the MainPID) deliver the readiness message.
+Type=notify
+NotifyAccess=all
+ExecStart=/opt/safe-spark-agents/scripts/start-connect-server.sh --foreground
+ExecStop=/opt/safe-spark-agents/scripts/stop-connect-server.sh
+
+# --- supervision ----------------------------------------------------------------------------
+Restart=always
+RestartSec=10
+# Must exceed the launcher's readiness budget (SPARK_CONNECT_READY_TIMEOUT, default 90s) so a
+# slow-but-healthy boot is not killed before it can signal readiness.
+TimeoutStartSec=150
+TimeoutStopSec=45
+
+# --- logging: everything to the journal -----------------------------------------------------
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=spark-connect
+
+# --- filesystem / hardening -----------------------------------------------------------------
+# The service owns /srv/spark (warehouse, run, logs). user-data should chown it to spark:spark.
+ReadWritePaths=/srv/spark
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

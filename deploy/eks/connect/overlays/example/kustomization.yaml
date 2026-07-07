@@ -1,0 +1,49 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Everything environment-specific lives in THIS overlay; the base is reused verbatim. All REPLACE-*
+# values come from the sibling PRs' outputs (see ../../README.md → "How this references #3/#5/#6/#8").
+
+# MUST equal terraform `spark_namespace` (IRSA `sub` condition) — see namespace.yaml.
+namespace: spark
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+# Point the Connect-server/executor image at the real registry/tag (PR #6, pushed to your ECR).
+images:
+  - name: spark-connect-iceberg
+    newName: ${ECR_REGISTRY}/ssa-spark/spark-connect
+    newTag: "4.1.2-iceberg1.11.0"
+  # Pin/mirror the sidecar + render images for air-gapped registries if needed:
+  # - { name: envoyproxy/envoy, newName: <mirror>/envoyproxy/envoy, newTag: v1.31.5 }
+  # - { name: busybox, newName: <mirror>/busybox, newTag: "1.36" }
+
+patches:
+  # 1. IRSA role ARN on the Spark ServiceAccount (PR #5 output `irsa_spark.role_arn`).
+  - target:
+      kind: ServiceAccount
+      name: spark
+    patch: |
+      - op: replace
+        path: /metadata/annotations/eks.amazonaws.com~1role-arn
+        value: arn:aws:iam::${AWS_ACCOUNT_ID}:role/ssa-spark-irsa-spark
+
+  # 2. Warehouse root + the executor image string (the SECOND place the image must be set — kept
+  #    in lockstep with the `images:` block above). Bucket from PR #5 output `warehouse_bucket`.
+  - target:
+      kind: ConfigMap
+      name: spark-connect-env
+    patch: |
+      - op: replace
+        path: /data/WAREHOUSE
+        value: s3a://${WAREHOUSE_BUCKET}/warehouse
+      - op: replace
+        path: /data/SPARK_KUBERNETES_CONTAINER_IMAGE
+        value: ${ECR_REGISTRY}/ssa-spark/spark-connect:4.1.2-iceberg1.11.0
+      # Iceberg JDBC catalog DB on the existing RDS Postgres instance (SEPARATE database from the
+      # HMS schema). User/password come from the spark-iceberg-jdbc Secret, not here.
+      - op: replace
+        path: /data/ICEBERG_JDBC_URL
+        value: jdbc:postgresql://${RDS_ENDPOINT}:5432/iceberg_catalog

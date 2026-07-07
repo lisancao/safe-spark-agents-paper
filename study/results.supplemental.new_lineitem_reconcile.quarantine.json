@@ -1,0 +1,19 @@
+{
+  "generated_utc": "2026-07-02T16:33:48Z",
+  "backend": "local",
+  "git_sha": "ca48c8c0521f5589fe903127bf710584bbe10feb",
+  "breaker_constants": {
+    "global_harness_fault_limit": 3,
+    "per_arm_harness_fault_limit": 1,
+    "per_bin_harness_fault_limit": 1,
+    "retry_delay_s": 5.0
+  },
+  "counters": {
+    "global": 0,
+    "per_arm": {},
+    "per_bin": {},
+    "n_quarantined": 0
+  },
+  "n_quarantined": 0,
+  "cells": []
+}

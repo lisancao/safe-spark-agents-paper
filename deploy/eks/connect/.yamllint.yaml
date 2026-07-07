@@ -1,0 +1,18 @@
+# Lint rules for the kustomize manifests in this directory. Pragmatic for k8s YAML: long lines are
+# unavoidable (ARNs, image refs, annotation keys), and document-start markers are noise here.
+extends: default
+rules:
+  line-length:
+    max: 160
+    level: warning
+  document-start: disable
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  truthy:
+    check-keys: false
+  braces:
+    max-spaces-inside: 1
+  indentation:
+    spaces: consistent
+    indent-sequences: consistent

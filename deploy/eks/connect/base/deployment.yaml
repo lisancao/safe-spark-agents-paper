@@ -1,0 +1,331 @@
+# =============================================================================================
+# Spark Connect server — the client-mode DRIVER pod, fronted by an Envoy mTLS sidecar.
+# =============================================================================================
+# One pod, two containers + one init:
+#
+#   initContainer render-envoy-config : substitutes the PSK from the `spark-connect-psk` Secret
+#       into a Memory-backed copy of envoy.yaml (the PSK is never written to disk or the image).
+#
+#   container spark-connect-server (PR #6 image, role=connect-server) : the long-lived Spark
+#       Connect server, which is ALSO the Spark driver. Its gRPC endpoint binds 127.0.0.1:15002
+#       (LOOPBACK ONLY — never the pod IP), so the ONLY way in is through the sidecar. Its Spark
+#       driver RPC (executors <-> driver), by contrast, binds the pod IP on fixed ports so the
+#       headless service can publish them. Executors run as pods on the PR #5 executor node group.
+#
+#   container envoy (mTLS sidecar) : terminates client mTLS on 0.0.0.0:15009, pins the principal
+#       from the verified cert, injects the PSK bearer, forwards h2c to 127.0.0.1:15002.
+#
+# replicas: 1 — a Connect server holds live, server-local sessions; you cannot run two active
+# replicas behind one address and keep session affinity. Restarts drop sessions (clients
+# reconnect). HA is "fast restart + PDB", not "N active drivers" — see pdb.yaml.
+# =============================================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-connect
+  labels:
+    app.kubernetes.io/name: spark-connect
+    app.kubernetes.io/component: connect-server
+    app.kubernetes.io/part-of: reference-lakehouse
+spec:
+  replicas: 1
+  # Singleton driver: never run two at once (RWO on the live sessions + the fixed driver ports).
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spark-connect
+      app.kubernetes.io/component: connect-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spark-connect
+        app.kubernetes.io/component: connect-server
+        app.kubernetes.io/part-of: reference-lakehouse
+    spec:
+      serviceAccountName: spark
+      # The driver/Connect-server pod has NO executor toleration, so it lands on the untainted
+      # system node group (PR #5) — physically separated from the tainted executor pool.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      # Spark needs a graceful window to tell executors to go away before the driver dies.
+      terminationGracePeriodSeconds: 60
+      volumes:
+        # The envoy.yaml template (configMapGenerator from envoy/envoy.yaml). Read-only.
+        - name: envoy-config-tmpl
+          configMap:
+            name: spark-connect-envoy-config
+        # Memory-backed scratch for the rendered (PSK-filled) config — never hits disk.
+        - name: envoy-rendered
+          emptyDir:
+            medium: Memory
+        # The Connect-layer CA + server cert/key for Envoy mTLS (created out-of-band; see README).
+        - name: envoy-certs
+          secret:
+            secretName: spark-connect-envoy-certs
+            defaultMode: 0444
+        # Writable dir for the Envoy admin unix socket (admin is OFF TCP).
+        - name: envoy-run
+          emptyDir:
+            medium: Memory
+        # Executor pod template (configMapGenerator from pod-templates/executor.yaml), mounted
+        # into the driver so spark.kubernetes.executor.podTemplateFile can read it.
+        - name: executor-podtemplate
+          configMap:
+            name: spark-connect-executor-podtemplate
+
+      initContainers:
+        # Render __CONNECT_PSK__ into the Envoy config from the Secret, into the Memory emptyDir.
+        # Runs as the Envoy uid (101) so the rendered file is owned/readable by the Envoy container.
+        - name: render-envoy-config
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 101
+            runAsGroup: 101
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            # PSK from the SAME Secret the Connect server reads as CONNECT_AUTH_TOKEN, so both ends
+            # of the loopback hop agree. Via env (not a file) to avoid secret-volume mode juggling;
+            # it is the init's process env only and never lands in the pod spec in cleartext.
+            - name: CONNECT_PSK
+              valueFrom:
+                secretKeyRef:
+                  name: spark-connect-psk
+                  key: token
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              if [ -z "${CONNECT_PSK}" ]; then
+                echo "[render] FATAL: spark-connect-psk/token is empty" >&2; exit 1
+              fi
+              # PSK must be a single line with no '|' (the sed delimiter) — base64url/hex tokens
+              # qualify; the README's openssl recipe produces one. Render to the Memory emptyDir.
+              sed "s|__CONNECT_PSK__|${CONNECT_PSK}|g" \
+                /etc/envoy/tmpl/envoy.yaml > /etc/envoy/rendered/envoy.yaml
+              echo "[render] wrote /etc/envoy/rendered/envoy.yaml (PSK injected)"
+          volumeMounts:
+            - name: envoy-config-tmpl
+              mountPath: /etc/envoy/tmpl
+              readOnly: true
+            - name: envoy-rendered
+              mountPath: /etc/envoy/rendered
+          resources:
+            requests: { cpu: "10m", memory: "16Mi" }
+            limits: { memory: "32Mi" }
+
+      containers:
+        # ── The Spark Connect server == the client-mode Spark driver ────────────────────────
+        - name: spark-connect-server
+          image: spark-connect-iceberg # overlay overrides (kustomize images: newName/newTag)
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 185 # = the image's `spark` user
+            runAsGroup: 185
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false # Spark renders conf + writes /tmp scratch
+            capabilities:
+              drop: ["ALL"]
+          # role=connect-server -> the image renders spark-defaults (HMS/Iceberg/S3A/interceptor/
+          # PSK) from spark-connect-env + the PSK Secret, then exec's start-connect-server.sh with
+          # these extra --conf args (the k8s + loopback-binding bits the template leaves open).
+          args:
+            - "connect-server"
+            # Spark Connect gRPC: LOOPBACK ONLY. Only the Envoy sidecar (same netns) can reach it.
+            - "--conf"
+            - "spark.connect.grpc.binding.address=127.0.0.1"
+            - "--conf"
+            - "spark.connect.grpc.binding.port=15002"
+            # Client-mode Spark-on-k8s: the driver talks to the in-cluster API server.
+            - "--conf"
+            - "spark.master=k8s://https://kubernetes.default.svc"
+            - "--conf"
+            - "spark.submit.deployMode=client"
+            - "--conf"
+            - "spark.kubernetes.namespace=$(POD_NAMESPACE)"
+            # Executors run from the SAME PR #6 image (single source: the env from the ConfigMap).
+            - "--conf"
+            - "spark.kubernetes.container.image=$(SPARK_KUBERNETES_CONTAINER_IMAGE)"
+            # Tie executor pods' ownerReference to THIS pod so they're GC'd if the driver dies.
+            - "--conf"
+            - "spark.kubernetes.driver.pod.name=$(POD_NAME)"
+            - "--conf"
+            - "spark.kubernetes.executor.podTemplateFile=/opt/spark/pod-templates/executor.yaml"
+            # Driver RPC reachable by executors: advertise the pod IP, bind all interfaces, FIXED
+            # ports so the headless service can publish them (service-headless.yaml).
+            - "--conf"
+            - "spark.driver.host=$(POD_IP)"
+            - "--conf"
+            - "spark.driver.bindAddress=0.0.0.0"
+            - "--conf"
+            - "spark.driver.port=7078"
+            - "--conf"
+            - "spark.blockManager.port=7079"
+            # Dynamic allocation ON (justified): a long-lived, multi-tenant Connect server is idle
+            # between agent queries; min=0 lets the executor node group scale to zero (and the
+            # cluster-autoscaler drain those nodes) when no one is querying, and burst to max under
+            # load. shuffleTracking replaces the external shuffle service (unavailable on k8s).
+            - "--conf"
+            - "spark.dynamicAllocation.enabled=true"
+            - "--conf"
+            - "spark.dynamicAllocation.shuffleTracking.enabled=true"
+            - "--conf"
+            - "spark.dynamicAllocation.minExecutors=0"
+            - "--conf"
+            - "spark.dynamicAllocation.maxExecutors=10"
+            - "--conf"
+            - "spark.dynamicAllocation.initialExecutors=0"
+            # Executor sizing (the pod template adds placement; Spark sets resources from these).
+            - "--conf"
+            - "spark.executor.cores=2"
+            - "--conf"
+            - "spark.executor.memory=2g"
+            - "--conf"
+            - "spark.driver.memory=2g"
+            # Iceberg JDBC-catalog schema version. LOAD-BEARING: V1 is the catalog table
+            # layout the Spark Declarative Pipelines machinery needs to register/refresh a
+            # remote `@dp.materialized_view` against this catalog. Set as a --conf here (the
+            # SSOT) so it survives a kustomize re-apply; do NOT drop it.
+            - "--conf"
+            - "spark.sql.catalog.iceberg.jdbc.schema-version=V1"
+          ports:
+            # Declared for documentation/NetworkPolicy targeting. 15002 is loopback-bound, so it is
+            # NOT reachable on the pod IP even though it is listed here.
+            - name: grpc-loopback
+              containerPort: 15002
+              protocol: TCP
+            - name: driver-rpc
+              containerPort: 7078
+              protocol: TCP
+            - name: blockmanager
+              containerPort: 7079
+              protocol: TCP
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef: { fieldPath: status.podIP }
+            - name: POD_NAME
+              valueFrom:
+                fieldRef: { fieldPath: metadata.name }
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef: { fieldPath: metadata.namespace }
+            # The PSK -> spark.connect.authenticate.token (rendered by the image entrypoint).
+            - name: CONNECT_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: spark-connect-psk
+                  key: token
+            # Iceberg JDBC-catalog credentials (RDS Postgres). Rendered by the image entrypoint
+            # into spark.sql.catalog.iceberg.jdbc.{user,password}. Created out-of-band (kubectl
+            # --from-file / External Secrets), never committed — see README "Secret wiring".
+            - name: ICEBERG_JDBC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: spark-iceberg-jdbc
+                  key: ICEBERG_JDBC_USER
+            - name: ICEBERG_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: spark-iceberg-jdbc
+                  key: ICEBERG_JDBC_PASSWORD
+          # HMS_URIS, ICEBERG_CATALOG, WAREHOUSE, SPARK_SERVICE_ACCOUNT,
+          # SPARK_KUBERNETES_CONTAINER_IMAGE — all from the env ConfigMap.
+          envFrom:
+            - configMapRef:
+                name: spark-connect-env
+          volumeMounts:
+            - name: executor-podtemplate
+              mountPath: /opt/spark/pod-templates
+              readOnly: true
+          # Probes hit the loopback gRPC port from INSIDE the container (kubelet tcpSocket can't —
+          # 15002 isn't on the pod IP). bash's /dev/tcp opens a connection in the pod netns.
+          startupProbe:
+            exec:
+              command: ["/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/15002"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30 # ~5 min for a cold JVM + Connect server bind
+          readinessProbe:
+            exec:
+              command: ["/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/15002"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command: ["/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/15002"]
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              # No CPU limit (avoid throttling the driver's event loop); memory capped above the
+              # 2g heap to leave room for off-heap + the JVM itself.
+              memory: "4Gi"
+
+        # ── Envoy mTLS sidecar ──────────────────────────────────────────────────────────────
+        - name: envoy
+          image: envoyproxy/envoy:v1.31.5 # overlay may override (kustomize images:)
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 101 # = envoy uid in the official image
+            runAsGroup: 101
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true # only the rendered config (RO) + admin socket dir (RW)
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          command: ["/usr/local/bin/envoy"]
+          args:
+            - "-c"
+            - "/etc/envoy/rendered/envoy.yaml"
+            # Concurrency 2: the proxy just streams gRPC; it isn't the bottleneck.
+            - "--concurrency"
+            - "2"
+          ports:
+            - name: mtls
+              containerPort: 15009
+              protocol: TCP
+          volumeMounts:
+            - name: envoy-rendered
+              mountPath: /etc/envoy/rendered
+              readOnly: true
+            - name: envoy-certs
+              mountPath: /etc/envoy/certs
+              readOnly: true
+            - name: envoy-run
+              mountPath: /var/run/envoy
+          # The listener accepts TCP before the upstream is healthy; that's fine — a client that
+          # connects before Spark is up gets a clean gRPC UNAVAILABLE, not a hang.
+          readinessProbe:
+            tcpSocket:
+              port: mtls
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: mtls
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              memory: "256Mi"

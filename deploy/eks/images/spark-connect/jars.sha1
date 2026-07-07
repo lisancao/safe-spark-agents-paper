@@ -1,0 +1,18 @@
+# Pinned jar bill-of-materials for the Spark Connect + Iceberg EKS image (Tier A).
+# Format: `sha1sum -c` compatible (sha1<two spaces>basename). Checksums are the
+# canonical `.sha1` published alongside each artifact on Maven Central.
+#
+# These pins are the reproducibility contract: fetch-jars.sh downloads each
+# artifact and verifies it against this file. A 4.1->4.2/5.0 bump = update the
+# versions in build.sh AND replace the lines below with the new basenames+sha1s.
+#
+# Tier B (5.0-SNAPSHOT + iceberg-port base) bakes the Iceberg runtime INTO the
+# base image, so fetch-jars.sh drops the iceberg line when ICEBERG_IN_BASE=true.
+f9b1e4a18797c58ae406104ef5c75d1b64a373c5  iceberg-spark-runtime-4.1_2.13-1.11.0.jar
+16f9de6da5c7862241d55a13d34843404d0cbb88  hadoop-aws-3.4.2.jar
+b63eb928c2ac13bde07746bcfe7fb38bbdb4b5c5  bundle-2.29.52.jar
+462becf2d8ba590194e26530834ac9b58a9d3282  spark-sql-kafka-0-10_2.13-4.1.2.jar
+8617f1eca0271a1c48bb5fc7ea4b067c132a319c  spark-token-provider-kafka-0-10_2.13-4.1.2.jar
+86ca079953ed5606257ff298c24666b26da6985b  kafka-clients-3.9.1.jar
+458563f69fbdaebf7daadfe10dc3a22e42a7de50  commons-pool2-2.12.0.jar
+264310fd7b2cd76738787dc0b9f7ea2e3b11adc1  postgresql-42.7.4.jar

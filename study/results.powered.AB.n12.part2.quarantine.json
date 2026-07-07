@@ -1,0 +1,40 @@
+{
+  "generated_utc": "2026-06-30T11:50:04Z",
+  "backend": "local",
+  "git_sha": "ca48c8c0521f5589fe903127bf710584bbe10feb",
+  "breaker_constants": {
+    "global_harness_fault_limit": 3,
+    "per_arm_harness_fault_limit": 1,
+    "per_bin_harness_fault_limit": 1,
+    "retry_delay_s": 5.0
+  },
+  "counters": {
+    "global": 2,
+    "per_arm": {
+      "B": 2
+    },
+    "per_bin": {
+      "high": 2
+    },
+    "n_quarantined": 2
+  },
+  "n_quarantined": 2,
+  "cells": [
+    {
+      "task": "HC2_session_funnel",
+      "seed": 42,
+      "arm": "B",
+      "exit_class": "HARNESS_ERROR",
+      "reason": "PROPOSE_API_ERROR",
+      "complexity_bin": "high"
+    },
+    {
+      "task": "HC2_session_funnel",
+      "seed": 3141,
+      "arm": "B",
+      "exit_class": "HARNESS_ERROR",
+      "reason": "PROPOSE_API_ERROR",
+      "complexity_bin": "high"
+    }
+  ]
+}

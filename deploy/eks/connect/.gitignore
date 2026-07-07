@@ -1,0 +1,12 @@
+# NEVER commit a real Secret. Only secret.example.yaml (the template) belongs in git.
+secret.yaml
+secret.*.yaml
+*-secret.yaml
+!secret.example.yaml
+
+# Rendered/issued material that must never be committed.
+*.key
+*.crt
+*.pem
+psk.token
+*.token

@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Spark Connect server bootstrap (Amazon Linux 2023).
+#  1. attach + mount the dedicated data volume at /srv/spark
+#  2. install JDK17 (Corretto) + Apache Spark ${spark_version}
+#  3. install the systemd unit + launcher authored by the SEPARATE task
+#     (deploy/connect-server/, scripts/) from the app repo, enable it
+#
+# NOTE: this script is NOT executed by `terraform validate`. It runs once on the
+# instance at first boot. Idempotent where practical so an ASG replacement re-converges.
+# ---------------------------------------------------------------------------
+set -euo pipefail
+exec > >(tee -a /var/log/spark-connect-bootstrap.log) 2>&1
+echo "[bootstrap] start $(date -u)"
+
+REGION="${region}"
+DATA_VOLUME_ID="${data_volume_id}"
+DATA_DEVICE="/dev/sdf"
+MOUNTPOINT="/srv/spark"
+SPARK_VERSION="${spark_version}"
+SPARK_BASE_URL="${spark_download_base_url}"
+APP_REPO_URL="${app_repo_url}"
+APP_REPO_REF="${app_repo_ref}"
+CONNECT_PORT="${connect_grpc_port}"
+
+# --- IMDSv2: who am I -------------------------------------------------------
+TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+  http://169.254.169.254/latest/meta-data/instance-id)
+echo "[bootstrap] instance=$INSTANCE_ID region=$REGION"
+
+dnf install -y unzip tar gzip git awscli nvme-cli >/dev/null
+
+# --- 1. Attach the dedicated data volume ------------------------------------
+# On an ASG replacement the TERMINATING old instance can still hold the volume, so
+# the state may be "in-use" by a DIFFERENT instance. Handle every case:
+#   - already attached to THIS instance -> done
+#   - in-use by another (dying) instance -> detach (force if needed), wait, attach
+#   - available -> attach
+echo "[bootstrap] reconciling $DATA_VOLUME_ID -> this instance ($INSTANCE_ID)"
+attached=""
+for i in $(seq 1 60); do
+  read -r state attached_to <<<"$(aws ec2 describe-volumes --region "$REGION" \
+    --volume-ids "$DATA_VOLUME_ID" \
+    --query 'Volumes[0].[State,Attachments[0].InstanceId]' --output text 2>/dev/null || echo "unknown None")"
+
+  if [ "$state" = "in-use" ] && [ "$attached_to" = "$INSTANCE_ID" ]; then
+    echo "[bootstrap] volume already attached to this instance"; attached="yes"; break
+  elif [ "$state" = "in-use" ]; then
+    echo "[bootstrap] volume in-use by $attached_to (old instance) -> detaching"
+    aws ec2 detach-volume --region "$REGION" --volume-id "$DATA_VOLUME_ID" --force || true
+    sleep 10
+  elif [ "$state" = "available" ]; then
+    echo "[bootstrap] volume available -> attaching"
+    if aws ec2 attach-volume --region "$REGION" --volume-id "$DATA_VOLUME_ID" \
+        --instance-id "$INSTANCE_ID" --device "$DATA_DEVICE"; then
+      attached="yes"; break
+    fi
+    sleep 5
+  else
+    echo "[bootstrap] volume state=$state, waiting ($i)"; sleep 5
+  fi
+done
+if [ -z "$attached" ]; then echo "[bootstrap] FATAL: could not attach data volume"; exit 1; fi
+
+# --- Resolve the NVMe device for this EBS volume (Nitro renames /dev/sdf) ----
+# Match by serial: EBS exposes the volume id (sans hyphen) as the NVMe serial.
+VOL_SERIAL="vol$(echo "$DATA_VOLUME_ID" | sed 's/^vol-//')"
+DEV=""
+for i in $(seq 1 30); do
+  for d in /dev/nvme*n1; do
+    [ -e "$d" ] || continue
+    serial=$(nvme id-ctrl -o json "$d" 2>/dev/null | grep -o '"sn"[^,]*' | tr -dc 'a-z0-9') || true
+    if echo "$serial" | grep -q "$VOL_SERIAL"; then DEV="$d"; break; fi
+  done
+  # Fallback: the classic device path may exist on some kernels.
+  [ -z "$DEV" ] && [ -e "$DATA_DEVICE" ] && DEV="$DATA_DEVICE"
+  [ -n "$DEV" ] && break
+  echo "[bootstrap] waiting for data device ($i)"; sleep 5
+done
+if [ -z "$DEV" ]; then echo "[bootstrap] FATAL: data device not found"; exit 1; fi
+echo "[bootstrap] data device=$DEV"
+
+# --- Make filesystem only if the volume is blank (first ever boot) ----------
+if ! blkid "$DEV" >/dev/null 2>&1; then
+  echo "[bootstrap] no filesystem on $DEV -> mkfs.xfs (first init)"
+  mkfs.xfs -L sparkdata "$DEV"
+fi
+
+mkdir -p "$MOUNTPOINT"
+UUID=$(blkid -s UUID -o value "$DEV")
+grep -q "$UUID" /etc/fstab || echo "UUID=$UUID $MOUNTPOINT xfs defaults,nofail 0 2" >> /etc/fstab
+mount -a
+mkdir -p "$MOUNTPOINT/warehouse" "$MOUNTPOINT/metastore"
+echo "[bootstrap] mounted $DEV at $MOUNTPOINT"
+
+# --- 2. JDK17 + Apache Spark ------------------------------------------------
+dnf install -y java-17-amazon-corretto-headless >/dev/null
+export JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto
+echo "export JAVA_HOME=$JAVA_HOME" > /etc/profile.d/java17.sh
+
+SPARK_PKG="spark-$${SPARK_VERSION}-bin-hadoop3"
+SPARK_HOME="/opt/$${SPARK_PKG}"
+if [ ! -d "$SPARK_HOME" ]; then
+  echo "[bootstrap] downloading $SPARK_PKG"
+  curl -fSL "$${SPARK_BASE_URL}/spark-$${SPARK_VERSION}/$${SPARK_PKG}.tgz" -o /tmp/spark.tgz
+  tar -xzf /tmp/spark.tgz -C /opt
+  rm -f /tmp/spark.tgz
+fi
+ln -sfn "$SPARK_HOME" /opt/spark
+cat > /etc/profile.d/spark.sh <<EOF
+export SPARK_HOME=/opt/spark
+export PATH=\$PATH:/opt/spark/bin:/opt/spark/sbin
+EOF
+
+# --- 3. Install the launcher + systemd unit from the app repo ---------------
+# Authored by the SEPARATE task at:
+#   scripts/start-connect-server.sh, scripts/stop-connect-server.sh
+#   deploy/connect-server/spark-connect.service
+APP_DIR=/opt/spark-connect
+rm -rf "$APP_DIR/src"
+git clone --depth 1 --branch "$APP_REPO_REF" "$APP_REPO_URL" "$APP_DIR/src"
+
+install -d "$APP_DIR/bin"
+install -m 0755 "$APP_DIR/src/scripts/start-connect-server.sh" "$APP_DIR/bin/start-connect-server.sh"
+install -m 0755 "$APP_DIR/src/scripts/stop-connect-server.sh"  "$APP_DIR/bin/stop-connect-server.sh"
+install -m 0644 "$APP_DIR/src/deploy/connect-server/spark-connect.service" /etc/systemd/system/spark-connect.service
+
+# Environment the unit/launcher can source (paths + port the IaC owns).
+cat > /etc/spark-connect.env <<EOF
+SPARK_HOME=/opt/spark
+JAVA_HOME=$JAVA_HOME
+SPARK_CONNECT_PORT=$CONNECT_PORT
+SPARK_WAREHOUSE_DIR=$MOUNTPOINT/warehouse
+SPARK_METASTORE_DIR=$MOUNTPOINT/metastore
+SPARK_VERSION=$SPARK_VERSION
+EOF
+
+systemctl daemon-reload
+systemctl enable --now spark-connect.service || {
+  echo "[bootstrap] WARN: spark-connect.service failed to start (unit authored by separate task; verify after merge)";
+}
+
+echo "[bootstrap] done $(date -u)"

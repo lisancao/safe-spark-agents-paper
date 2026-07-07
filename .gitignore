@@ -1,1 +1,14 @@
+# real (unredacted) config — only the .example is committed
+config/aws.env
+
+# generated reader output (regenerate with paper/tools/render_reader.py)
+paper/build/
 build/
+
+# raw run archive (shipped as a GitHub Release asset, not committed)
+*.tar.gz
+dist/
+
+# agent working dirs / generated data (reproducible from seeds; raw archive is the release asset)
+**/.work.*
+**/_data/

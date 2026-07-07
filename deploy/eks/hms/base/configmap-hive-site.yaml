@@ -1,0 +1,135 @@
+# hive-site.xml TEMPLATE + the render script that installs it.
+#
+# Why a template instead of a ready-to-mount hive-site.xml:
+#   - The DB password must come from the Kubernetes Secret and must NOT sit in a ConfigMap or in
+#     git. Hive's standalone metastore (and schematool) read the JDO connection ONLY from
+#     hive-site.xml — NOT from JVM -D system properties and NOT from ${env.*} substitution
+#     (both were tested against apache/hive:4.0.1 and do NOT work for schematool). So the only
+#     reliable, secure option is to render hive-site.xml at container start from env vars.
+#   - render-hive-site.sh substitutes @TOKEN@ placeholders with env values, XML-escaping each
+#     (so a password containing & < > " ' is safe), writes mode-0600, and symlinks it into
+#     $HIVE_HOME/conf (the conf dir is writable by the hive user; the stock root-owned
+#     hive-site.xml is replaced via `ln -sfn`). The password only ever exists in: the Secret,
+#     the pod env, and this in-pod file — never in git, never on a process argv.
+#
+# This whole flow was verified end-to-end against apache/hive:4.0.1 + Postgres 16: schema init,
+# idempotent re-init, server boot on 9083, and a real HiveMetaStoreClient RPC round-trip
+# (create/get/drop database).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hive-metastore-site
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+    app.kubernetes.io/part-of: reference-lakehouse
+data:
+  hive-site.xml.tmpl: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+    <configuration>
+
+      <!-- ===================== JDO / Postgres connection ==================== -->
+      <!-- All four values are injected from the `hive-metastore-db` Secret at render time. -->
+      <property>
+        <name>javax.jdo.option.ConnectionDriverName</name>
+        <value>@HMS_DB_DRIVER@</value>
+      </property>
+      <property>
+        <name>javax.jdo.option.ConnectionURL</name>
+        <value>@HMS_DB_URL@</value>
+      </property>
+      <property>
+        <name>javax.jdo.option.ConnectionUserName</name>
+        <value>@HMS_DB_USER@</value>
+      </property>
+      <property>
+        <name>javax.jdo.option.ConnectionPassword</name>
+        <value>@HMS_DB_PASSWORD@</value>
+      </property>
+
+      <!-- ============================ Warehouse ============================ -->
+      <!-- Managed-table root, from the hive-metastore-env ConfigMap, e.g.
+           s3a://my-lakehouse-warehouse/warehouse. s3a:// is the hadoop-aws scheme; the s3://
+           alias is mapped to S3A below so either scheme resolves through the same FS. -->
+      <property>
+        <name>hive.metastore.warehouse.dir</name>
+        <value>@HMS_WAREHOUSE_DIR@</value>
+      </property>
+      <property>
+        <name>metastore.warehouse.dir</name>
+        <value>@HMS_WAREHOUSE_DIR@</value>
+      </property>
+
+      <!-- ============================ Metastore =========================== -->
+      <property>
+        <name>metastore.thrift.port</name>
+        <value>9083</value>
+      </property>
+      <!-- The init Job owns the schema; serving pods must only read/verify it. -->
+      <property>
+        <name>datanucleus.schema.autoCreateAll</name>
+        <value>false</value>
+      </property>
+      <property>
+        <name>hive.metastore.schema.verification</name>
+        <value>true</value>
+      </property>
+      <property>
+        <name>metastore.schema.verification</name>
+        <value>true</value>
+      </property>
+      <property>
+        <name>datanucleus.connectionPool.maxPoolSize</name>
+        <value>10</value>
+      </property>
+
+      <!-- ====================== S3A filesystem (IRSA) ===================== -->
+      <!-- No static keys. WebIdentityTokenCredentialsProvider reads AWS_ROLE_ARN +
+           AWS_WEB_IDENTITY_TOKEN_FILE, injected by the EKS pod-identity webhook because the
+           ServiceAccount carries the eks.amazonaws.com/role-arn annotation. -->
+      <property>
+        <name>fs.s3a.aws.credentials.provider</name>
+        <value>com.amazonaws.auth.WebIdentityTokenCredentialsProvider</value>
+      </property>
+      <property>
+        <name>fs.s3a.endpoint.region</name>
+        <value>@HMS_S3A_REGION@</value>
+      </property>
+      <property>
+        <name>fs.s3a.path.style.access</name>
+        <value>false</value>
+      </property>
+      <!-- Map the bare s3:// scheme onto S3A too. -->
+      <property>
+        <name>fs.s3.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+      </property>
+      <property>
+        <name>fs.AbstractFileSystem.s3.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3A</value>
+      </property>
+
+    </configuration>
+
+  render-hive-site.sh: |
+    #!/usr/bin/env bash
+    # Render @TOKEN@ placeholders in a hive-site.xml template from environment variables and
+    # install the result as $HIVE_HOME/conf/hive-site.xml. Substituted values are XML-escaped, the
+    # DB password is read from %ENV by perl (never on argv), and the output is mode 600. conf/ is
+    # writable by the hive user, so `ln -sfn` cleanly replaces the stock root-owned hive-site.xml.
+    set -euo pipefail
+    tmpl="${1:?usage: render-hive-site.sh <template>}"
+    for v in HMS_DB_URL HMS_DB_USER HMS_DB_PASSWORD HMS_DB_DRIVER HMS_WAREHOUSE_DIR HMS_S3A_REGION; do
+      [[ -n "${!v:-}" ]] || { echo "[render] FATAL: required env $v is unset" >&2; exit 1; }
+    done
+    work="$(mktemp -d)"
+    perl -pe '
+      sub xml { my $s = shift;
+        $s =~ s/&/&amp;/g; $s =~ s/</&lt;/g; $s =~ s/>/&gt;/g;
+        $s =~ s/"/&quot;/g; $s =~ s/'\''/&apos;/g; return $s; }
+      s/\@(\w+)\@/ exists $ENV{$1} ? xml($ENV{$1}) : $& /ge;
+    ' "$tmpl" > "$work/hive-site.xml"
+    chmod 600 "$work/hive-site.xml"
+    ln -sfn "$work/hive-site.xml" "${HIVE_HOME}/conf/hive-site.xml"
+    echo "[render] installed ${HIVE_HOME}/conf/hive-site.xml"

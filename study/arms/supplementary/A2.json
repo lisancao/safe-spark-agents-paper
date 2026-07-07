@@ -1,0 +1,16 @@
+{
+  "arm_id": "A2",
+  "description": "Paradigm-contrast control for B (pre-reg §3, addendum item K): mirrors Arm B's loop -- structural dry-run gate ON, safety skill ON, same skills -- EXCEPT the paradigm is imperative PySpark instead of Spark Declarative Pipelines. allowed_commands are the IMPERATIVE equivalents (the commands are paradigm-bound: B drives the SDP CLI `spark-pipelines`, the imperative executor drives `python`/`spark-submit` on the agent's program, with `python --analyze-only` for the gate -- identical to the imperative arms A/B2). B-vs-A2 holds the gate and skill constant, so any B-vs-A2 difference is attributable to the declarative-vs-imperative paradigm, not to the gate/skill confound that B-vs-A carries.",
+
+  "base_model_id": "claude-opus-4-8",
+  "task_prompt_ref": "prompts/task_prompt.md@v1",
+  "max_iterations": 12,
+  "temperature": 0.0,
+  "top_p": 1.0,
+
+  "paradigm": "imperative_pyspark",
+  "dry_run_gate": true,
+  "safety_skill": true,
+  "skills": ["pyspark-sdp", "spark-safety"],
+  "allowed_commands": ["python --analyze-only", "python", "spark-submit"]
+}

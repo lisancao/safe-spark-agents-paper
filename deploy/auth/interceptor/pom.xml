@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.safesparkagents.connect</groupId>
+  <artifactId>connect-auth-interceptor</artifactId>
+  <version>0.1.0</version>
+  <packaging>jar</packaging>
+
+  <name>Spark Connect Principal-Pinning Interceptor</name>
+  <description>
+    gRPC ServerInterceptor for Spark Connect 4.1 that pins the session user_id to a verified,
+    Envoy-injected client-certificate principal (Option A auth/identity layer).
+  </description>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!--
+      grpc-api is the ONLY non-test dependency, and it is `provided`: the Spark Connect server
+      already ships grpc on its classpath. Bundling a second copy of grpc/protobuf into the jar
+      would collide with the server's own and break interception. The interceptor reads the Spark
+      Connect request `user_id` by reflection (getUserContext().getUserId()), so it needs NO
+      compile-time dependency on the Spark Connect protobuf classes and works across every Connect
+      request type. Pin grpc-api to a version <= the server's grpc (Spark 4.1.x ships grpc ~1.62+);
+      since it is provided, the exact value here only affects compilation, not the runtime.
+
+      RUNTIME SHADING (verified on a live cluster): Spark Connect 4.1.x does NOT expose grpc under
+      the original `io.grpc` package — it RELOCATES the server-side grpc runtime to
+      `org.sparkproject.connect.grpc`. So a class implementing `io.grpc.ServerInterceptor` fails to
+      load on the Connect server with `NoClassDefFoundError: io/grpc/ServerInterceptor`. We compile
+      against the real `io.grpc` (clean, IDE-friendly) and let the shade plugin RELOCATE every
+      `io.grpc` reference in our bytecode to `org.sparkproject.connect.grpc` so the deployed jar
+      implements the SAME shaded interface the server loads. `shadedGrpcPackage` is the relocation
+      target; bump it if a future Spark changes the shade prefix.
+    -->
+    <shadedGrpcPackage>org.sparkproject.connect.grpc</shadedGrpcPackage>
+    <grpc.version>1.76.0</grpc.version>
+    <junit.version>6.0.3</junit.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-api</artifactId>
+      <version>${grpc.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>connect-auth-interceptor-${project.version}</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.14.1</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.3</version>
+      </plugin>
+
+      <!--
+        Shade plugin: produces the deployable jar. Because grpc is `provided`, the shaded jar
+        contains only this project's classes (a thin jar) — exactly what we want on the server
+        classpath alongside the server's own grpc. The config is kept so the build also satisfies
+        the "shaded jar" requirement and so any future non-provided dependency is relocated rather
+        than leaking onto the server classpath.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadedArtifactAttached>false</shadedArtifactAttached>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <!--
+                Rewrite our bytecode's `io.grpc.*` references to the Spark Connect server's shaded
+                grpc package so the deployed interceptor implements the interface the server
+                actually loads (see the property comment above). grpc-api is `provided`, so nothing
+                is bundled — this relocation only remaps references inside our own class.
+              -->
+              <relocations>
+                <relocation>
+                  <pattern>io.grpc</pattern>
+                  <shadedPattern>${shadedGrpcPackage}</shadedPattern>
+                </relocation>
+              </relocations>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>module-info.class</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

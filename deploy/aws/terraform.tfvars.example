@@ -1,0 +1,49 @@
+# Copy to terraform.tfvars and edit. Values shown are the defaults / examples.
+
+# --- Provider ---------------------------------------------------------------
+aws_region   = "us-east-1"
+aws_profile  = "personal"
+project_name = "spark-connect"
+
+# --- Network ----------------------------------------------------------------
+vpc_cidr             = "10.42.0.0/16"
+public_subnet_cidrs  = ["10.42.0.0/24", "10.42.1.0/24"]
+private_subnet_cidrs = ["10.42.10.0/24", "10.42.11.0/24"]
+data_volume_az_index = 0
+
+# --- Compute ----------------------------------------------------------------
+instance_type  = "r7i.xlarge"
+root_volume_gb = 30
+data_volume_gb = 100
+spark_version  = "4.1.1"
+
+# THIS repo, so the instance can pull the launcher + systemd unit authored by the
+# separate connect-server task (scripts/, deploy/connect-server/).
+app_repo_url = "https://github.com/CHANGE-ME/safe-spark-agents.git"
+app_repo_ref = "main"
+
+# --- Access: Client VPN (mutual TLS) ----------------------------------------
+allowed_users   = ["alice", "bob", "carol"]
+vpn_client_cidr = "172.16.0.0/22"
+# Import server + client-root certs to ACM first (see README), then paste ARNs:
+vpn_server_cert_arn      = "arn:aws:acm:us-east-1:111122223333:certificate/CHANGE-ME-server"
+vpn_client_root_cert_arn = "arn:aws:acm:us-east-1:111122223333:certificate/CHANGE-ME-clientroot"
+
+# --- NLB TLS cert -----------------------------------------------------------
+# Option A: bring an existing cert.
+create_acm_cert       = false
+existing_acm_cert_arn = "arn:aws:acm:us-east-1:111122223333:certificate/CHANGE-ME-nlb"
+# Option B: create + DNS-validate a new cert (set create_acm_cert = true):
+# create_acm_cert = true
+# domain_name     = "spark-connect.example.com"
+# route53_zone_id = "Z0123456789ABCDEFGHIJ"  # optional: auto-creates validation + alias
+
+nlb_listener_port = 15002
+
+# --- Auth proxy hook (separate task; leave off for now) ---------------------
+enable_auth_proxy = false
+auth_proxy_port   = 15009
+
+# --- Durability -------------------------------------------------------------
+snapshot_retain_count = 7
+snapshot_time_utc     = "03:00"

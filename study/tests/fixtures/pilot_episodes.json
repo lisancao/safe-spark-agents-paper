@@ -1,0 +1,63 @@
+{
+  "_comment": "Replay episodes derived from the REAL n=1 pilot DEVLOGs (sandbox-a = Arm A imperative; sandbox-b = Arm B SDP+gate) for task orders_silver_gold, seed 42. These mirror the pilots' actual iteration logs: Arm A hit a runtime error (the profile.py naming-collision ImportError) before going green; Arm B's dry-run gate intercepted the silver_valid TABLE_OR_VIEW_NOT_FOUND twice before a green run. BOTH pilots shipped CORRECT output (sandbox-a: silver reconciles, event_date dist correct, no epoch blunder; sandbox-b: quarantine + watermark + UTC), so the grader must classify BOTH as silent_defect=false (the capability-retention / negative control). output_metrics are all-zero residual = the agent mitigated every in-scope defect.",
+
+  "episodes": {
+    "orders_silver_gold|A|42": {
+      "iterations": [
+        {
+          "command": "python",
+          "code_summary": "profile.py — data profiling pass",
+          "rationale": "explore the messy stream before writing the pipeline",
+          "exec": {"failed": true, "completed": false, "wall_s": 6.0,
+                   "executor_seconds": 12.0,
+                   "error_class": "ImportError circular (profile.py shadows stdlib)",
+                   "log": "ImportError: cannot import name '_NoValue' ... circular import"}
+        },
+        {
+          "command": "python",
+          "code_summary": "pipeline.py — coerce event_time (ISO|epoch-ms), dedup, LEFT join merchants, UTC daily rollup",
+          "rationale": "renamed to profile_data.py; full pipeline run",
+          "exec": {"failed": false, "completed": true, "wall_s": 40.0,
+                   "executor_seconds": 80.0,
+                   "output_metrics": {"d2_misparsed_rows": 0, "d6_ambiguous_keys_unhandled": 0,
+                                      "d7_wrong_day_rows": 0, "d8_rows_dropped": 0,
+                                      "d8_dollars_dropped": 0.0, "reconciles": true},
+                   "log": "SILVER rows=4856 distinct order_id=4856; GOLD_DAILY=10; silver total amount=973254.72 reconciles; Run is COMPLETED"}
+        }
+      ]
+    },
+
+    "orders_silver_gold|B|42": {
+      "iterations": [
+        {
+          "command": "spark-pipelines dry-run",
+          "code_summary": "first SDP draft: silver_orders readStream.table('silver_valid')",
+          "rationale": "dry-run gate before any execute",
+          "gate": {"failed": true, "wall_s": 8.1,
+                   "error_class": "TABLE_OR_VIEW_NOT_FOUND (SQLSTATE 42P01)",
+                   "log": "AnalysisException: [TABLE_OR_VIEW_NOT_FOUND] `silver_valid` ... UnresolvedRelation"}
+        },
+        {
+          "command": "spark-pipelines dry-run",
+          "code_summary": "converted silver_valid temp view -> @dp.table; still references it pre-materialization",
+          "rationale": "gate still red — watermark forces eager catalog analysis",
+          "gate": {"failed": true, "wall_s": 7.9,
+                   "error_class": "TABLE_OR_VIEW_NOT_FOUND (SQLSTATE 42P01)",
+                   "log": "AnalysisException: [TABLE_OR_VIEW_NOT_FOUND] `silver_valid`"}
+        },
+        {
+          "command": "spark-pipelines run",
+          "code_summary": "silver_orders reads Kafka directly; bronze feeds quarantine; watermark+dedup; UTC gold_daily",
+          "rationale": "gate green -> execute",
+          "gate": {"failed": false, "wall_s": 8.0, "log": "dry-run resolves full graph"},
+          "exec": {"failed": false, "completed": true, "wall_s": 45.0,
+                   "executor_seconds": 90.0,
+                   "output_metrics": {"d2_misparsed_rows": 0, "d6_ambiguous_keys_unhandled": 0,
+                                      "d7_wrong_day_rows": 0, "d8_rows_dropped": 0,
+                                      "d8_dollars_dropped": 0.0, "reconciles": true},
+                   "log": "Run is COMPLETED; gold_daily materialized; quarantine populated"}
+        }
+      ]
+    }
+  }
+}

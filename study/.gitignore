@@ -1,0 +1,13 @@
+# runtime working dirs + outputs (regenerated; never committed)
+.work/
+__pycache__/
+*.pyc
+harness/battery_results.jsonl
+results.jsonl
+results.env.json
+HEADLINE.md
+
+# orchestrator live-calibration artifacts (environment-specific; not part of the instrument)
+results.calib.jsonl
+study.config.live.json
+runs/

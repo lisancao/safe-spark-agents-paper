@@ -1,0 +1,17 @@
+# Non-secret, per-environment tunables. This is the ONE place an operator sets the warehouse
+# location and region. hive-site.xml reads these via ${env.HMS_WAREHOUSE_DIR} / ${env.HMS_S3A_REGION}.
+# Base ships placeholders; an overlay replaces them with real values (see overlays/example).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hive-metastore-env
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+    app.kubernetes.io/part-of: reference-lakehouse
+data:
+  # Managed-table warehouse root. s3a:// is the hadoop-aws scheme; s3:// also works (aliased
+  # to S3A in hive-site.xml). <-- bucket from eks-cluster-iac output `warehouse_bucket`.
+  HMS_WAREHOUSE_DIR: "s3a://REPLACE-warehouse-bucket/warehouse"
+  # <-- from eks-cluster-iac output `aws_region`.
+  HMS_S3A_REGION: "us-east-1"

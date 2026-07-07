@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace is set by the overlay (so base stays environment-agnostic) — but note it MUST equal
+# the terraform `spark_namespace` (default `spark`) for IRSA's OIDC `sub` to match. See README.
+resources:
+  - serviceaccount.yaml
+  - rbac.yaml
+  - configmap-env.yaml
+  - deployment.yaml
+  - service-mtls.yaml
+  - service-headless.yaml
+  - pdb.yaml
+  # NOTE: secret.example.yaml is intentionally NOT listed — the real Secrets
+  # `spark-connect-psk` and `spark-connect-envoy-certs` are created out-of-band
+  # (kubectl --from-file / External Secrets). See README "Secret wiring".
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+
+# The Envoy config and executor pod template are mounted as files, so we bake them into ConfigMaps
+# straight from their source files — ONE source of truth (the same envoy.yaml that `envoy --mode
+# validate` checks, the same executor.yaml documented above). generatorOptions.disableNameSuffixHash
+# keeps the names stable so the README's kubectl examples and the volume references stay readable;
+# bump a harmless annotation to force a rollout when these change.
+configMapGenerator:
+  - name: spark-connect-envoy-config
+    files:
+      - envoy/envoy.yaml
+  - name: spark-connect-executor-podtemplate
+    files:
+      - pod-templates/executor.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    app.kubernetes.io/part-of: reference-lakehouse
+
+# The Connect-server container image. The overlay overrides newName/newTag to the pushed PR #6
+# tag — and MUST also set the matching spark-connect-env value SPARK_KUBERNETES_CONTAINER_IMAGE
+# (the executors' image), since k8s keeps the container image field and the --conf string separate.
+images:
+  - name: spark-connect-iceberg
+    newName: spark-connect-iceberg
+    newTag: "4.1.2-iceberg1.11.0"

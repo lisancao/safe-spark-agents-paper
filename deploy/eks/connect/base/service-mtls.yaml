@@ -1,0 +1,42 @@
+# The ONLY externally-reachable entrypoint: the Envoy mTLS port, behind an INTERNAL NLB.
+# ---------------------------------------------------------------------------------------------
+# type: LoadBalancer + the AWS Load Balancer Controller annotations provision an INTERNAL
+# (VPC-private, never internet-facing) Network Load Balancer that TCP-PASSES THROUGH to Envoy on
+# 15009. The NLB does NOT terminate TLS — mTLS terminates at Envoy inside the pod, so the client
+# cert reaches the place that validates it. There is NO listener for raw 15002 anywhere: the only
+# port this Service exposes is the mTLS one, and 15002 is loopback-bound in the pod.
+#
+# Clients (PR #4 sandbox) connect with:  sc://<nlb-dns-or-name>:15009/;use_ssl=true;token=...
+# plus their client cert/key + the Connect CA (the cert carries the SPIFFE id Envoy pins).
+#
+# Reachability is additionally bounded by the node security group (PR #5) / a NetworkPolicy: only
+# the sandbox + CI tiers should be able to reach this NLB. "Internal NLB" is necessary, not
+# sufficient — keep the SG/NetworkPolicy tight too.
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-connect-mtls
+  labels:
+    app.kubernetes.io/name: spark-connect
+    app.kubernetes.io/component: connect-server
+    app.kubernetes.io/part-of: reference-lakehouse
+  annotations:
+    # AWS Load Balancer Controller: external-managed NLB, IP targets (-> pod IPs), INTERNAL scheme.
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+    # Plain TCP passthrough + TCP health check on the mTLS port (no TLS at the LB).
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: "TCP"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "15009"
+spec:
+  type: LoadBalancer
+  # Preserve the client source IP (works with ip target-type) for audit + SG matching.
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: spark-connect
+    app.kubernetes.io/component: connect-server
+  ports:
+    - name: mtls
+      port: 15009
+      targetPort: mtls
+      protocol: TCP

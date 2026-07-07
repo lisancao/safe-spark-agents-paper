@@ -1,0 +1,41 @@
+# Reproduce
+
+The study is built to reproduce **byte-identically** — including on **future Spark releases**, so the
+paradigm-safety result can be re-checked as Spark and SDP evolve. Two levels: (1) recompute the paper's
+numbers from committed result files; (2) re-run the agents from scratch. Environment prerequisites are in
+[`ENV_SETUP.md`](ENV_SETUP.md).
+
+## 0. Provenance
+- **Instrument:** frozen `instrument-v3.2-frozen`; every result row is stamped with `git_sha`,
+  `image_digest`, `spark_version`, `base_model_id`, so instrument drift is detectable.
+- **Determinism:** input data is a pure function of `(generator, args, seed)`. The 12 seeds are locked in
+  [`../study/SEEDS.lock.json`](../study/SEEDS.lock.json); the 22 tasks in
+  [`../study/TASKS.lock.json`](../study/TASKS.lock.json). Same seed → byte-identical data.
+
+## 1. Recompute the paper's numbers (no LLM, no cluster)
+The result files behind every number are committed under [`../study/`](../study/):
+- `results.powered.AB.n12.final.jsonl` — the 528-cell powered run (H1/H2/H4/H5)
+- `results.tzfix.jsonl` — the D7 skill-swap (7 → 0)
+
+```bash
+cd study
+python3 analysis/analyze.py results.powered.AB.n12.final.jsonl --tasks TASKS.lock.json --assume-backend local
+```
+
+## 2. Re-run the agents (LLM + Spark)
+Full runbook: [`../study/repro/REPRODUCE.md`](../study/repro/REPRODUCE.md). The EKS compute run (H3) has its
+own runbook + integration log under [`../study/repro/h3_eks/`](../study/repro/h3_eks/). Requires
+`ANTHROPIC_API_KEY` and a reachable Spark Connect endpoint (local or the reference EKS cluster).
+
+## 3. The raw run archive (full transcripts + generated data)
+For *exact* replay and inspection — every agent transcript, every generated input, every materialized
+output and grade — download the raw archive from the GitHub **Release** and extract it into `study/`:
+
+```bash
+# from the Releases tab (asset: ssa-repro-archive-<version>.tar.gz):
+tar xzf ssa-repro-archive-<version>.tar.gz -C study/
+```
+
+The archive ships as a release asset (not committed) to keep the repo cloneable; its `MANIFEST.txt` lists
+contents, sizes, and the instrument SHA it was produced under. Regenerating from seeds reproduces the same
+inputs; the archive additionally pins the exact agent transcripts and outputs from the reported run.

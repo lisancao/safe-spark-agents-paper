@@ -1,0 +1,45 @@
+# The stable address clients use: thrift://hive-metastore:9083
+# (this is what Spark Connect's spark.hadoop.hive.metastore.uris points at — see README).
+apiVersion: v1
+kind: Service
+metadata:
+  name: hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+    app.kubernetes.io/part-of: reference-lakehouse
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+  ports:
+    - name: thrift
+      port: 9083
+      targetPort: thrift
+      protocol: TCP
+---
+# Headless service: DNS returns the pod IPs directly (one A record per ready endpoint) instead
+# of a single virtual IP. These pods are a Deployment, so they have NO stable per-pod DNS
+# identity (no hive-metastore-0... hostnames — that's a StatefulSet feature); the records are
+# just the current replica IPs. Useful for clients that want to discover/round-robin the
+# endpoints themselves rather than go through the ClusterIP virtual IP.
+apiVersion: v1
+kind: Service
+metadata:
+  name: hive-metastore-headless
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+    app.kubernetes.io/part-of: reference-lakehouse
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+  ports:
+    - name: thrift
+      port: 9083
+      targetPort: thrift
+      protocol: TCP

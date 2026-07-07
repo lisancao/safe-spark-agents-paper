@@ -1,0 +1,25 @@
+{
+ "version": "1.1.0-power",
+ "frozen_utc": "2026-06-23",
+ "description": "Fixed integer seeds for the safe-agent study (pre-reg \u00a76/\u00a77). Each seed selects the per-run input data (passed to infra/gen_messy_orders.py --seed) so that, for a given seed, every arm faces byte-iden",
+ "pilot_n": 10,
+ "power_n": 10,
+ "seeds": [
+  42,
+  3141,
+  5772,
+  8675,
+  9001,
+  11235,
+  27182,
+  31415,
+  16180,
+  14142
+ ],
+ "provenance": {
+  "42": "the E3 / pilot reference seed (reproduces D2=246, D7=275, D8=250/$49,778.06)",
+  "_note": "seed 42 is included first so every sweep re-derives the registered E3 oracle numbers as a built-in regression check on the data generator.",
+  "16180": "appended in v1.1.0-power (golden-ratio digits, phi ~ 1.6180) per pre-reg \u00a76 stage 3 to tighten the A\u2013B CI; see DEVIATIONS D-SEEDS-POWER (2026-06-29).",
+  "14142": "appended in v1.1.0-power (sqrt(2) ~ 1.4142 digits) per pre-reg \u00a76 stage 3 to tighten the A\u2013B CI; see DEVIATIONS D-SEEDS-POWER (2026-06-29)."
+ }
+}

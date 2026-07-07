@@ -1,0 +1,17 @@
+# Keep at least one metastore reachable during voluntary disruptions (node drains, upgrades).
+# minAvailable: 1 pairs with the Deployment's replicas: 2 — a drain can take one pod but not
+# both. (With replicas: 1 a PDB cannot protect availability; scale to >=2 for real HA.)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hive-metastore
+  labels:
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
+    app.kubernetes.io/part-of: reference-lakehouse
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hive-metastore
+      app.kubernetes.io/component: metastore

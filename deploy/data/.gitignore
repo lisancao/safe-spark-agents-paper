@@ -1,0 +1,15 @@
+# Generated dataset — regenerated deterministically by the generator (seeds fixed),
+# NEVER committed. The full 90-day set is ~7.5 GB of parquet.
+data/
+*.parquet
+
+# Python build artifacts
+__pycache__/
+*.pyc
+.venv/
+
+# Spark / streaming derived state, if a local run drops it here
+spark-warehouse/
+metastore_db/
+derby.log
+checkpoints/

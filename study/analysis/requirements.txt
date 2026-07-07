@@ -1,0 +1,10 @@
+# Statistical analysis dependencies (pre-reg §7).
+# numpy + scipy are required (bootstrap CIs, Holm, exact McNemar).
+# statsmodels + pandas are required ONLY for the PRIMARY inference (the
+# mixed-effects logistic GLMM). If they are absent, analyze.py still produces
+# the per-arm rates, bootstrap CIs, paired McNemar tests, Holm correction, and
+# the H2 compute analysis; it prints an explicit install hint for the GLMM.
+numpy>=1.24
+scipy>=1.10
+statsmodels>=0.14
+pandas>=2.0

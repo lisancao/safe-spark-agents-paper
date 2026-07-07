@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace is set by the overlay (so base stays environment-agnostic).
+resources:
+  - serviceaccount.yaml
+  - configmap-env.yaml
+  - configmap-hive-site.yaml
+  - schema-init-job.yaml
+  - deployment.yaml
+  - service.yaml
+  - pdb.yaml
+  # NOTE: secret.example.yaml is intentionally NOT listed — the real Secret
+  # `hive-metastore-db` is created out-of-band (kubectl / External Secrets). See README.
+
+commonLabels:
+  app.kubernetes.io/name: hive-metastore
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+  - name: hive-metastore-pg
+    newName: hive-metastore-pg
+    newTag: "4.0.1"
