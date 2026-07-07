@@ -160,6 +160,26 @@ Bars: H3.1 wasted-compute-on-failed (A burns, B gate-intercepts → ~0) and H3.2
 
 ---
 
+---
+
+## Rendered natives (vision sections — for engineering hand-off)
+Two Section 3/4 figures are **already drawn** as clean SVGs (not just specced) so Lisa can circulate
+the vision to engineering now. Same visual language as the brief; a status legend on each keeps the
+built-vs-vision line honest (**solid = demonstrated · dashed = configured-but-unrun · dotted = frontier**).
+Files render standalone and drop into slides/docs; Claude design can refine from these.
+
+- **`diagrams/section3_open_governed_platform.svg`** — the open governed reference architecture: three
+  trust zones (U authoring → C control → D data plane), the GitOps loop (agent→PR→dry-run gate→reconciler),
+  the single identity-pinned **Connect ingress**, elastic **executor pods (dashed — configured, 0→10 unrun)**,
+  and **tenant governance as the dotted frontier** (delegated to catalog + multi-server Connect).
+- **`diagrams/section4_omnigent_orchestration.svg`** — Omnigent: one orchestrator/custodian over a
+  heterogeneous **credential-free** fleet (`claude_code` / `codex` / `pi`), its four capabilities —
+  **model routing (cost)**, **cross-vendor review (quality)**, **credential custody (governance — dotted
+  keystone/frontier)**, **shared skill library (knowledge)** — all feeding the §3 platform base.
+
+*Honesty markers baked into the art:* §3 executor elasticity and all of §4's credential-custody binding
+read as not-yet-built; only the demonstrated core is solid.
+
 ## Suggested figure order in the paper
 Abstract/intro: **D1** (thesis). Section 1: **D2** (design) → **D3** (taxonomy) → **D4** (structural-catch) →
 **D5** (D7 finding) → **D6** (composition) → **D7** (conciseness). Section 2: **D8** (topology) → **D9** (ladder).
