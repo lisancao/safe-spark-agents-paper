@@ -27,6 +27,8 @@ The rest of Section 1 is organized as follows. *Background* introduces SDP, the 
 
 **Silent defects and the defect taxonomy.** Not every defect is structural. We distinguish three families (§3.2): **structural** defects (unresolved columns, broken DAGs, immutable-config mutations — D1/D4/D5), which the gate *can* see; **semantic** defects (timestamp misparsing, non-deterministic dedup, timezone/day-bucket errors, silent row-drops — D2/D6/D7/D8), which no structural gate can see because the pipeline is well-formed and simply computes the wrong answer; and **state** defects (D3/D9), not scored offline. The semantic family *is* the silent-defect surface — the runs that complete and ship corruption. The consequence for interpretation is sharp: a paradigm effect can appear only where the gate acts, on structural defects, or in how well the agent is *taught* to handle the semantic ones. This is what makes the timezone result (§4.1.2) a clean attribution rather than a paradox.
 
+[[[SVG-TAXONOMY]]]
+
 **The `pyspark-sdp` skill.** Because the base model is fluent in imperative PySpark but not in SDP's newer API, arm B is given a `pyspark-sdp` skill: API knowledge — how to declare views, wire dependencies, express the pipeline — the fair analog of imperative being native to the model. It is deliberately *not* a safety skill; an earlier `spark-safety` skill was scrapped after it moved the silent-defect rate by 0.000 and proved to be the study's largest reviewer confound (§6.1). As §4.1.2 shows, the skill's *silence on one idiom* — UTC day-bucketing — drives the entire raw silent-defect gap, which is why the fix is a skill change, not a paradigm change.
 
 **Substrate.** The safety, token, and conciseness results are substrate-independent and run on a local backend. The data-processing-compute question (H3) requires both paradigms on one uniform cluster and is measured separately on Spark Connect / EKS (§6.5, §4.3). All runs use a single model, `claude-opus-4-8`, with identical decoding across arms (§7.4).
@@ -56,6 +58,8 @@ Two measurement choices make these outcomes trustworthy. First, we separate the 
 | **Instrument** | frozen (`instrument-v3.2-frozen`); every reported number cites a committed results file |
 
 **The loop, for one cell.** For each (task, arm, seed): generate the seeded data → the agent proposes a pipeline → **[gate]** SDP dry-runs the whole graph before any data is touched (imperative has no such gate) → execute → blind-grade the output against ground truth → record cost; repeat to a fixed iteration cap (`harness/runner.py`, `run_cell` / `run_episode`).
+
+[[[SVG-RUNLOOP]]]
 
 **Where to find it** — study repo [`lisancao/safe-spark-agents`](https://github.com/lisancao/safe-spark-agents) (paths under `experiments/safe_agent_study/`):
 - **Reproduction runbook** → [`repro/REPRODUCE.md`](https://github.com/lisancao/safe-spark-agents/blob/dev/experiments/safe_agent_study/repro/REPRODUCE.md)
@@ -457,6 +461,8 @@ An agent authoring data-engineering code is an **untrusted author**. With a live
 
 ## 4. The mechanism: the agent-native dev loop
 `propose → materialize → [structural dry-run gate] → execute/reconcile → feedback`, to convergence `[runner.py:147-277]`. The **dry-run gate** validates structure **before any data is processed** — a real SDP framework dry-run (`create_dataflow_graph` → `register_definitions` → `start_run(dry=True)`) `[sdp_dryrun.py:462-484]` — returning structural defects to the agent as feedback so bad desired-state never reaches execution.
+
+[[[SVG-CONTROLBOUNDARY]]]
 
 ## 5. The authoring surface: the OSS SDP API
 Open-source `pyspark.pipelines` (not Databricks DLT): `@dp.materialized_view`/`@dp.table`, `SparkSession.active()`, deps via `read.table`, no eager analysis, required `spark-pipeline.yml`. `[skills/pyspark-sdp/SKILL.md:8-129]`

@@ -7,7 +7,7 @@ Design: light editorial-technical reading layout, sticky contents rail,
 per-section maturity badges, the Section 3/4 diagrams inlined.
 No external assets (fonts/JS/CSS) — safe for Artifact CSP and offline use.
 """
-import re, subprocess, html
+import re, subprocess, html, sys
 from pathlib import Path
 import markdown
 
@@ -111,6 +111,15 @@ body = body.replace("<p>[[[SVG-SECTION4]]]</p>",
 body = body.replace("<p>[[[SVG-COST]]]</p>",
     figure(load_svg("cost_tokens_conciseness.svg"),
            "The cost of the declarative paradigm, arm B relative to arm A (= 100%): SDP writes far less code and spends more tokens. Bars show B as a percentage of A; absolute medians beneath."))
+body = body.replace("<p>[[[SVG-CONTROLBOUNDARY]]]</p>",
+    figure(load_svg("section2_control_boundary.svg"),
+           "The control boundary: the agent authors inert desired-state and never crosses into execution; a governed dry-run gate and reconciler validate and run it. Only structural feedback returns."))
+body = body.replace("<p>[[[SVG-RUNLOOP]]]</p>",
+    figure(load_svg("section1_run_loop.svg"),
+           "The study run-loop for one cell. Arm B passes a structural SDP dry-run before execution; arm A has no gate. Failures feed back to the agent up to an iteration cap."))
+body = body.replace("<p>[[[SVG-TAXONOMY]]]</p>",
+    figure(load_svg("section1_defect_taxonomy.svg"),
+           "What a structural gate can and cannot catch: structural defects are caught pre-data; semantic defects are un-gateable by construction and ship as silent defects."))
 
 # --- wrap wide tables so the page never scrolls sideways ---
 body = body.replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")
@@ -289,6 +298,17 @@ DOC = f"""{CSS}
 <a class="totop" href="#top">↑ top</a>
 """
 
-OUT.parent.mkdir(parents=True, exist_ok=True)
-OUT.write_text(DOC, encoding="utf-8")
-print(f"wrote {OUT}  ({len(DOC):,} bytes, {len(toc_items)} toc entries)")
+# --standalone wraps the fragment in a full HTML document (for GitHub Pages);
+# a bare path arg overrides the output location.
+if "--standalone" in sys.argv:
+    DOC = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+           '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+           '<title>Safe, Governed AI Data Engineering on Spark</title>\n'
+           '</head>\n<body>\n' + DOC + '\n</body>\n</html>\n')
+
+paths = [a for a in sys.argv[1:] if not a.startswith("--")]
+OUTP = Path(paths[0]).expanduser() if paths else OUT
+OUTP.parent.mkdir(parents=True, exist_ok=True)
+OUTP.write_text(DOC, encoding="utf-8")
+print(f"wrote {OUTP}  ({len(DOC):,} bytes, {len(toc_items)} toc entries"
+      f"{', standalone' if '--standalone' in sys.argv else ''})")
