@@ -147,7 +147,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     the open governed platform, and fleet orchestration.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-07</span><span>·</span>
-    <span class="k">git f7ba9ba</span><span>·</span>
+    <span class="k">git 5e18be9</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -363,12 +363,12 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <text x="391" y="222" class="ts" text-anchor="middle">feedback · retry to iteration cap</text>
 </svg>
 </div><figcaption>The study run-loop for one cell. Arm B passes a structural SDP dry-run before execution; arm A has no gate. Failures feed back to the agent up to an iteration cap.</figcaption></figure>
-<p><strong>Where to find it</strong> — study repo <a href="../study/"><code>lisancao/safe-spark-agents</code></a> (paths under <code>study/</code>):
-- <strong>Reproduction runbook</strong> → <a href="../study/repro/REPRODUCE.md"><code>repro/REPRODUCE.md</code></a>
-- <strong>Frozen corpus &amp; seeds</strong> → <a href="../study/TASKS.lock.json"><code>TASKS.lock.json</code></a>, <a href="../study/SEEDS.lock.json"><code>SEEDS.lock.json</code></a>
-- <strong>Arms &amp; config</strong> → <a href="../study/arms/A.json"><code>arms/A.json</code></a>, <a href="../study/arms/B.json"><code>arms/B.json</code></a>, <a href="../study/study.config.json"><code>study.config.json</code></a>
-- <strong>Harness &amp; analysis</strong> → <a href="../study/harness"><code>harness/</code></a>, <a href="../study/analysis/analyze.py"><code>analysis/analyze.py</code></a>
-- <strong>EKS compute run (H3)</strong> → <a href="../study/repro/h3_eks"><code>repro/h3_eks/</code></a> (runbook + <code>H3_EKS_INTEGRATION_LOG.md</code>)
+<p><strong>Where to find it</strong> — study repo <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/"><code>lisancao/safe-spark-agents</code></a> (paths under <code>study/</code>):
+- <strong>Reproduction runbook</strong> → <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/repro/REPRODUCE.md"><code>repro/REPRODUCE.md</code></a>
+- <strong>Frozen corpus &amp; seeds</strong> → <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/TASKS.lock.json"><code>TASKS.lock.json</code></a>, <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/SEEDS.lock.json"><code>SEEDS.lock.json</code></a>
+- <strong>Arms &amp; config</strong> → <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/arms/A.json"><code>arms/A.json</code></a>, <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/arms/B.json"><code>arms/B.json</code></a>, <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/study.config.json"><code>study.config.json</code></a>
+- <strong>Harness &amp; analysis</strong> → <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/harness"><code>harness/</code></a>, <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/analysis/analyze.py"><code>analysis/analyze.py</code></a>
+- <strong>EKS compute run (H3)</strong> → <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/repro/h3_eks"><code>repro/h3_eks/</code></a> (runbook + <code>H3_EKS_INTEGRATION_LOG.md</code>)
 - <strong>Raw results behind the numbers</strong> → <code>results.powered.AB.n12.final.jsonl</code> (528 rows), <code>results.tzfix.jsonl</code> (the D7 skill-swap)</p>
 <p><em>(GitHub links resolve once the study repo is public; the committed result JSONLs are the data behind every number, while the 100s of MB of raw generated data and agent transcripts are reproducible from the seeded generators rather than shipped.)</em></p>
 <h2 id="1-research-question">1. Research question</h2>

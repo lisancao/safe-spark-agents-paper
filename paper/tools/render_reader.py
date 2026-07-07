@@ -124,6 +124,12 @@ body = body.replace("<p>[[[SVG-TAXONOMY]]]</p>",
 # --- wrap wide tables so the page never scrolls sideways ---
 body = body.replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")
 
+# --repo-url=<url>: rewrite in-repo relative code links (../study/, ../deploy/, ...) to absolute
+# GitHub blob URLs so they resolve on the Pages site (served from /docs, above which ../ can't reach).
+_repo = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--repo-url=")), None)
+if _repo:
+    body = body.replace('href="../', f'href="{_repo.rstrip("/")}/blob/main/')
+
 CSS = """
 <style>
 :root{
