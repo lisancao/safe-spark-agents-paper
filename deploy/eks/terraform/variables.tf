@@ -17,7 +17,7 @@ variable "region" {
 variable "account_id" {
   description = "Expected AWS account ID. Asserted against the caller identity to prevent a wrong-account apply. Empty string disables the check."
   type        = string
-  default     = "${AWS_ACCOUNT_ID}"
+  default     = ""
 }
 
 variable "name_prefix" {

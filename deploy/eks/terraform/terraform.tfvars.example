@@ -3,7 +3,7 @@
 
 aws_profile = "ssa-deploy"
 region      = "us-east-1"
-account_id  = "${AWS_ACCOUNT_ID}"
+account_id  = ""   # optional wrong-account guard; leave empty, or set your 12-digit id
 
 name_prefix = "ssa-spark"
 environment = "prod"
@@ -36,7 +36,7 @@ hms_namespace         = "hive-metastore"
 hms_service_account   = "hive-metastore"
 
 # --- S3 warehouse ---
-# warehouse_bucket_name = ""  # empty => ${WAREHOUSE_BUCKET}
+# warehouse_bucket_name = ""  # empty => derived as <name_prefix>-warehouse-<account_id>
 warehouse_prefixes = ["bronze", "silver", "gold"]
 
 # --- RDS metastore ---
