@@ -147,7 +147,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     the open governed platform, and fleet orchestration.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-07</span><span>·</span>
-    <span class="k">git 02c1eae</span><span>·</span>
+    <span class="k">git cb8536e</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -1172,11 +1172,9 @@ Analysis: <code>python3 analysis/analyze.py &lt;out.jsonl&gt; --tasks TASKS.lock
 <hr />
 <h1 id="section-2-the-agent-native-development-loop" class="section">SECTION 2 — The Agent-Native Development Loop <span class="badge done" title="control boundary to L3">Demonstrated</span></h1>
 <h3 id="the-control-boundary-separating-authoring-from-execution">The Control Boundary: separating <em>authoring</em> from <em>execution</em></h3>
-<blockquote>
-<p><strong>North star.</strong> How do you safely put an AI agent <em>inside</em> a production data platform? Answer: a <strong>control boundary</strong> — the agent <em>proposes desired state</em>, the governed system <em>validates and executes</em>, the agent never holds a live session or touches data directly. The agent-native dev loop — <strong>propose → structural dry-run gate → reconcile/execute</strong> — <em>is</em> that boundary, and declarative pipelines are what make it possible. Spark Connect is the enforcement mechanism, not the motivation.</p>
-<p><strong>What this section establishes (and how).</strong> The control-boundary <em>mechanism</em> is a <strong>demonstration</strong>, not a proposal: we built it, ran AI agents through it, and measured what happened — including <strong>across-host execution on a real EKS Spark Connect cluster</strong> (<code>ssa-spark-eks</code>, 2026-06-24), where the driver+executors ran in k8s pods and <strong>Arm A materialized tables remotely</strong>. §6 is the apparatus; §7 the evidence; §8 the Connect-incompatibility. <strong>Honestly scoped:</strong> the headline safety/cost numbers come from a deliberately-<strong>local</strong> pilot substrate, and <strong>two pieces remain open</strong> — a remote <strong>Arm B SDP</strong> pipeline completing green, and the <strong>governance split</strong> (reconciler off the agent host). The production-scale governed platform is <strong>Section 3's</strong> proposal. The invariant-layered target this section is measured against lives in <code>SECTION2_reference_architecture.md</code>.</p>
-<p><strong>Out of scope:</strong> does not relitigate imperative-vs-SDP safety (Section 1); does not argue "use Connect" for its own sake — the control boundary is the argument.</p>
-</blockquote>
+<p>Section 1 showed that a declarative agent writes safer and far more concise pipelines. This section asks the architectural question that follows: <strong>if the agent only ever emits inert desired-state and never holds a live session, can we let it work <em>inside</em> a production data platform safely?</strong></p>
+<p>The answer is a <strong>control boundary</strong> that separates <em>authoring</em> from <em>execution</em>. The agent proposes desired state; a governed system validates it with a structural dry-run — before any data — and executes it; the agent never holds a session, credentials, or touches data. The dev loop, <strong>propose → dry-run gate → reconcile/execute</strong>, <em>is</em> that boundary; declarative pipelines make it expressible, and Spark Connect enforces it.</p>
+<p>This is a <strong>demonstration, not a proposal</strong> — we built the loop, ran real AI agents through it, and executed it across hosts on a live EKS Spark-Connect cluster (driver and executors in Kubernetes pods, tables materialized remotely). Two honest gaps remain — a remote SDP pipeline completing green end to end, and moving the reconciler off the agent's host (the <em>governance split</em>) — and the production-scale governed platform is <strong>Section 3's</strong> proposal, not a claim made here. This section does not relitigate the paradigm safety result (Section 1); the control boundary is the argument.</p>
 <hr />
 <h2 id="1-the-problem-an-agent-cannot-be-handed-a-live-session">1. The problem: an agent cannot be handed a live session</h2>
 <p>An agent authoring data-engineering code is an <strong>untrusted author</strong>. With a live Spark session it can mutate config, read/write arbitrary data, run unbounded ops — there is no governance story for "an agent with a SparkSession." Section 2 shows how to let an agent build production pipelines <strong>without</strong> the runtime keys.</p>
@@ -1257,10 +1255,9 @@ Analysis: <code>python3 analysis/analyze.py &lt;out.jsonl&gt; --tasks TASKS.lock
 </ul>
 <p>So "agents use this paradigm and benefit" is <strong>demonstrated from real runs</strong> (apparatus in §6): the safety/conciseness/completion numbers come from the <strong>local</strong> pilot substrate; <strong>across-host</strong> execution is now demonstrated for <strong>both arms</strong> on EKS (Arm B SDP completes + grades green, 2026-07-06), and the first in-cluster <strong>H3 compute</strong> was measured there. (The powered run tightens effect sizes; it does not create the demonstration.)</p>
 <h2 id="8-connect-the-enforcement-mechanism-confirmed-by-probe">8. Connect: the enforcement mechanism, confirmed by probe</h2>
-<p>The boundary is enforced at runtime by remote, session-less execution; <strong>Connect is the means</strong>. Imperative PySpark cannot run on Connect — it needs <code>sparkContext</code>/<code>_jvm</code>/RDD surfaces Connect omits. We confirm this directly with a <strong>compatibility probe</strong>: a fixed set of imperative patterns (RDD, <code>sparkContext</code>, <code>_jvm</code>, static-config mutation) and SDP patterns run against a live Connect endpoint, recording pass/fail + error class. This converts the incompatibility from a known architectural property into an in-context demonstrated result, and yields the compatibility matrix reused by Section 3 and Section 1's H3. <strong>This is already partly corroborated operationally:</strong> imperative proved un-runnable on the remote Connect substrate during the study — it is exactly why Part 1 deliberately moved to a local backend <code>[DEVIATIONS.md:516-522]</code>. The probe simply captures that as a clean pass/fail artifact. <em>(Capturing it is the one small, binary piece not yet recorded as an artifact.)</em></p>
-<blockquote>
-<p><strong>⚠ Refinement needed (2026-07-06 — revision-gate decision, not rewritten here).</strong> The H3-EKS run shows imperative that stays on the <strong>DataFrame API</strong> <em>does</em> run session-less on remote Connect (Arm A completed cells on EKS <code>[repro/h3_eks/]</code>); the incompatibility is specific to <code>sparkContext</code>/<code>_jvm</code>/RDD surfaces. The earlier "imperative un-runnable remotely" conflated two things now separated: <em>data-path integration</em> (<code>PATH_NOT_FOUND</code>, fixed) and agents genuinely reaching for those low-level surfaces (<code>JVM_ATTRIBUTE_NOT_SUPPORTED</code>, <code>CANNOT_CONFIGURE_SPARK_CONNECT_MASTER</code>). Precise claim: <strong>SDP is session-less by construction; imperative is session-less <em>only if</em> the agent avoids <code>sparkContext</code>/<code>_jvm</code>/RDD — which agents often don't.</strong> Whether this softens §8's "imperative can't traverse the boundary" argument is a framing call for the owner.</p>
-</blockquote>
+<p>The boundary is enforced at runtime by remote, session-less execution, and <strong>Spark Connect is the means</strong>: a Connect client submits <em>plans</em>, not a live session, so authored code never holds a <code>SparkSession</code>, <code>sparkContext</code>, <code>_jvm</code>, or an RDD.</p>
+<p>What differs between the paradigms is how <em>reliably</em> they stay inside that envelope. <strong>SDP is session-less by construction</strong> — the declarative surface offers no way to reach for a live session. <strong>Imperative is session-less only conditionally:</strong> DataFrame-API imperative code runs fine over Connect — Arm A completed cells on the real EKS Connect cluster <code>[repro/h3_eks/]</code> — but the moment the agent reaches for <code>sparkContext</code>, <code>_jvm</code>, an RDD, or static-config mutation, Connect rejects it (<code>JVM_ATTRIBUTE_NOT_SUPPORTED</code>, <code>CANNOT_CONFIGURE_SPARK_CONNECT_MASTER</code>), and agents often do reach for those. So the enforcement is asymmetric in a precise way: <strong>the declarative paradigm <em>guarantees</em> the session-less boundary; the imperative paradigm can honor it but cannot guarantee it.</strong> A compatibility probe records this as a clean pass/fail matrix — the same matrix reused by Section 3 and Section 1's H3 — in which the low-level imperative patterns fail while DataFrame-API and SDP patterns pass.</p>
+<p><em>(An earlier framing conflated two things now separated: a harness data-path bug — <code>PATH_NOT_FOUND</code>, since fixed — and the genuine incompatibility of the low-level surfaces. Only the latter is a real property of the paradigm.)</em></p>
 <h2 id="9-what-the-boundary-unlocks-section-3-the-open-reference-architecture">9. What the boundary unlocks → Section 3 (the open reference architecture)</h2>
 <p>Because the agent only emits inert desired-state and never holds a session, it can be treated as <strong>fully untrusted</strong> — the precondition for a governed, zero-trust, multi-tenant platform (agent authors + opens a PR; CI runs the gate; a controller, not the agent, reconciles). The <strong>session-free GitOps authoring path is demonstrated locally</strong> (valid spec → <code>Run is COMPLETED</code>; invalid upstream → <code>TABLE_OR_VIEW_NOT_FOUND</code>/SQLSTATE 42P01). The <strong>production EKS / mTLS / zero-trust deployment is Section 3's proposal</strong> — documented design, not yet enabled. Section 2 demonstrates the control boundary; Section 3 proposes the platform built around it.</p>
 <h2 id="10-honesty-notes">10. Honesty notes</h2>
@@ -1398,11 +1395,9 @@ not a finished production system (that is Section 3).</p>
 <g class="c-purple"><rect x="40" y="448" width="600" height="46" rx="8" stroke-dasharray="1.5 3"/><text x="340" y="470" class="th" text-anchor="middle">Tenant governance — per-tenant authz + isolation</text><text x="340" y="487" class="ts" text-anchor="middle">frontier · delegated to a governed catalog + multi-server Connect</text></g>
 </svg>
 </div><figcaption>The open governed reference architecture. Solid = demonstrated · dashed = configured but unrun · dotted = frontier.</figcaption></figure>
-<p><strong>Status:</strong> SCAFFOLD — north star locked 2026-06-29; pillars in progress. Cites are file:line on <code>origin/dev</code>.</p>
-<blockquote>
-<p><strong>North star.</strong> An open reference architecture that makes agent-authored data engineering <strong>integrable and scalable</strong>: SDP owns declarative authoring; a GitOps/CI layer continuously tests and integrates desired-state against a production catalog before reconciling it onto <strong>Spark Connect — preserved as the single governed, identity-pinned ingress — whose execution scales elastically on Kubernetes (client-mode driver + dynamically-allocated executor pods, containerized).</strong> Tenant governance (catalog authorization <em>and</em> per-tenant execution isolation) is the named frontier, delegated to the catalog and to future multi-server orchestration, not reinvented.</p>
-<p><strong>Scope.</strong> Builds on §2's control boundary; does not relitigate the paradigm result (§1) or re-argue Connect (§2). Connect is <strong>not</strong> abandoned for scale — it stays the governed front door; k8s is the horsepower behind it. Multi-tenancy is the explicitly-named frontier, not a demonstrated claim.</p>
-</blockquote>
+<p><em>This section is a proposal, not a demonstration.</em> It describes the platform Section 2's control boundary makes possible, and marks honestly what is built versus what remains design.</p>
+<p>If an agent can be treated as fully untrusted — because it only ever emits inert desired-state — then it can be dropped into a <strong>governed, multi-tenant, zero-trust data platform</strong>. This section lays out that reference architecture: <strong>SDP</strong> owns declarative authoring; a <strong>GitOps/CI</strong> layer continuously tests and integrates each change against a production catalog before a controller reconciles it; <strong>Spark Connect</strong> stays the single identity-pinned front door; and <strong>Kubernetes</strong> provides elastic execution behind it (a client-mode driver plus dynamically-allocated executor pods). Per-tenant governance — catalog authorization <em>and</em> execution isolation — is the explicitly-named frontier, delegated to a governed catalog and future multi-server orchestration rather than reinvented here.</p>
+<p>It builds on Section 2's boundary and does not relitigate the paradigm result (Section 1) or re-argue Connect; Connect stays the governed front door and Kubernetes is the horsepower behind it. What is demonstrated versus proposed is marked pillar by pillar below.</p>
 <h2 id="30-the-separation-of-concerns-the-boundary-this-section-draws">3.0 The separation of concerns (the boundary this section draws)</h2>
 <p>Each layer owns one thing and <strong>delegates the rest</strong> — this is the section's organizing principle:</p>
 <div class="tablewrap"><table>
@@ -1547,65 +1542,9 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <p>The governed, scalable, integrable substrate is the precondition for the agent <em>orchestration</em> layer — <strong>Section 4 (Omnigent)</strong>, stubbed below: a concrete thesis with a demonstrated orchestration core, whose governance/credential-custody pillar depends on §3's P5/P6 frontier (build once, claim twice).</p>
 <hr />
 <h1 id="section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering" class="section">SECTION 4 — Omnigent: Governed Multi-Agent Orchestration for Data Engineering <span class="badge stub" title="thesis locked · numbers out of scope">Stub</span></h1>
-<h3 id="stub-thesis-locked-quantitative-validation-is-a-separate-experiment">Stub — thesis locked; quantitative validation is a separate experiment</h3>
-<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 452" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
-<title>Section 4 — Omnigent governed multi-agent orchestration</title>
-<desc>The Omnigent orchestrator provides four capabilities — model routing for cost, cross-vendor review for quality, credential custody for governance (the frontier keystone), and a shared skill library for knowledge — over a heterogeneous, credential-free agent fleet, all feeding the Section 3 governed platform.</desc>
-<style>
-  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .t{font-size:14px;fill:#16201e}
-  .th{font-size:14px;font-weight:500;fill:#16201e}
-  .ts{font-size:12px;fill:#5c6b66}
-  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
-  .c-gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.c-gray .th{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
-  .c-teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
-  .c-purple rect{fill:#EEEDFE;stroke:#534AB7;stroke-width:.75}.c-purple .th{fill:#3C3489}.c-purple .ts{fill:#534AB7}
-</style>
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
-
-<!-- legend -->
-<line x1="40" y1="20" x2="66" y2="20" class="arr"/>
-<text x="72" y="24" class="ts">Demonstrated core</text>
-<line x1="230" y1="20" x2="256" y2="20" class="arr" stroke-dasharray="1.5 3"/>
-<text x="262" y="24" class="ts">Frontier / vision</text>
-
-<!-- Orchestrator -->
-<rect x="40" y="45" width="600" height="155" rx="10" fill="none" stroke="#7F77DD" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
-<text x="52" y="63" class="ts">Omnigent orchestrator — one custodian, atop §3 (not N raw sessions)</text>
-<g class="c-purple"><rect x="55" y="78" width="270" height="48" rx="6"/><text x="190" y="100" class="th" text-anchor="middle">Model routing</text><text x="190" y="117" class="ts" text-anchor="middle">cost — cheap vs strong model</text></g>
-<g class="c-purple"><rect x="345" y="78" width="280" height="48" rx="6"/><text x="485" y="100" class="th" text-anchor="middle">Cross-vendor review</text><text x="485" y="117" class="ts" text-anchor="middle">quality — catches blind spots</text></g>
-<g class="c-purple"><rect x="55" y="138" width="270" height="48" rx="6" stroke-dasharray="1.5 3"/><text x="190" y="160" class="th" text-anchor="middle">Credential custody</text><text x="190" y="177" class="ts" text-anchor="middle">governance — keystone (frontier)</text></g>
-<g class="c-purple"><rect x="345" y="138" width="280" height="48" rx="6"/><text x="485" y="160" class="th" text-anchor="middle">Shared skill library</text><text x="485" y="177" class="ts" text-anchor="middle">knowledge — fleet-wide floor</text></g>
-
-<!-- orchestrator -> fleet -->
-<line x1="157" y1="200" x2="157" y2="235" class="arr" marker-end="url(#arrow)"/>
-<line x1="340" y1="200" x2="340" y2="235" class="arr" marker-end="url(#arrow)"/>
-<line x1="522" y1="200" x2="522" y2="235" class="arr" marker-end="url(#arrow)"/>
-
-<!-- fleet -->
-<g class="c-gray"><rect x="70" y="235" width="175" height="55" rx="6"/><text x="157" y="260" class="th" text-anchor="middle">claude_code</text><text x="157" y="278" class="ts" text-anchor="middle">credential-free</text></g>
-<g class="c-gray"><rect x="265" y="235" width="150" height="55" rx="6"/><text x="340" y="260" class="th" text-anchor="middle">codex</text><text x="340" y="278" class="ts" text-anchor="middle">credential-free</text></g>
-<g class="c-gray"><rect x="435" y="235" width="175" height="55" rx="6"/><text x="522" y="260" class="th" text-anchor="middle">pi</text><text x="522" y="278" class="ts" text-anchor="middle">credential-free</text></g>
-
-<!-- fleet -> platform -->
-<path d="M157 290 V308 H145 V350" fill="none" class="arr" marker-end="url(#arrow)"/>
-<path d="M340 290 V308 H145 V350" fill="none" class="arr"/>
-<path d="M522 290 V308 H145 V350" fill="none" class="arr"/>
-
-<!-- Section 3 platform base -->
-<rect x="40" y="320" width="600" height="112" rx="10" fill="none" stroke="#1D9E75" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
-<text x="52" y="338" class="ts">§3 governed platform — the substrate Omnigent sits on</text>
-<g class="c-teal"><rect x="55" y="350" width="180" height="48" rx="6"/><text x="145" y="372" class="th" text-anchor="middle">GitOps gate</text><text x="145" y="389" class="ts" text-anchor="middle">PR dry-run vs catalog</text></g>
-<g class="c-teal"><rect x="255" y="350" width="170" height="48" rx="6"/><text x="340" y="372" class="th" text-anchor="middle">Connect ingress</text><text x="340" y="389" class="ts" text-anchor="middle">single mTLS door</text></g>
-<g class="c-teal"><rect x="445" y="350" width="180" height="48" rx="6"/><text x="535" y="372" class="th" text-anchor="middle">k8s execution</text><text x="535" y="389" class="ts" text-anchor="middle">driver + executor pods</text></g>
-<line x1="235" y1="374" x2="255" y2="374" class="arr" marker-end="url(#arrow)"/>
-<line x1="425" y1="374" x2="445" y2="374" class="arr" marker-end="url(#arrow)"/>
-</svg>
-</div><figcaption>Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody (dotted) is the frontier keystone.</figcaption></figure>
-<p><strong>Status:</strong> STUB — concrete thesis, demonstrated orchestration core, frontier named. The empirical fleet study (cost/quality numbers) is <strong>explicitly out of scope for this paper's run.</strong> Cites are file:line where the mechanism exists.</p>
-<blockquote>
-<p><strong>North star.</strong> Omnigent is the orchestration layer that makes a <em>fleet</em> of agents doing data engineering <strong>cheaper, higher-quality, governed, and collectively knowledgeable</strong> — properties raw parallelism (N independent sessions) cannot provide. It sits atop §3's governed platform: the catalog vends, <strong>Omnigent holds credential custody, the agent stays credential-free</strong> — the §2 control boundary, preserved at fleet scale.</p>
-</blockquote>
+<h3 id="an-orchestration-layer-for-a-fleet-of-governed-agents">An orchestration layer for a fleet of governed agents</h3>
+<p><em>This section is a thesis with a demonstrated core, not a measured result</em> — the quantitative fleet study (cost and quality numbers) is a separate experiment, out of scope for this paper's run.</p>
+<p>Section 3's platform governs <em>one</em> agent. <strong>Omnigent</strong> is the layer above it that governs a <em>fleet</em>: it aims to make many agents doing data engineering cheaper, higher-quality, governed, and collectively knowledgeable — properties that raw parallelism (N independent sessions) cannot provide. It sits atop Section 3's platform and holds <strong>credential custody</strong>, so each agent stays credential-free — the control boundary of Section 2, preserved at fleet scale.</p>
 <p><strong>Why not just run N sessions in parallel?</strong> Four composing axes, each tracing back to the spine.</p>
 <h2 id="s41-cost-heterogeneous-model-routing">S4.1 Cost — heterogeneous model routing</h2>
 <p>Match the model to the task: a cheap/small model for a trivial fix, a strong model for a refactor, a different vendor for review. Metric: <strong>cost-per-correct-pipeline</strong> — §1's H5.3 (cost-per-correct-completion) lifted to the fleet. <em>(Quantitative claim = separate experiment.)</em></p>
