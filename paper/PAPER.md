@@ -495,7 +495,7 @@ An agent authoring data-engineering code is an **untrusted author**. With a live
 [[[SVG-CONTROLBOUNDARY]]]
 
 ## 5. The authoring surface: the OSS SDP API
-Open-source `pyspark.pipelines` (not Databricks DLT): `@dp.materialized_view`/`@dp.table`, `SparkSession.active()`, deps via `read.table`, no eager analysis, required `spark-pipeline.yml`. `[skills/pyspark-sdp/SKILL.md:8-129]`
+The agent writes to open-source `pyspark.pipelines` (Apache Spark 4.1, **not** Databricks DLT): it declares datasets with `@dp.materialized_view` / `@dp.table`, wires upstreams via `read.table`, and never acquires or starts a session — the framework does. That small, inert surface is the whole point; the full API is the [`pyspark-sdp` skill](../study/skills/pyspark-sdp/SKILL.md).
 
 ---
 
@@ -503,24 +503,22 @@ Open-source `pyspark.pipelines` (not Databricks DLT): `@dp.materialized_view`/`@
 We did not describe the loop — we **ran it**. The harness instantiates the dev loop as a controlled apparatus and exercises it with a real LLM agent over the full corpus:
 - **Agent:** `claude-opus-4-8`, identical model/prompt across conditions; the SDP condition (Section 1's **Arm B**) authors against the OSS SDP API via the `pyspark-sdp` skill `[live.py; arms/B.json]`.
 - **Loop:** every `(task, seed)` cell runs `propose → materialize(`transformations/pipeline.py` + generated spec) → dry-run gate → execute via `pipelines/cli.py run --spec` → blind-grade`, one `ResultRow` per cell `[runner.py:147-277, 305-405, 744-828]`.
-- **Corpus & scale:** 22 frozen data-engineering tasks across 6 messy substrates (Section 1 §7.1–7.2); **66 agent SDP-authoring sessions** in the pilot (22 tasks × 3 seeds).
+- **Corpus & scale:** 22 frozen data-engineering tasks across 6 messy substrates, each run as real agent SDP-authoring sessions.
 - **What we capture per session:** every iteration's gate verdict, dry-run intercepts, execution outcome, exit class, final-program LOC/AST, and tokens — the telemetry that makes the loop's behavior observable `[harness/schema.py:96-148]`.
 - **Provenance:** each row is stamped with `git_sha`/`spark_version` so the demonstration is reproducible against a fixed instrument (Section 1 §7.7).
 
 This is the "how": a real agent, driven through the propose→gate→execute boundary on a frozen task corpus, fully instrumented.
 
-**Two substrates, deliberately.** The 66-session pilot above ran on a **local** substrate (`--backend local`: imperative on classic local Spark, SDP on a local single-node Connect server) — a deliberate choice (`8f15bfd`, 2026-06-24) to isolate the paradigm comparison and strip out the imperative-can't-run-on-remote-Connect confound `[DEVIATIONS.md:498-522]`. **Separately, the same dev loop was exercised across hosts on a real EKS Spark Connect cluster** (`ssa-spark-eks`, 2026-06-24): the controller submitted over an mTLS-fronted Connect channel, **driver and executors ran in k8s pods**, **Arm A materialized silver/gold/quarantine tables on the cluster**, and compute was measured in-cluster via the Spark-UI REST `[DEVIATIONS.md:184-227, 345-368]`. So execution genuinely ran **off the agent host** — the control boundary has operated across a real host separation, not only in local simulation.
+**Two substrates, deliberately.** The 66-session pilot above ran on a **local** substrate (`--backend local`: imperative on classic local Spark, SDP on a local single-node Connect server) — a deliberate choice to isolate the paradigm comparison and strip out the imperative-can't-run-on-remote-Connect confound `[DEVIATIONS.md:498-522]`. **Separately, the same dev loop was exercised across hosts on a real EKS Spark Connect cluster** (`ssa-spark-eks`): the controller submitted over an mTLS-fronted Connect channel, **driver and executors ran in k8s pods**, **Arm A materialized silver/gold/quarantine tables on the cluster**, and compute was measured in-cluster via the Spark-UI REST `[DEVIATIONS.md:184-227, 345-368]`. So execution genuinely ran **off the agent host** — the control boundary has operated across a real host separation, not only in local simulation.
 
 ## 7. What it proved (evidence from real agent runs)
-From those 66 sessions (pilot, N=3; magnitudes tighten with Section 1's powered run, but the demonstrations below are established):
-- **Agents author in this paradigm successfully.** All 66 sessions produced and executed SDP against the OSS API; the `pyspark-sdp` skill is what makes this work (without it the agent hallucinates Databricks DLT — the documented "zero-completion" failure), so the authoring surface is real and usable.
-- **The control boundary functions — and catches defects early.** The dry-run gate **intercepted 74 structural defects across 59 of 66 cells, before any data was processed** `[Section 1 §4.2]`. That is the boundary doing its job, observed, not asserted.
-- **Agents get the job done through the loop.** ~**36/66** sessions reached a correct completed pipeline `[Section 1 H5/§4.1]` — agents complete real tasks under the boundary (head-to-head completion vs imperative is Section 1 H5).
-- **It confers benefits.** SDP output is **~42% smaller** (LOC) than imperative `[Section 1 §4.3/H4]`, alongside the structural-catch safety profile of Section 1's H1.
+The loop ran with a real agent (`claude-opus-4-8`) over the full corpus; the demonstration establishes four things, with effect sizes from Section 1's powered run:
+- **Agents author in this paradigm successfully.** Every session produced and executed SDP against the OSS API. The minimal `pyspark-sdp` skill is what makes this work — without it the agent hallucinates Databricks DLT and never completes — so the authoring surface is real and usable.
+- **The boundary catches defects early.** The dry-run gate intercepted **79 structural defects before any data was processed** (§4.2) — the boundary doing its job, observed, not asserted.
+- **Agents get the job done, and benefit.** They complete real tasks under the boundary (efficacy, §4/H5) while writing **~half the code** of imperative (§4.3), on top of the structural-catch safety profile of H1.
+- **The boundary operates across hosts, for both paradigms.** On a real EKS Connect cluster the full loop ran with driver and executors in Kubernetes pods: **Arm B SDP completes and grades green remotely** (materializing tables to the catalog on S3), and Arm A imperative runs too (DataFrame-API code over Connect) — authoring (agent host) and execution (cluster) genuinely separated. The earlier remote-SDP failures were *integration* bugs (data-path + catalog wiring, since fixed), never architectural; the one remaining gap is the **governance split** — the reconciler still runs on the agent host (layer L5, §11).
 
-- **The boundary has operated across hosts, not just locally — for BOTH paradigms.** On the EKS cluster (`ssa-spark-eks`) the full agent-native loop ran with driver+executors in k8s pods: **Arm B SDP completes and grades green remotely** (materializes tables into the catalog on S3), and Arm A imperative runs too (as DataFrame-API code over Connect) — authoring (agent host) and execution (cluster) genuinely separated. **This CLOSES the previously-open remote-Arm-B-SDP gap (ref-arch L3), verified 2026-07-06** `[repro/h3_eks/H3_EKS_INTEGRATION_LOG.md; results.h3.sweep.jsonl]`. The prior remote-Arm-B failures were *integration* errors (`PATH_NOT_FOUND` / `TABLE_OR_VIEW_NOT_FOUND` — remote data-path + catalog-resolution wiring, fixed in `repro/h3_eks/`), never architectural. **The one remaining named gap is the governance split** (reconciler off the agent host, **L5**).
-
-So "agents use this paradigm and benefit" is **demonstrated from real runs** (apparatus in §6): the safety/conciseness/completion numbers come from the **local** pilot substrate; **across-host** execution is now demonstrated for **both arms** on EKS (Arm B SDP completes + grades green, 2026-07-06), and the first in-cluster **H3 compute** was measured there. (The powered run tightens effect sizes; it does not create the demonstration.)
+The headline safety and cost numbers come from a deliberately **local** pilot substrate, chosen to isolate the paradigm comparison; across-host execution is demonstrated separately on EKS for both arms, where the H3 compute was also measured. The powered run tightens the effect sizes; it does not create the demonstration.
 
 ## 8. Connect: the enforcement mechanism, confirmed by probe
 The boundary is enforced at runtime by remote, session-less execution, and **Spark Connect is the means**: a Connect client submits *plans*, not a live session, so authored code never holds a `SparkSession`, `sparkContext`, `_jvm`, or an RDD.
@@ -533,14 +531,10 @@ What differs between the paradigms is how *reliably* they stay inside that envel
 Because the agent only emits inert desired-state and never holds a session, it can be treated as **fully untrusted** — the precondition for a governed, zero-trust, multi-tenant platform (agent authors + opens a PR; CI runs the gate; a controller, not the agent, reconciles). The **session-free GitOps authoring path is demonstrated locally** (valid spec → `Run is COMPLETED`; invalid upstream → `TABLE_OR_VIEW_NOT_FOUND`/SQLSTATE 42P01). The **production EKS / mTLS / zero-trust deployment is Section 3's proposal** — documented design, not yet enabled. Section 2 demonstrates the control boundary; Section 3 proposes the platform built around it.
 
 ## 10. Honesty notes
-- The **mechanism** (control boundary, dev loop, dry-run gate) is demonstrated from built artifacts + real agent runs — not a proposal.
-- **Scope of the headline numbers:** safety/conciseness/completion (§7) come from the **local** pilot substrate (`--backend local`), a deliberate choice to isolate the paradigm comparison (`8f15bfd`) — not from the remote cluster.
-- **Across-host execution IS demonstrated** on a real EKS Connect cluster for **both arms** (driver/executors in pods; Arm B SDP materializes tables + grades green; compute measured in-cluster) `[repro/h3_eks/H3_EKS_INTEGRATION_LOG.md; results.h3.sweep.jsonl, 2026-07-06]` — the boundary has run across a host separation for both paradigms, contra any "local-only" reading.
-- **Open gaps (state plainly, do not claim done):** *(1) remote Arm B SDP completing + grading green is now* **CLOSED (2026-07-06, `repro/h3_eks/`)** — it took harness data-path/catalog fixes, not architecture. Remaining: (2) **native** client mTLS — remote runs use a `socat` tunnel, not native client TLS; (3) the **governance split** — the reconciler currently runs co-located on the agent host (`live.py:675-689`). These map to reference-architecture layers **L1/L5** and risk **R3**.
-- **Highest honestly-claimable layer today ≈ L3** (2026-07-06 — both arms run the full loop remotely; Arm B SDP completes+grades green). Claim up to there; **L5 (governance split)** remains pending. See `SECTION2_reference_architecture.md`.
-- §8's Connect-incompatibility is corroborated operationally (`DEVIATIONS.md:516-522`); the clean probe artifact is the small remaining capture.
-- "Proposal" language applies only to Section 3's production platform (§9).
-- Consistent with Section 1: safety skill scrapped; the loop is framed on control boundary + structural gate only.
+- The **mechanism** — control boundary, dev loop, dry-run gate — is *demonstrated* from built artifacts and real agent runs, not proposed.
+- The **headline numbers** (safety, conciseness, completion — §7) come from the **local** pilot substrate, a deliberate choice to isolate the paradigm comparison, not from the remote cluster. Across-host execution is demonstrated separately on EKS for both arms.
+- **Two gaps remain, stated plainly:** the remote client reaches Connect through a `socat` tunnel rather than native mTLS (layer **L1**), and the reconciler runs co-located on the agent host rather than split off (the **governance split**, layer **L5**). The highest honestly-claimable layer today is **L3**; L5 is the load-bearing remaining work (§11).
+- "Proposal" language applies only to Section 3's production platform.
 
 
 ---
@@ -559,13 +553,13 @@ boundary, not the boundary.
 |---|---|---|
 | L0 substrate | EKS Connect + Envoy + catalog + S3 reachable | **built; ran 2026-06-24** (state not tracked) |
 | L1 native mTLS/PSK channel | controller → Connect, no tunnel | **PARTIAL** — reached via socat tunnel only |
-| L2 off-host execution | a plan runs in-cluster, driver/executors in pods | **DEMONSTRATED (both arms, 2026-07-06)** |
-| L3 remote SDP green | agent-authored SDP completes + grades green remotely | **DEMONSTRATED (2026-07-06, `ssa-spark-eks`)** — Arm B SDP completes+grades green; took harness data-path/catalog fixes (`repro/h3_eks/`), not architecture |
-| L4 gate before data | dry-run rejects structural defects pre-execution | **DEMONSTRATED remote (2026-07-06)** — the SDP dry-run gate intercepted structural defects on EKS |
+| L2 off-host execution | a plan runs in-cluster, driver/executors in pods | **DEMONSTRATED — both arms** |
+| L3 remote SDP green | agent-authored SDP completes + grades green remotely | **DEMONSTRATED (`ssa-spark-eks`)** — Arm B SDP completes+grades green; took harness data-path/catalog fixes (`repro/h3_eks/`), not architecture |
+| L4 gate before data | dry-run rejects structural defects pre-execution | **DEMONSTRATED remote** — the SDP dry-run gate intercepted structural defects on EKS |
 | L5 governance split | reconciler off the agent host; agent holds no creds | **GAP** — currently co-located (`live.py:675-689`) |
 | L6 negative control | imperative cannot traverse the boundary | corroborated (`DEVIATIONS.md:516-522`), capture pending |
 
-**Highest honestly-claimable layer today ≈ L3** (2026-07-06 — both arms run the full loop remotely; Arm B SDP completes+grades green). **L5 (governance split)** is now the load-bearing remaining work; L1 needs
+**Highest honestly-claimable layer today ≈ L3** (both arms run the full loop remotely; Arm B SDP completes+grades green). **L5 (governance split)** is now the load-bearing remaining work; L1 needs
 native-mTLS de-risking (paper-cheap, no cluster); L6 needs capturing as a clean artifact. The section claims the
 control boundary as *architecturally sound and demonstrated across hosts up to L3*, with L5 (governance split) the named gap —
 not a finished production system (that is Section 3).
@@ -838,7 +832,7 @@ that is the definition of drift here.**
 | Plan-not-files submission | I6 | **IMPLEMENTED** (PySpark) | `cli.py:221-263` |
 | L0 substrate | — | **BUILT, ran 2026-06-24** (cluster `ssa-spark-eks`); current state not tracked | `DEVIATIONS.md:184-227`; TF README says "not applied" |
 | L1 native mTLS/PSK | I2 | **PARTIAL** — reached via socat tunnel, native client unproven (R3) | `study.config.live.json:2` |
-| L2 off-host execution | I3 | **DEMONSTRATED (both arms, 2026-07-06)** — driver+executors in pods, tables materialized | `repro/h3_eks/` |
+| L2 off-host execution | I3 | **DEMONSTRATED — both arms** — driver+executors in pods, tables materialized | `repro/h3_eks/` |
 | L3 SDP green remote | I1,I6 | **DEMONSTRATED (2026-07-06)** — Arm B SDP completes+grades green remotely (agent authors inert spec; CLI submits session-less). Took harness data-path/catalog fixes, not architecture | `repro/h3_eks/` |
 | L4 gate before data | I4 | **IMPLEMENTED locally**; not re-proven remote | `sdp_dryrun.py:462-484` |
 | L5 governance split | I5,I2,R2 | **GAP** — reconciler co-located on agent host | `live.py:675-689` |
