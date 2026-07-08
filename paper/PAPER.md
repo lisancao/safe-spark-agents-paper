@@ -473,7 +473,7 @@ Section 1 showed that a declarative agent writes safer and far more concise pipe
 
 The answer is a **control boundary** that separates *authoring* from *execution*. The agent proposes desired state; a governed system validates it with a structural dry-run — before any data — and executes it; the agent never holds a session, credentials, or touches data. The dev loop, **propose → dry-run gate → reconcile/execute**, *is* that boundary; declarative pipelines make it expressible, and Spark Connect enforces it.
 
-This is a **demonstration, not a proposal** — we built the loop, ran real AI agents through it, and executed it across hosts on a live EKS Spark-Connect cluster (driver and executors in Kubernetes pods, tables materialized remotely). Two honest gaps remain — a remote SDP pipeline completing green end to end, and moving the reconciler off the agent's host (the *governance split*) — and the production-scale governed platform is **Section 3's** proposal, not a claim made here. This section does not relitigate the paradigm safety result (Section 1); the control boundary is the argument.
+This is a **demonstration, not a proposal** — we built the loop, ran real AI agents through it, and executed it across hosts on a live EKS Spark-Connect cluster (driver and executors in Kubernetes pods, tables materialized remotely). Two honest gaps remain — the remote client still reaches Connect through a `socat` tunnel rather than native mTLS, and the reconciler still runs on the agent's host (the *governance split*) — while the production-scale governed platform is **Section 3's** proposal, not a claim made here. This section does not relitigate the paradigm safety result (Section 1); the control boundary is the argument.
 
 ---
 
@@ -527,7 +527,7 @@ This is the "how": a real agent, driven through the propose→gate→execute bou
 
 **The infrastructure — how the boundary maps onto EKS + Connect.** The across-host run used a real, governed stack — the same shape a production deployment would take:
 - **Authoring host (untrusted):** the agent writes its inert SDP spec; it holds no session, no cluster credentials, no endpoint identity.
-- **Governed ingress:** the only way in is a single mTLS-fronted **Spark Connect** endpoint. An **Envoy** sidecar terminates mTLS, validates the client certificate, derives the caller's identity from it (a principal-pinning interceptor rejects a mismatched user), and forwards to a Connect server bound to loopback only — so there is no path to raw Connect around the identity check.
+- **Governed ingress:** the only way in is a single mTLS-fronted **Spark Connect** endpoint. An **Envoy** sidecar terminates mTLS, validates the client certificate, derives the caller's identity from it (a principal-pinning interceptor rejects a mismatched user), and forwards to a Connect server bound to loopback only — so there is no path to raw Connect around the identity check. *(This ingress is deployed; in the study's remote runs the client reached it through a `socat` mTLS tunnel rather than terminating TLS natively — the one piece still to harden, layer L1.)*
 - **Execution (off-host):** the Connect server *is* a client-mode Spark **driver** pod that launches **executor pods** on Kubernetes; the catalog is Hive Metastore + Iceberg and the warehouse is S3 (reached via IRSA, not static keys).
 - **How the boundary maps onto it:** a controller — not the agent — runs the stock SDP CLI as a Connect *client*. It builds the dataflow graph from the agent's transforms and ships **protobuf plans** (not files, not a live engine) over the mTLS channel; EKS executes them. The agent authored; the governed system executed; only a plan crossed the wire, on a different host.
 
@@ -538,7 +538,7 @@ The loop ran with a real agent (`claude-opus-4-8`) over the full corpus; the dem
 - **Agents author in this paradigm successfully.** Every session produced and executed SDP against the OSS API. The minimal `pyspark-sdp` skill is what makes this work — without it the agent hallucinates Databricks DLT and never completes — so the authoring surface is real and usable.
 - **The boundary catches defects early.** The dry-run gate intercepted **79 structural defects before any data was processed** (§4.2) — the boundary doing its job, observed, not asserted.
 - **Agents get the job done, and benefit.** They complete real tasks under the boundary (efficacy, §4/H5) while writing **~half the code** of imperative (§4.3), on top of the structural-catch safety profile of H1.
-- **The boundary operates across hosts, for both paradigms.** On a real EKS Connect cluster the full loop ran with driver and executors in Kubernetes pods: **Arm B SDP completes and grades green remotely** (materializing tables to the catalog on S3), and Arm A imperative runs too (DataFrame-API code over Connect) — authoring (agent host) and execution (cluster) genuinely separated. The earlier remote-SDP failures were *integration* bugs (data-path + catalog wiring, since fixed), never architectural; the one remaining gap is the **governance split** — the reconciler still runs on the agent host (layer L5, §11).
+- **The boundary operates across hosts, for both paradigms.** On a real EKS Connect cluster the full loop ran with driver and executors in Kubernetes pods: **Arm B SDP completes and grades green remotely** (materializing tables to the catalog on S3), and Arm A imperative runs too (DataFrame-API code over Connect) — authoring (agent host) and execution (cluster) genuinely separated. The earlier remote-SDP failures were *integration* bugs (data-path + catalog wiring, since fixed), never architectural. Two gaps remain: the **governance split** — the reconciler still runs on the agent host (the load-bearing one, layer L5) — and native client mTLS, still reached via a tunnel (layer L1). See §11.
 
 The headline safety and cost numbers come from a deliberately **local** pilot substrate, chosen to isolate the paradigm comparison; across-host execution is demonstrated separately on EKS for both arms, where the H3 compute was also measured. The powered run tightens the effect sizes; it does not create the demonstration.
 
@@ -564,7 +564,7 @@ Because the agent only emits inert desired-state and never holds a session, it c
 ---
 
 ## 11. Reference architecture, invariants & demonstration layers
-The canonical target is **Appendix S2-A** (folded into this paper below — the SSOT for implementing agents); build work in `SECTION2_eks_connect_demo_checklist.md`. In-line summary:
+The canonical target is **Appendix S2-A** (folded in below). In-line summary:
 
 **The boundary holds iff (invariants):** I1 authoring ⊥ execution · I2 no creds in the agent · I3 execution on a
 separate host/zone · I4 gate before any data · I5 reconciliation by a controller the agent doesn't control ·
@@ -575,7 +575,7 @@ boundary, not the boundary.
 
 | Layer | Claim it licenses | Status today |
 |---|---|---|
-| L0 substrate | EKS Connect + Envoy + catalog + S3 reachable | **built; ran 2026-06-24** (state not tracked) |
+| L0 substrate | EKS Connect + Envoy + catalog + S3 reachable | **built and run** |
 | L1 native mTLS/PSK channel | controller → Connect, no tunnel | **PARTIAL** — reached via socat tunnel only |
 | L2 off-host execution | a plan runs in-cluster, driver/executors in pods | **DEMONSTRATED — both arms** |
 | L3 remote SDP green | agent-authored SDP completes + grades green remotely | **DEMONSTRATED (`ssa-spark-eks`)** — Arm B SDP completes+grades green; took harness data-path/catalog fixes (`repro/h3_eks/`), not architecture |
