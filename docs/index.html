@@ -147,7 +147,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     the open governed platform, and fleet orchestration.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-07</span><span>·</span>
-    <span class="k">git cb8536e</span><span>·</span>
+    <span class="k">git d41279d</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -1543,6 +1543,60 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <hr />
 <h1 id="section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering" class="section">SECTION 4 — Omnigent: Governed Multi-Agent Orchestration for Data Engineering <span class="badge stub" title="thesis locked · numbers out of scope">Stub</span></h1>
 <h3 id="an-orchestration-layer-for-a-fleet-of-governed-agents">An orchestration layer for a fleet of governed agents</h3>
+<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 452" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Section 4 — Omnigent governed multi-agent orchestration</title>
+<desc>The Omnigent orchestrator provides four capabilities — model routing for cost, cross-vendor review for quality, credential custody for governance (the frontier keystone), and a shared skill library for knowledge — over a heterogeneous, credential-free agent fleet, all feeding the Section 3 governed platform.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .t{font-size:14px;fill:#16201e}
+  .th{font-size:14px;font-weight:500;fill:#16201e}
+  .ts{font-size:12px;fill:#5c6b66}
+  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
+  .c-gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.c-gray .th{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
+  .c-teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
+  .c-purple rect{fill:#EEEDFE;stroke:#534AB7;stroke-width:.75}.c-purple .th{fill:#3C3489}.c-purple .ts{fill:#534AB7}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<!-- legend -->
+<line x1="40" y1="20" x2="66" y2="20" class="arr"/>
+<text x="72" y="24" class="ts">Demonstrated core</text>
+<line x1="230" y1="20" x2="256" y2="20" class="arr" stroke-dasharray="1.5 3"/>
+<text x="262" y="24" class="ts">Frontier / vision</text>
+
+<!-- Orchestrator -->
+<rect x="40" y="45" width="600" height="155" rx="10" fill="none" stroke="#7F77DD" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
+<text x="52" y="63" class="ts">Omnigent orchestrator — one custodian, atop §3 (not N raw sessions)</text>
+<g class="c-purple"><rect x="55" y="78" width="270" height="48" rx="6"/><text x="190" y="100" class="th" text-anchor="middle">Model routing</text><text x="190" y="117" class="ts" text-anchor="middle">cost — cheap vs strong model</text></g>
+<g class="c-purple"><rect x="345" y="78" width="280" height="48" rx="6"/><text x="485" y="100" class="th" text-anchor="middle">Cross-vendor review</text><text x="485" y="117" class="ts" text-anchor="middle">quality — catches blind spots</text></g>
+<g class="c-purple"><rect x="55" y="138" width="270" height="48" rx="6" stroke-dasharray="1.5 3"/><text x="190" y="160" class="th" text-anchor="middle">Credential custody</text><text x="190" y="177" class="ts" text-anchor="middle">governance — keystone (frontier)</text></g>
+<g class="c-purple"><rect x="345" y="138" width="280" height="48" rx="6"/><text x="485" y="160" class="th" text-anchor="middle">Shared skill library</text><text x="485" y="177" class="ts" text-anchor="middle">knowledge — fleet-wide floor</text></g>
+
+<!-- orchestrator -> fleet -->
+<line x1="157" y1="200" x2="157" y2="235" class="arr" marker-end="url(#arrow)"/>
+<line x1="340" y1="200" x2="340" y2="235" class="arr" marker-end="url(#arrow)"/>
+<line x1="522" y1="200" x2="522" y2="235" class="arr" marker-end="url(#arrow)"/>
+
+<!-- fleet -->
+<g class="c-gray"><rect x="70" y="235" width="175" height="55" rx="6"/><text x="157" y="260" class="th" text-anchor="middle">claude_code</text><text x="157" y="278" class="ts" text-anchor="middle">credential-free</text></g>
+<g class="c-gray"><rect x="265" y="235" width="150" height="55" rx="6"/><text x="340" y="260" class="th" text-anchor="middle">codex</text><text x="340" y="278" class="ts" text-anchor="middle">credential-free</text></g>
+<g class="c-gray"><rect x="435" y="235" width="175" height="55" rx="6"/><text x="522" y="260" class="th" text-anchor="middle">pi</text><text x="522" y="278" class="ts" text-anchor="middle">credential-free</text></g>
+
+<!-- fleet -> platform -->
+<path d="M157 290 V308 H145 V350" fill="none" class="arr" marker-end="url(#arrow)"/>
+<path d="M340 290 V308 H145 V350" fill="none" class="arr"/>
+<path d="M522 290 V308 H145 V350" fill="none" class="arr"/>
+
+<!-- Section 3 platform base -->
+<rect x="40" y="320" width="600" height="112" rx="10" fill="none" stroke="#1D9E75" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
+<text x="52" y="338" class="ts">§3 governed platform — the substrate Omnigent sits on</text>
+<g class="c-teal"><rect x="55" y="350" width="180" height="48" rx="6"/><text x="145" y="372" class="th" text-anchor="middle">GitOps gate</text><text x="145" y="389" class="ts" text-anchor="middle">PR dry-run vs catalog</text></g>
+<g class="c-teal"><rect x="255" y="350" width="170" height="48" rx="6"/><text x="340" y="372" class="th" text-anchor="middle">Connect ingress</text><text x="340" y="389" class="ts" text-anchor="middle">single mTLS door</text></g>
+<g class="c-teal"><rect x="445" y="350" width="180" height="48" rx="6"/><text x="535" y="372" class="th" text-anchor="middle">k8s execution</text><text x="535" y="389" class="ts" text-anchor="middle">driver + executor pods</text></g>
+<line x1="235" y1="374" x2="255" y2="374" class="arr" marker-end="url(#arrow)"/>
+<line x1="425" y1="374" x2="445" y2="374" class="arr" marker-end="url(#arrow)"/>
+</svg>
+</div><figcaption>Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody (dotted) is the frontier keystone.</figcaption></figure>
 <p><em>This section is a thesis with a demonstrated core, not a measured result</em> — the quantitative fleet study (cost and quality numbers) is a separate experiment, out of scope for this paper's run.</p>
 <p>Section 3's platform governs <em>one</em> agent. <strong>Omnigent</strong> is the layer above it that governs a <em>fleet</em>: it aims to make many agents doing data engineering cheaper, higher-quality, governed, and collectively knowledgeable — properties that raw parallelism (N independent sessions) cannot provide. It sits atop Section 3's platform and holds <strong>credential custody</strong>, so each agent stays credential-free — the control boundary of Section 2, preserved at fleet scale.</p>
 <p><strong>Why not just run N sessions in parallel?</strong> Four composing axes, each tracing back to the spine.</p>

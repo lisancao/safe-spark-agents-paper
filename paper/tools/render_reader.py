@@ -49,8 +49,8 @@ md_text = md_text.replace(
     "### Integrable, Scalable Agent Data Engineering on Spark Connect + Kubernetes\n\n[[[SVG-SECTION3]]]\n",
     1)
 md_text = md_text.replace(
-    "### Stub — thesis locked; quantitative validation is a separate experiment",
-    "### Stub — thesis locked; quantitative validation is a separate experiment\n\n[[[SVG-SECTION4]]]\n",
+    "### An orchestration layer for a fleet of governed agents",
+    "### An orchestration layer for a fleet of governed agents\n\n[[[SVG-SECTION4]]]\n",
     1)
 
 md = markdown.Markdown(extensions=["tables", "fenced_code", "sane_lists", "attr_list", "toc"],
