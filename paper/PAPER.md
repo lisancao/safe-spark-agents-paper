@@ -477,17 +477,31 @@ This is a **demonstration, not a proposal** — we built the loop, ran real AI a
 
 ---
 
-## 1. The problem: an agent cannot be handed a live session
-An agent authoring data-engineering code is an **untrusted author**. With a live Spark session it can mutate config, read/write arbitrary data, run unbounded ops — there is no governance story for "an agent with a SparkSession." Section 2 shows how to let an agent build production pipelines **without** the runtime keys.
+## 1. The problem: the normal way to give an agent a data platform is unsafe
+The obvious way to let an AI agent build data pipelines is also the dangerous one: hand it a live `SparkSession` (or warehouse credentials) and let it run its own code. That agent is an **untrusted author**, and a wrong or hallucinated program does not merely fail — it *executes*. It can mutate cluster config, read or overwrite arbitrary tables, run unbounded operations, and — as Section 1 showed — ship silently-wrong data or burn real compute on pipelines that never worked. There is no governance story for "an agent holding a `SparkSession`": no gate before it touches data, no line between what it *authors* and what it *runs*, nothing to audit or contain. Section 2 shows how to give an agent a full production data platform **without ever handing it the runtime keys** — and, at the end, what that buys over the normal setup.
 
 ## 2. The thesis: a control boundary (authoring ⊥ execution)
 **Authoring** = what the agent writes (a declarative description of desired state). **Execution** = what the governed system does (validate, build the graph, acquire the session, materialize). The agent proposes; the system disposes. Its output is an inert artifact a governed executor reconciles. That separation is what makes an untrusted author safe inside a trusted platform.
 
 ## 3. Why declarative *enables* the boundary and imperative *cannot*
-- **Declarative (SDP):** agent writes only decorated transforms; the system owns graph/session/materialization — authoring and execution are **structurally distinct artifacts**. `[runner.py:305-405; live.py:569-583, 825-845]`
-- **Imperative:** the program owns session/reads/writes/lifecycle; to *apply* it you must *run* it. Authoring **is** execution — nothing to hand a governed executor but "run this program." `[runner.py:369-405; live.py:724-733]`
+The two paradigms produce fundamentally different *kinds of artifact*:
 
-∴ The control boundary is only expressible in a paradigm that separates desired-state from reconciliation. We adopt declarative for that reason.
+```python
+# Imperative — the agent owns and runs the session; authoring IS execution
+spark = SparkSession.builder.getOrCreate()
+df = spark.read.json(src).where(...).groupBy(...).agg(...)
+df.write.saveAsTable("gold")            # to apply it, you must run it
+
+# Declarative (SDP) — the agent writes inert desired-state; the framework runs it
+@dp.materialized_view
+def gold():
+    return spark.read.table("silver").groupBy(...).agg(...)   # no session, no .write, no .start()
+```
+
+- **Imperative:** the program owns the session, the reads and writes, and the lifecycle; to *apply* it you must *run* it. Authoring **is** execution — there is nothing to hand a governed executor but "run this program." `[runner.py:369-405]`
+- **Declarative (SDP):** the agent writes only decorated transforms; the framework owns the graph, the session, and materialization — so authoring and execution are **structurally distinct artifacts**. `[runner.py:305-405]`
+
+∴ The control boundary is only *expressible* in a paradigm that separates desired-state from reconciliation. We adopt declarative not for its own sake, but because it is the only authoring surface an untrusted agent can safely hold.
 
 ## 4. The mechanism: the agent-native dev loop
 `propose → materialize → [structural dry-run gate] → execute/reconcile → feedback`, to convergence `[runner.py:147-277]`. The **dry-run gate** validates structure **before any data is processed** — a real SDP framework dry-run (`create_dataflow_graph` → `register_definitions` → `start_run(dry=True)`) `[sdp_dryrun.py:462-484]` — returning structural defects to the agent as feedback so bad desired-state never reaches execution.
@@ -511,6 +525,14 @@ This is the "how": a real agent, driven through the propose→gate→execute bou
 
 **Two substrates, deliberately.** The 66-session pilot above ran on a **local** substrate (`--backend local`: imperative on classic local Spark, SDP on a local single-node Connect server) — a deliberate choice to isolate the paradigm comparison and strip out the imperative-can't-run-on-remote-Connect confound `[DEVIATIONS.md:498-522]`. **Separately, the same dev loop was exercised across hosts on a real EKS Spark Connect cluster** (`ssa-spark-eks`): the controller submitted over an mTLS-fronted Connect channel, **driver and executors ran in k8s pods**, **Arm A materialized silver/gold/quarantine tables on the cluster**, and compute was measured in-cluster via the Spark-UI REST `[DEVIATIONS.md:184-227, 345-368]`. So execution genuinely ran **off the agent host** — the control boundary has operated across a real host separation, not only in local simulation.
 
+**The infrastructure — how the boundary maps onto EKS + Connect.** The across-host run used a real, governed stack — the same shape a production deployment would take:
+- **Authoring host (untrusted):** the agent writes its inert SDP spec; it holds no session, no cluster credentials, no endpoint identity.
+- **Governed ingress:** the only way in is a single mTLS-fronted **Spark Connect** endpoint. An **Envoy** sidecar terminates mTLS, validates the client certificate, derives the caller's identity from it (a principal-pinning interceptor rejects a mismatched user), and forwards to a Connect server bound to loopback only — so there is no path to raw Connect around the identity check.
+- **Execution (off-host):** the Connect server *is* a client-mode Spark **driver** pod that launches **executor pods** on Kubernetes; the catalog is Hive Metastore + Iceberg and the warehouse is S3 (reached via IRSA, not static keys).
+- **How the boundary maps onto it:** a controller — not the agent — runs the stock SDP CLI as a Connect *client*. It builds the dataflow graph from the agent's transforms and ships **protobuf plans** (not files, not a live engine) over the mTLS channel; EKS executes them. The agent authored; the governed system executed; only a plan crossed the wire, on a different host.
+
+**What it took to wire it (honest notes).** Standing this up was *integration*, not architecture: the harness had to stage local inputs to S3 so remote executors could read them, resolve the Iceberg catalog (the session's default catalog differs from where SDP writes), and present the pinned principal. Once those were fixed, **Arm A DataFrame-API imperative completed in one iteration and Arm B SDP completed and graded green remotely** — the boundary itself never changed. The exercise also surfaced three genuine Spark-4.1 / Connect / SDP framework gaps (no declarative way to pin `session.timeZone`; no first-class local→executor staging primitive; low-level imperative surfaces unsupported on Connect), written up for the framework owners in [`study/repro/h3_eks/H3_EKS_INTEGRATION_LOG.md`](../study/repro/h3_eks/H3_EKS_INTEGRATION_LOG.md).
+
 ## 7. What it proved (evidence from real agent runs)
 The loop ran with a real agent (`claude-opus-4-8`) over the full corpus; the demonstration establishes four things, with effect sizes from Section 1's powered run:
 - **Agents author in this paradigm successfully.** Every session produced and executed SDP against the OSS API. The minimal `pyspark-sdp` skill is what makes this work — without it the agent hallucinates Databricks DLT and never completes — so the authoring surface is real and usable.
@@ -519,6 +541,8 @@ The loop ran with a real agent (`claude-opus-4-8`) over the full corpus; the dem
 - **The boundary operates across hosts, for both paradigms.** On a real EKS Connect cluster the full loop ran with driver and executors in Kubernetes pods: **Arm B SDP completes and grades green remotely** (materializing tables to the catalog on S3), and Arm A imperative runs too (DataFrame-API code over Connect) — authoring (agent host) and execution (cluster) genuinely separated. The earlier remote-SDP failures were *integration* bugs (data-path + catalog wiring, since fixed), never architectural; the one remaining gap is the **governance split** — the reconciler still runs on the agent host (layer L5, §11).
 
 The headline safety and cost numbers come from a deliberately **local** pilot substrate, chosen to isolate the paradigm comparison; across-host execution is demonstrated separately on EKS for both arms, where the H3 compute was also measured. The powered run tightens the effect sizes; it does not create the demonstration.
+
+**What this buys over the normal setup.** Compared with the obvious approach — an agent holding a `SparkSession` — the boundary turns each liability into a property. The agent is **untrusted** (no session, no credentials, nothing to leak or misuse); structural mistakes are **caught before any data is touched** (79 at the gate, §4.2) instead of discovered at runtime; a wrong pipeline **cannot burn cluster compute**, because it is rejected before it runs (§4.3); and the agent's output is an **inert, reviewable artifact**, so the loop is auditable and — since nothing the agent writes is ever executed *by* the agent — **governable and multi-tenant-able** (Section 3). On top of that it costs *less* code, not more (~half, §4.3). None of these are available to an imperative agent that owns its session.
 
 ## 8. Connect: the enforcement mechanism, confirmed by probe
 The boundary is enforced at runtime by remote, session-less execution, and **Spark Connect is the means**: a Connect client submits *plans*, not a live session, so authored code never holds a `SparkSession`, `sparkContext`, `_jvm`, or an RDD.
