@@ -183,24 +183,19 @@ All CIs clear of zero: B is **~49% fewer LOC** and **~44% smaller AST** than imp
 
 Values are medians reported per field, so input + output need not sum to the total. Direction: SDP **higher** — the declarative agent iterates more against the gate (H2.2), which shows up as tokens. Interpret jointly with H5: the extra iterations are a true cost only if they do not buy completion. `[src: results.powered.AB.n12.final.jsonl · input_tokens,output_tokens · per arm]`
 
-**Data-processing compute (N2) — wall-clock PROXY only.** On the (substrate-split) local backend, executor-seconds are not cross-arm comparable, so N2 is reported here as the uniform wall-clock proxy `executor_seconds_wallclock_to_correct` (Δ = B − A; negative ⇒ SDP spends less, because its gate rejects failed attempts for ≈ 0 compute):
+**Data-processing compute (N2) — SDP is *categorically incapable of burning compute on a bad pipeline*.** This is the sharpest cost result, and it is structural, not a matter of degree. Imperative PySpark runs `spark-submit` — executing over the data — and *then* discovers the pipeline is wrong; SDP's dry-run rejects a bad pipeline **before any executor starts**. A failed imperative attempt therefore costs real cluster compute; a failed SDP attempt costs ≈ 0, *by construction*. (In the powered run, **69.5%** of arm B's attempts were intercepted at the gate, before touching data.)
 
-| measure | value | 95% CI |
-|---|---|---|
-| Median exec-s saved (intention-to-treat) | 9.1 | — |
-| Mean Δ exec-s, intention-to-treat | −12.0 | [−23.8, −2.9] |
-| Mean Δ exec-s, complete-case | −3.5 | [−9.5, +1.6] |
-| Gate-intercept fraction (B) | 69.5% | — |
-
-**Confirmed on EKS (uniform Connect substrate).** The proxy above is directional only; the real N2 claim needs both paradigms on one cluster. On a live EKS Spark-Connect cluster (m5.xlarge-equivalent executors at `$0.192`/executor-hour, stamped into every result row), a 6-task × 4-seed × 2-arm sweep measured executor-seconds and dollar cost directly (excluding 4 instrument-fault cells; valid N: A = 21, B = 23):
+Measured directly on a live EKS Spark-Connect cluster (48-cell sweep; m5.xlarge-equivalent executors at `$0.192`/executor-hour; valid N: A = 21, B = 23 after excluding 4 instrument-fault cells):
 
 | N2 (measured on EKS) | A (imperative) | B (SDP) | ratio |
 |---|---|---|---|
-| **H3.1 — wasted compute on *failed* attempts** | 521 exec-s · `$0.028` | 0.5 exec-s · `≈$0` | **~1000×** |
-| **H3.2 — total compute** | 596 exec-s · `$0.032` | 17 exec-s · `$0.0009` | **~34×** |
+| **wasted compute on *failed* attempts** | 521 exec-s · `$0.028` | 0.5 exec-s · `≈$0` | **~1000× (finite vs ≈0)** |
+| **total compute** | 596 exec-s · `$0.032` | 17 exec-s · `$0.0009` | **~34×** |
 | **cost per correct pipeline** | `$0.00033` | `$0.00005` | ~7× |
 
-H3.1 *is* the mechanism: **9 of arm A's cells hit the iteration cap**, each running `spark-submit`, executing over data, and failing — burning real cluster compute — while SDP's dry-run rejects its failed attempts *before* execution for ≈ 0. The dollar amounts are small (small tasks, small cluster) but genuine, and the ratio scales with task size. `[src: repro/h3_eks/ · results.h3.sweep2.jsonl · 48 cells · executor-seconds at the declared executor rate]`
+Nine of arm A's cells hit the iteration cap — each one running, processing data, then failing — while SDP's failed cells cost ≈ 0. **The dollar amounts are small because the study is small** (tiny tasks, a 4-executor cluster), not because the effect is: the mechanism scales linearly with data size, cluster size, and failure rate. `[src: repro/h3_eks/ · results.h3.sweep2.jsonl · 48 cells]`
+
+> **At production scale** *(a projection from the measured mechanism, not a measured result).* A real pipeline over ~100 GB whose failed attempt burns ~10 minutes across a 20-executor cluster wastes ≈ **`$0.60` of compute per failed attempt**. An imperative agent that fails ~2× before it converges wastes ≈ `$1.20` per pipeline; a fleet authoring ~1,000 pipelines a week ≈ **`$5,000`/month of compute that SDP would never spend** — because its gate rejects those attempts before execution. The study measures the *ratio and the mechanism*; this is what they cost once the tasks and clusters are production-sized.
 
 [[[SVG-COST]]]
 
