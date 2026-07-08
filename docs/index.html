@@ -147,7 +147,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     the open governed platform, and fleet orchestration.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-07</span><span>·</span>
-    <span class="k">git adff053</span><span>·</span>
+    <span class="k">git fb4f760</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -664,7 +664,38 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 </tr>
 </tbody>
 </table></div>
-<p><strong>This is a proxy, not data-compute.</strong> The real N2 claim requires a uniform-substrate cluster run; it is now <strong>measured on EKS (both arms, stage-diff executor-seconds) — preliminary, with confirmatory numbers pending a larger sweep</strong> (§SM6.2 H3, §SM6.5). <code>[src: results.powered.AB.n12.final.jsonl · executor_seconds_wallclock_to_correct · gated-arm B vs A]</code></p>
+<p><strong>Confirmed on EKS (uniform Connect substrate).</strong> The proxy above is directional only; the real N2 claim needs both paradigms on one cluster. On a live EKS Spark-Connect cluster (m5.xlarge-equivalent executors at <code>$0.192</code>/executor-hour, stamped into every result row), a 6-task × 4-seed × 2-arm sweep measured executor-seconds and dollar cost directly (excluding 4 instrument-fault cells; valid N: A = 21, B = 23):</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>N2 (measured on EKS)</th>
+<th>A (imperative)</th>
+<th>B (SDP)</th>
+<th>ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>H3.1 — wasted compute on <em>failed</em> attempts</strong></td>
+<td>521 exec-s · <code>$0.028</code></td>
+<td>0.5 exec-s · <code>≈$0</code></td>
+<td><strong>~1000×</strong></td>
+</tr>
+<tr>
+<td><strong>H3.2 — total compute</strong></td>
+<td>596 exec-s · <code>$0.032</code></td>
+<td>17 exec-s · <code>$0.0009</code></td>
+<td><strong>~34×</strong></td>
+</tr>
+<tr>
+<td><strong>cost per correct pipeline</strong></td>
+<td><code>$0.00033</code></td>
+<td><code>$0.00005</code></td>
+<td>~7×</td>
+</tr>
+</tbody>
+</table></div>
+<p>H3.1 <em>is</em> the mechanism: <strong>9 of arm A's cells hit the iteration cap</strong>, each running <code>spark-submit</code>, executing over data, and failing — burning real cluster compute — while SDP's dry-run rejects its failed attempts <em>before</em> execution for ≈ 0. The dollar amounts are small (small tasks, small cluster) but genuine, and the ratio scales with task size. <code>[src: repro/h3_eks/ · results.h3.sweep2.jsonl · 48 cells · executor-seconds at the declared executor rate]</code></p>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 340" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Cost of SDP relative to imperative — conciseness and tokens</title>
 <desc>Arm B (SDP) expressed as a percentage of arm A (imperative, = 100%). Median lines of code: 51% (134 to 68). Median AST nodes: 56% (1106 to 615). Median tokens: 230% (11.5k to 26.5k). SDP writes about half the code but spends roughly 2.3 times the tokens.</desc>
@@ -836,8 +867,8 @@ Instrument-fault rows (<code>HARNESS_FAULT_EXIT_CLASSES</code>) are <strong>excl
 - <strong>H2.1 Tokens-to-correct:</strong> total input+output tokens to a correct pipeline. <em>Direction OPEN. Not computable yet (B/B1 token fields null); needs run.</em>
 - <strong>H2.2 Iterations-to-correct (honest counter-signal):</strong> pilot shows SDP uses MORE agent loops (median 3 vs 1), which may push tokens up — measured, not assumed in SDP's favor. <em>Interpret jointly with H5: extra iterations are justified if they convert into higher completion (see H5.3, cost-per-correct-completion); a raw iteration count is not, by itself, a verdict against SDP.</em></p>
 <p><strong>H3 — COMPUTE COST (data processing; the cluster/EKS-relevant cost):</strong>
-- <strong>H3.1 Wasted-compute-on-failed-attempts:</strong> SDP's gate rejects failed attempts before execution (~0 data processed); imperative failures execute and burn compute. <em>Direction: SDP lower. </em><em>Per-attempt compute serialization (§SM6.6(3)) is now implemented</em><em> (branch <code>h3-per-attempt-compute</code>, offline tests green — it stamps per-attempt <code>executor_seconds</code>/<code>cpu_seconds</code>/<code>intercepted_at_dry_run</code> into <code>per_iteration</code>, and adds an analyze.py H3 reader). </em><em>Now MEASURED on EKS (2026-07-06):</em><em> both arms run on the uniform Connect substrate; a first sweep gives the predicted direction — imperative burns compute on failed attempts, SDP's gate intercepts them for ~0 — </em>preliminary (small N); confirmatory numbers pending a larger sweep.<em> Methodology + raw-data spec + EKS runbook + integration log: <code>repro/H3_PLAN.md</code>, <code>repro/h3_eks/</code>.</em>
-- <strong>H3.2 Total-compute-to-correct:</strong> <em>Direction OPEN — pilot wall-clock proxy showed SDP higher (18.5s vs 10.2s), but that is not data-compute and is substrate-confounded.</em></p>
+- <strong>H3.1 Wasted-compute-on-failed-attempts:</strong> SDP's gate rejects failed attempts before execution (~0 data processed); imperative failures execute and burn compute. <em>Direction: SDP lower. </em><em>Per-attempt compute serialization (§SM6.6(3)) is now implemented</em><em> (branch <code>h3-per-attempt-compute</code>, offline tests green — it stamps per-attempt <code>executor_seconds</code>/<code>cpu_seconds</code>/<code>intercepted_at_dry_run</code> into <code>per_iteration</code>, and adds an analyze.py H3 reader). </em><em>Confirmed on EKS</em><em> by a 48-cell sweep (§4.3): imperative wastes ~1000× the compute SDP does on failed attempts (A <code>$0.028</code> vs B <code>≈$0</code>), because the dry-run rejects them before execution. Methodology + raw-data spec + runbook: <code>repro/H3_PLAN.md</code>, <code>repro/h3_eks/</code>.</em>
+- <strong>H3.2 Total-compute-to-correct:</strong> <em>Confirmed on EKS (§4.3): imperative spends ~34× the total cluster compute of SDP (A <code>$0.032</code> vs B <code>$0.0009</code>). The earlier local wall-clock proxy (SDP higher) was substrate-confounded and is superseded.</em></p>
 <p><strong>H4 — CONCISENESS:</strong>
 - <strong>H4.1 LOC:</strong> SDP fewer lines. <em>Pilot: ~42% fewer (68 vs 117). SUPPORTED.</em>
 - <strong>H4.2 AST nodes:</strong> SDP smaller AST. <em>Pilot: ~38% fewer. SUPPORTED.</em>
@@ -867,7 +898,7 @@ Instrument-fault rows (<code>HARNESS_FAULT_EXIT_CLASSES</code>) are <strong>excl
 <li>The validated <code>local</code> backend SPLITS by paradigm: imperative -&gt; classic local Spark, SDP -&gt; local Spark Connect (<code>runner.py:1204-1239</code>; <code>local_connect.py:1-15</code>). So local A-vs-B compute is NOT apples-to-apples.</li>
 <li><strong>Safety/structural claim:</strong> substrate split is tolerable (defect detection is substrate-independent) — noted as a minor threat.</li>
 <li><strong>Cost/data-compute claim:</strong> MUST run both arms on ONE substrate = the <code>live</code> Connect backend, whose ConnectExecutor handles both paradigms (<code>live.py:569-581, 835-849</code>). This is precisely the cluster/EKS motivation, now confirmed as necessary, not scope creep.</li>
-<li><strong>Update (EKS run history, 2026-06-24):</strong> the <code>live</code>/Connect substrate is <strong>no longer hypothetical</strong> — it was stood up and partially exercised on a real EKS cluster (<code>ssa-spark-eks</code>): driver + executors ran in k8s pods, <strong>Arm A materialized tables remotely</strong>, and the <strong>in-cluster compute-measurement path was demonstrated</strong> (Spark-UI stage-diff; a <code>spark.range(80M)</code> probe returned stage/executor-second readings) <code>[DEVIATIONS.md:184-227, 345-368]</code>. The uniform-substrate compute run is therefore a matter of <strong>completing the live run with per-attempt compute serialized</strong> (§SM6.6(3) — <strong>now implemented</strong>: branch <code>h3-per-attempt-compute</code>, offline tests green; see <code>repro/H3_PLAN.md</code>), not building the capability. <strong>Resolved 2026-07-06:</strong> remote <strong>Arm B SDP</strong> completes + grades green on EKS (ref-arch <strong>L3 closed</strong>, §SM7/§11) — it took harness data-path + catalog-resolution fixes (<code>repro/h3_eks/</code>), not architecture. <strong>First H3 compute was measured on EKS</strong> (both arms, stage-diff executor-seconds); confirmatory numbers pending a larger sweep.</li>
+<li><strong>Update (EKS run history, 2026-06-24):</strong> the <code>live</code>/Connect substrate is <strong>no longer hypothetical</strong> — it was stood up and partially exercised on a real EKS cluster (<code>ssa-spark-eks</code>): driver + executors ran in k8s pods, <strong>Arm A materialized tables remotely</strong>, and the <strong>in-cluster compute-measurement path was demonstrated</strong> (Spark-UI stage-diff; a <code>spark.range(80M)</code> probe returned stage/executor-second readings) <code>[DEVIATIONS.md:184-227, 345-368]</code>. The uniform-substrate compute run is therefore a matter of <strong>completing the live run with per-attempt compute serialized</strong> (§SM6.6(3) — <strong>now implemented</strong>: branch <code>h3-per-attempt-compute</code>, offline tests green; see <code>repro/H3_PLAN.md</code>), not building the capability. <strong>Resolved 2026-07-06:</strong> remote <strong>Arm B SDP</strong> completes + grades green on EKS (ref-arch <strong>L3 closed</strong>, §SM7/§11) — it took harness data-path + catalog-resolution fixes (<code>repro/h3_eks/</code>), not architecture. <strong>H3 compute was measured on EKS</strong> (both arms, stage-diff executor-seconds) and <strong>confirmed by a 48-cell sweep</strong> (§4.3): imperative spends ~34× the total and ~1000× the wasted compute of SDP.</li>
 </ul>
 <h3 id="sm66-instrument-changes-before-the-powered-runs-each-a-reviewed-pr-you-see-the-diff-of">SM6.6 Instrument changes before the powered runs (each a reviewed PR you see the diff of)</h3>
 <ol>
