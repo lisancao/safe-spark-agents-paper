@@ -119,7 +119,7 @@ Independent variable: **paradigm** (SDP vs imperative), tested as **two arms** (
 ## 4. Results
 The results tell four connected stories. First, **structural catching** (§4.2): where each paradigm intercepts the faults a gate can see. Second, the **silent semantic residue** (§4.1) — the defects no gate can catch — where a raw gap appears to favor imperative. Third, the **root-cause attribution** of that gap (§4.1.2), which a controlled skill-swap traces to a teachable idiom rather than the paradigm. Fourth, **cost** (§4.3): code size, tokens, and compute. Read together, they support a single claim — declarative structure buys an early, real safety margin on structural faults, and is not, by itself, less safe on semantic ones.
 
-*Headline contrast is **A vs B** (§S6.1, locked — two arms only). **Phase 2a complete (2026-07-02): the clean powered A-vs-B run.** 528 cells = 264 (task,seed) pairs × 2 arms (22-task corpus × 12 seeds × {A,B}), instrument `instrument-v3.2-frozen`; **0 instrument-fault rows, 0 quarantined** — every analyzed cell is a genuine agent outcome. Powered: observed sd(A−B paired) = 0.411 → required N = 260 (task,seed) cells; have 264 → **power met** (`headline_n_valid=True`). Inference: mixed-effects logistic (random intercepts task+seed), Holm across contrasts, α=0.05; bootstrap percentile CIs (B=10000, seed 20260623, resample unit = (task,seed)). Numbers below are that clean run. `[src: results.powered.AB.n12.final.jsonl · 528 rows · POWERED_REPORT.json · recompute: SPARK_HOME=.../pyspark python3 analysis/analyze.py results.powered.AB.n12.final.jsonl --tasks TASKS.lock.json --assume-backend local]`*
+*All numbers below come from one run: the **powered A-vs-B run** of 528 cells (264 (task,seed) pairs × arms A/B), on the frozen instrument, with 0 instrument-fault rows. It is statistically powered (N = 264 ≥ 260 required), and inference uses a mixed-effects logistic model with Holm correction and bootstrap CIs. The full inference spec, the exact recompute command, and provenance are in **§S6**.*
 
 ### 4.1 Silent-defect rate (semantic residue) — clean A-vs-B (N=264/arm)
 
@@ -129,7 +129,7 @@ The results tell four connected stories. First, **structural catching** (§4.2):
 | B (SDP) | **0.326** | 86/264 | [0.269, 0.383] |
 
 Paired A−B contrast: Δ = −0.049 [−0.098, +0.000]; **OR = 1.97** (B vs A); GLMM p = 0.0033, Holm-adjusted p = 0.0033 — **significant at α = 0.05**.
-`[src: results.powered.AB.n12.final.jsonl · silent_defect · per arm + paired (task,seed), Holm over GLMM contrasts · recompute: SPARK_HOME=.../pyspark python3 analysis/analyze.py results.powered.AB.n12.final.jsonl --tasks TASKS.lock.json --assume-backend local]`
+`[src: results.powered.AB.n12.final.jsonl · silent_defect · per arm + paired (task,seed), Holm over GLMM contrasts · recompute: §S6]`
 
 **Finding — the raw gap is real but *skill-induced*, not paradigm-inherent.** The raw contrast shows B higher (OR 1.97, p = 0.0033), which would reject §S3.2's paradigm-invariance null. It does not: the gap is carried by D7 (timezone) and D8, and a controlled skill-swap attributes the main driver, D7, to a **skill** gap rather than the paradigm — the base `pyspark-sdp` skill is silent on UTC day-bucketing, so the agent hand-rolls fragile timezone math. Taught a UTC column idiom, **D7 collapses 7 → 0** and SDP matches imperative (`results.tzfix.jsonl`). The honest reading is not "SDP is less safe" but **"structure alone isn't enough — it needs a skill that teaches the paradigm-matched idiom; once it has one, the paradigms reach parity."** The full mechanism, code audit, transcripts, and remediations are in **Supplemental §S1 (Root-cause forensics)**. *(Pilot context, N = 3: A = 18/66, B = 23/66 — comparable.)*
 
@@ -157,7 +157,7 @@ A three-agent code audit and a controlled skill-swap resolve this. **Mechanism:*
 | B (SDP, framework dry-run) | **79** | 30 | 0 |
 
 Iteration-level error events: A gate = 0, runtime = 193, **intercepts = 0**; B gate = 349, runtime = 155, **intercepts = 353**. SDP's framework dry-run intercepts 79 structural defects (353 iteration-level error events) *before any data is processed*; bare imperative has no gate and intercepts zero — the structural catches surface at runtime (or, for semantic defects, ship). Arm A is *bare* imperative with **no structural gate by construction**, so the contrast measures each paradigm as it natively is — there is no gate-rigor to conflate.
-`[src: results.powered.AB.n12.final.jsonl · per_defect_detection / dry_run_intercepts / per_iteration · per arm × class-group × stage · recompute: SPARK_HOME=.../pyspark python3 analysis/analyze.py results.powered.AB.n12.final.jsonl --tasks TASKS.lock.json --assume-backend local (see §9 error-taxonomy block)]`
+`[src: results.powered.AB.n12.final.jsonl · per_defect_detection / dry_run_intercepts / per_iteration · per arm × class-group × stage · recompute: §S6 (see §9 error-taxonomy block)]`
 
 **Framing (F1).** The asymmetry *is* the finding: the declarative paradigm provides a structural dry-run **by construction**, and imperative PySpark has no native structural gate. Injecting a harness-enforced gate into the imperative arm is explicitly rejected (F2) — it would contaminate imperative with a declarative feature it would never naturally have. Stated claim:
 > "SDP catches structural defects (D1/D4/D5) at a real framework dry-run *before any data is processed*; imperative PySpark has no equivalent and surfaces those defects at runtime or ships them."
@@ -199,11 +199,11 @@ Values are medians reported per field, so input + output need not sum to the tot
 
 [[[SVG-COST]]]
 
-## 5. Threats to validity (status after the powered run, 2026-07-02)
-- **Imperative gate asymmetry** — **RESOLVED.** F1 LOCKED (§4.2): the locked design uses a *bare* A (no gate), so the clean structural contrast (79-vs-0) carries no gate-rigor confound. *(F1's separate "identical residue" clause is superseded by data — see §4.1 flag; that is a framing re-lock, not a validity threat.)*
-- **Substrate split** — **open only for the deferred N2 data-compute claim.** Imperative on local Spark vs SDP on Connect blocks a fair *executor-seconds* comparison; H1 (safety), H2 (tokens), and H4 (conciseness) are substrate-independent and unaffected. Closed by the uniform-substrate EKS run (H3, Phase 2b).
-- **Sample size** — **RESOLVED.** Powered run complete: N = 264 (task,seed) cells ≥ 260 required, power met, 0 instrument-fault rows. And the silent-defect endpoint proved **informative, not uninformative**: B is significantly *worse* (§4.1, OR 1.97, p=0.0033), overturning the §S3.2 "un-gateable ⇒ paradigm-invariant" expectation.
-- **Token instrumentation gap** — **RESOLVED.** Both arms 264/264 token-populated (streaming/32k brain fix); B ≈ 2.3× A (§4.3).
+## 5. Threats to validity
+- **Imperative-gate asymmetry.** Arm A is *bare* imperative with no structural gate, so the clean structural contrast (79-vs-0) carries no gate-rigor confound — the asymmetry is intrinsic to the paradigms, not an artifact of the harness (§4.2). (SDP's separate "identical residue" expectation is revised by the data; see §4.1.)
+- **Substrate split.** Imperative runs on local Spark and SDP on Connect, which blocks a fair *executor-seconds* comparison — but H1 (safety), H2 (tokens), and H4 (conciseness) are substrate-independent and unaffected. The compute claim (H3) is measured separately on the uniform EKS Connect substrate (§4.3).
+- **Sample size.** The powered run is complete: N = 264 (task,seed) cells ≥ 260 required, with 0 instrument-fault rows. The silent-defect endpoint proved informative rather than null — arm B is significantly worse in the raw data (§4.1, OR 1.97, p = 0.0033) — which the skill-attribution then explains.
+- **Token instrumentation.** Both arms are fully token-populated (264/264); B ≈ 2.3× A (§4.3).
 
 ---
 
