@@ -120,6 +120,12 @@ body = body.replace("<p>[[[SVG-RUNLOOP]]]</p>",
 body = body.replace("<p>[[[SVG-TAXONOMY]]]</p>",
     figure(load_svg("section1_defect_taxonomy.svg"),
            "What a structural gate can and cannot catch: structural defects are caught pre-data; semantic defects are un-gateable by construction and ship as silent defects."))
+body = body.replace("<p>[[[SVG-DEVLOOP]]]</p>",
+    figure(load_svg("section2_devloop_before_after.svg"),
+           "The agent-native dev loop vs the normal imperative one: imperative finds errors by running (after data is touched and compute spent); the agent-native loop catches them at the gate, before any data."))
+body = body.replace("<p>[[[SVG-DEVPROD]]]</p>",
+    figure(load_svg("section2_connect_dev_prod.svg"),
+           "Spark Connect makes dev→prod a one-URL change: the same agent, spec, and dry-run gate develop locally and promote to the cluster by changing SPARK_REMOTE — no code change."))
 
 # --- wrap wide tables so the page never scrolls sideways ---
 body = body.replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")

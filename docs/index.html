@@ -147,7 +147,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     the open governed platform, and fleet orchestration.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-07</span><span>·</span>
-    <span class="k">git 15fb063</span><span>·</span>
+    <span class="k">git 45c9023</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -183,11 +183,11 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <a class="l2" href="#1-the-problem-the-normal-way-to-give-an-agent-a-data-platform-is-unsafe">1. The problem: the normal way to give an agent a data platform is unsafe</a>
 <a class="l2" href="#2-the-thesis-a-control-boundary-authoring-execution">2. The thesis: a control boundary (authoring ⊥ execution)</a>
 <a class="l2" href="#3-why-declarative-enables-the-boundary-and-imperative-cannot">3. Why declarative enables the boundary and imperative cannot</a>
-<a class="l2" href="#4-the-mechanism-the-agent-native-dev-loop">4. The mechanism: the agent-native dev loop</a>
+<a class="l2" href="#4-the-proposal-a-new-agent-native-dev-loop">4. The proposal: a new, agent-native dev loop</a>
 <a class="l2" href="#5-the-authoring-surface-the-oss-sdp-api">5. The authoring surface: the OSS SDP API</a>
 <a class="l2" href="#6-how-we-demonstrated-it-apparatus-method">6. How we demonstrated it (apparatus &amp;amp; method)</a>
 <a class="l2" href="#7-what-it-proved-evidence-from-real-agent-runs">7. What it proved (evidence from real agent runs)</a>
-<a class="l2" href="#8-connect-the-enforcement-mechanism-confirmed-by-probe">8. Connect: the enforcement mechanism, confirmed by probe</a>
+<a class="l2" href="#8-connect-enforcement-and-dev-to-prod-portability">8. Connect: enforcement, and dev-to-prod portability</a>
 <a class="l2" href="#9-what-the-boundary-unlocks-section-3-the-open-reference-architecture">9. What the boundary unlocks → Section 3 (the open reference architecture)</a>
 <a class="l2" href="#10-honesty-notes">10. Honesty notes</a>
 <a class="l2" href="#11-reference-architecture-invariants-demonstration-layers">11. Reference architecture, invariants &amp;amp; demonstration layers</a>
@@ -1192,8 +1192,50 @@ def gold():
 <li><strong>Declarative (SDP):</strong> the agent writes only decorated transforms; the framework owns the graph, the session, and materialization — so authoring and execution are <strong>structurally distinct artifacts</strong>. <code>[runner.py:305-405]</code></li>
 </ul>
 <p>∴ The control boundary is only <em>expressible</em> in a paradigm that separates desired-state from reconciliation. We adopt declarative not for its own sake, but because it is the only authoring surface an untrusted agent can safely hold.</p>
-<h2 id="4-the-mechanism-the-agent-native-dev-loop">4. The mechanism: the agent-native dev loop</h2>
-<p><code>propose → materialize → [structural dry-run gate] → execute/reconcile → feedback</code>, to convergence <code>[runner.py:147-277]</code>. The <strong>dry-run gate</strong> validates structure <strong>before any data is processed</strong> — a real SDP framework dry-run (<code>create_dataflow_graph</code> → <code>register_definitions</code> → <code>start_run(dry=True)</code>) <code>[sdp_dryrun.py:462-484]</code> — returning structural defects to the agent as feedback so bad desired-state never reaches execution.</p>
+<h2 id="4-the-proposal-a-new-agent-native-dev-loop">4. The proposal: a new, agent-native dev loop</h2>
+<p>The normal way to develop a Spark pipeline is imperative: <strong>write code, run it, and find out what's wrong by running it.</strong> The program executes over real data and <em>then</em> surfaces an error, so every mistake costs a run. That loop was built for a person at a keyboard — not for an agent that sometimes hallucinates.</p>
+<p>We propose a different loop, native to how an agent should work: <strong>propose desired-state → a structural dry-run gate → reconcile / execute → feedback</strong>, to convergence <code>[runner.py:147-277]</code>. The <strong>dry-run gate</strong> validates the whole pipeline graph <strong>before any data is processed</strong> (<code>create_dataflow_graph</code> → <code>register_definitions</code> → <code>start_run(dry=True)</code>) <code>[sdp_dryrun.py:462-484]</code> and hands structural defects back to the agent as feedback, so a broken pipeline never reaches execution. The difference is <em>where the loop closes</em>: imperative closes it after execution — data touched, compute spent; the agent-native loop closes it at the gate, with nothing touched.</p>
+<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 290" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>The agent-native dev loop vs the normal imperative loop</title>
+<desc>Two loops. The imperative loop finds errors by running the code: write, run spark-submit, execute over data, discover a runtime error, and only then retry — after data is touched and compute is spent. The agent-native loop catches errors before running: propose desired-state, a dry-run gate rejects structural defects before any data, then reconcile and execute; the retry happens at the gate, with no data touched.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:14px;font-weight:500;fill:#16201e}.ts{font-size:12px;fill:#5c6b66}
+  .lbl{font-size:12.5px;font-weight:500}
+  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
+  .c-amber rect{fill:#FAEEDA;stroke:#BA7517;stroke-width:.75}.c-amber .th{fill:#633806}.c-amber .ts{fill:#854F0B}
+  .c-red rect{fill:#FCEBEB;stroke:#A32D2D;stroke-width:.75}.c-red .th{fill:#791F1F}.c-red .ts{fill:#A32D2D}
+  .c-green rect{fill:#EAF3DE;stroke:#3B6D11;stroke-width:.75}.c-green .th{fill:#27500A}.c-green .ts{fill:#3B6D11}
+  .c-teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
+  .c-gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.c-gray .th{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<!-- BEFORE: imperative loop -->
+<text x="40" y="22" class="lbl" fill="#854F0B">Imperative loop — the error is found by running it</text>
+<g class="c-amber"><rect x="40" y="40" width="105" height="50" rx="6"/><text x="92" y="62" class="th" text-anchor="middle">Write code</text><text x="92" y="79" class="ts" text-anchor="middle">owns session</text></g>
+<g class="c-amber"><rect x="165" y="40" width="105" height="50" rx="6"/><text x="217" y="62" class="th" text-anchor="middle">Run it</text><text x="217" y="79" class="ts" text-anchor="middle">spark-submit</text></g>
+<g class="c-amber"><rect x="290" y="40" width="105" height="50" rx="6"/><text x="342" y="62" class="th" text-anchor="middle">Execute</text><text x="342" y="79" class="ts" text-anchor="middle">over the data</text></g>
+<g class="c-red"><rect x="415" y="40" width="150" height="50" rx="6"/><text x="490" y="62" class="th" text-anchor="middle">Runtime error</text><text x="490" y="79" class="ts" text-anchor="middle">— or wrong data</text></g>
+<line x1="145" y1="65" x2="165" y2="65" class="arr" marker-end="url(#arrow)"/>
+<line x1="270" y1="65" x2="290" y2="65" class="arr" marker-end="url(#arrow)"/>
+<line x1="395" y1="65" x2="415" y2="65" class="arr" marker-end="url(#arrow)"/>
+<path d="M490 90 V110 H92 V90" fill="none" stroke="#BA7517" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+<text x="291" y="124" class="ts" text-anchor="middle">retry — after the data is touched and compute is spent</text>
+
+<!-- AFTER: agent-native loop -->
+<text x="40" y="162" class="lbl" fill="#0F6E56">Agent-native loop — the error is caught before running it</text>
+<g class="c-gray"><rect x="40" y="178" width="115" height="50" rx="6"/><text x="97" y="200" class="th" text-anchor="middle">Propose</text><text x="97" y="217" class="ts" text-anchor="middle">desired-state</text></g>
+<g class="c-green"><rect x="175" y="178" width="125" height="50" rx="6"/><text x="237" y="200" class="th" text-anchor="middle">Dry-run gate</text><text x="237" y="217" class="ts" text-anchor="middle">before any data</text></g>
+<g class="c-teal"><rect x="320" y="178" width="115" height="50" rx="6"/><text x="377" y="200" class="th" text-anchor="middle">Reconcile</text><text x="377" y="217" class="ts" text-anchor="middle">&amp; execute</text></g>
+<g class="c-teal"><rect x="455" y="178" width="90" height="50" rx="6"/><text x="500" y="206" class="th" text-anchor="middle">Data</text></g>
+<line x1="155" y1="203" x2="175" y2="203" class="arr" marker-end="url(#arrow)"/>
+<line x1="300" y1="203" x2="320" y2="203" class="arr" marker-end="url(#arrow)"/>
+<line x1="435" y1="203" x2="455" y2="203" class="arr" marker-end="url(#arrow)"/>
+<path d="M237 228 V248 H97 V228" fill="none" stroke="#3B6D11" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+<text x="167" y="262" class="ts" text-anchor="middle">retry — no data touched, ≈0 compute</text>
+</svg>
+</div><figcaption>The agent-native dev loop vs the normal imperative one: imperative finds errors by running (after data is touched and compute spent); the agent-native loop catches them at the gate, before any data.</figcaption></figure>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 190" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Section 2 — the control boundary and agent-native dev loop</title>
 <desc>The agent authors inert desired-state in an untrusted zone; a governed control plane validates it at a structural dry-run gate and a reconciler submits plans to execution. Authoring never crosses into execution — only structural feedback returns to the agent.</desc>
@@ -1238,6 +1280,7 @@ def gold():
 <text x="594" y="162" class="ts" text-anchor="middle">off-host · I3</text>
 </svg>
 </div><figcaption>The control boundary: the agent authors inert desired-state and never crosses into execution; a governed dry-run gate and reconciler validate and run it. Only structural feedback returns.</figcaption></figure>
+<p><strong>Why this loop wins — and what it costs.</strong> Catching structure before data is what produces every downstream result: the safety margin (79 structural defects caught at the gate vs 0, §4.2), the compute story (a wrong pipeline is rejected before it can burn a cent, §4.3), and the governance and portability below. The tradeoff is real, and we state it plainly: the agent iterates <em>more</em> against the gate, so it spends <strong>more tokens</strong> to converge (~2.3×, §4.3) — you pay in cheap LLM calls to save on data-compute, wrong data, and blast radius. For an untrusted author working on production data, that is the trade you want.</p>
 <h2 id="5-the-authoring-surface-the-oss-sdp-api">5. The authoring surface: the OSS SDP API</h2>
 <p>The agent writes to open-source <code>pyspark.pipelines</code> (Apache Spark 4.1, <strong>not</strong> Databricks DLT): it declares datasets with <code>@dp.materialized_view</code> / <code>@dp.table</code>, wires upstreams via <code>read.table</code>, and never acquires or starts a session — the framework does. That small, inert surface is the whole point; the full API is the <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/skills/pyspark-sdp/SKILL.md"><code>pyspark-sdp</code> skill</a>.</p>
 <hr />
@@ -1264,10 +1307,41 @@ def gold():
 - <strong>The boundary operates across hosts, for both paradigms.</strong> On a real EKS Connect cluster the full loop ran with driver and executors in Kubernetes pods: <strong>Arm B SDP completes and grades green remotely</strong> (materializing tables to the catalog on S3), and Arm A imperative runs too (DataFrame-API code over Connect) — authoring (agent host) and execution (cluster) genuinely separated. The earlier remote-SDP failures were <em>integration</em> bugs (data-path + catalog wiring, since fixed), never architectural. Two gaps remain: the <strong>governance split</strong> — the reconciler still runs on the agent host (the load-bearing one, layer L5) — and native client mTLS, still reached via a tunnel (layer L1). See §11.</p>
 <p>The headline safety and cost numbers come from a deliberately <strong>local</strong> pilot substrate, chosen to isolate the paradigm comparison; across-host execution is demonstrated separately on EKS for both arms, where the H3 compute was also measured. The powered run tightens the effect sizes; it does not create the demonstration.</p>
 <p><strong>What this buys over the normal setup.</strong> Compared with the obvious approach — an agent holding a <code>SparkSession</code> — the boundary turns each liability into a property. The agent is <strong>untrusted</strong> (no session, no credentials, nothing to leak or misuse); structural mistakes are <strong>caught before any data is touched</strong> (79 at the gate, §4.2) instead of discovered at runtime; a wrong pipeline <strong>cannot burn cluster compute</strong>, because it is rejected before it runs (§4.3); and the agent's output is an <strong>inert, reviewable artifact</strong>, so the loop is auditable and — since nothing the agent writes is ever executed <em>by</em> the agent — <strong>governable and multi-tenant-able</strong> (Section 3). On top of that it costs <em>less</em> code, not more (~half, §4.3). None of these are available to an imperative agent that owns its session.</p>
-<h2 id="8-connect-the-enforcement-mechanism-confirmed-by-probe">8. Connect: the enforcement mechanism, confirmed by probe</h2>
+<h2 id="8-connect-enforcement-and-dev-to-prod-portability">8. Connect: enforcement, and dev-to-prod portability</h2>
 <p>The boundary is enforced at runtime by remote, session-less execution, and <strong>Spark Connect is the means</strong>: a Connect client submits <em>plans</em>, not a live session, so authored code never holds a <code>SparkSession</code>, <code>sparkContext</code>, <code>_jvm</code>, or an RDD.</p>
 <p>What differs between the paradigms is how <em>reliably</em> they stay inside that envelope. <strong>SDP is session-less by construction</strong> — the declarative surface offers no way to reach for a live session. <strong>Imperative is session-less only conditionally:</strong> DataFrame-API imperative code runs fine over Connect — Arm A completed cells on the real EKS Connect cluster <code>[repro/h3_eks/]</code> — but the moment the agent reaches for <code>sparkContext</code>, <code>_jvm</code>, an RDD, or static-config mutation, Connect rejects it (<code>JVM_ATTRIBUTE_NOT_SUPPORTED</code>, <code>CANNOT_CONFIGURE_SPARK_CONNECT_MASTER</code>), and agents often do reach for those. So the enforcement is asymmetric in a precise way: <strong>the declarative paradigm <em>guarantees</em> the session-less boundary; the imperative paradigm can honor it but cannot guarantee it.</strong> A compatibility probe records this as a clean pass/fail matrix — the same matrix reused by Section 3 and Section 1's H3 — in which the low-level imperative patterns fail while DataFrame-API and SDP patterns pass.</p>
 <p><em>(An earlier framing conflated two things now separated: a harness data-path bug — <code>PATH_NOT_FOUND</code>, since fixed — and the genuine incompatibility of the low-level surfaces. Only the latter is a real property of the paradigm.)</em></p>
+<p><strong>Connect's second job: dev-to-prod portability.</strong> Because a Connect client submits <em>plans over a URL</em> rather than running a local engine, the <strong>same</strong> agent, SDP spec, and dry-run gate run against a <strong>local</strong> Connect server while developing — where iteration is fast and free — and promote to the <strong>remote</strong> cluster by changing a single endpoint (<code>SPARK_REMOTE</code>), with no code change.</p>
+<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 270" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Spark Connect dev-to-prod: promote by changing one URL</title>
+<desc>The same agent, SDP spec, and dry-run gate develop against a local Spark Connect server and promote to the remote EKS cluster by changing a single endpoint URL (SPARK_REMOTE) — no code change. Local mode without a Connect server arrives in Spark 4.3.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:14px;font-weight:500;fill:#16201e}.ts{font-size:12px;fill:#5c6b66}
+  .mono{font-size:12px;fill:#5c6b66;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
+  .c-gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.c-gray .th{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
+  .c-blue rect{fill:#E6F1FB;stroke:#185FA5;stroke-width:.75}.c-blue .th{fill:#0C447C}.c-blue .ts{fill:#185FA5}
+  .c-teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<g class="c-gray"><rect x="270" y="30" width="140" height="48" rx="6"/><text x="340" y="50" class="th" text-anchor="middle">Agent + SDP spec</text><text x="340" y="68" class="ts" text-anchor="middle">one inert artifact</text></g>
+<line x1="340" y1="78" x2="340" y2="98" class="arr" marker-end="url(#arrow)"/>
+
+<g class="c-blue"><rect x="278" y="98" width="124" height="42" rx="6"/><text x="340" y="116" class="th" text-anchor="middle">SPARK_REMOTE</text><text x="340" y="132" class="ts" text-anchor="middle">change one URL</text></g>
+
+<path d="M320 140 L180 156" class="arr" marker-end="url(#arrow)"/>
+<path d="M360 140 L500 156" class="arr" marker-end="url(#arrow)"/>
+
+<g class="c-teal"><rect x="55" y="156" width="235" height="56" rx="6"/><text x="172" y="180" class="th" text-anchor="middle">Local development</text><text x="172" y="199" class="mono" text-anchor="middle">sc://localhost:15002</text></g>
+<g class="c-teal"><rect x="390" y="156" width="235" height="56" rx="6"/><text x="507" y="180" class="th" text-anchor="middle">Production (EKS)</text><text x="507" y="199" class="mono" text-anchor="middle">sc://&lt;cluster-nlb&gt;:15009</text></g>
+
+<text x="340" y="238" class="ts" text-anchor="middle">Same agent, spec, and dry-run gate: develop locally, then promote to the cluster by changing the endpoint.</text>
+<text x="340" y="255" class="ts" text-anchor="middle">(Local mode without a Connect server arrives in Spark 4.3.)</text>
+</svg>
+</div><figcaption>Spark Connect makes dev→prod a one-URL change: the same agent, spec, and dry-run gate develop locally and promote to the cluster by changing SPARK_REMOTE — no code change.</figcaption></figure>
+<p>Today SDP still needs a Connect server even locally (a small single-node one); <strong>local mode without a server arrives in Spark 4.3</strong>, making the local half of the loop lighter still. This is exactly why the study could run the whole paradigm comparison <em>locally</em> — isolating the paradigm from cluster confounds (§6) — and then demonstrate the <em>identical</em> loop across hosts on EKS (§7): dev and prod are the same loop at two endpoints.</p>
 <h2 id="9-what-the-boundary-unlocks-section-3-the-open-reference-architecture">9. What the boundary unlocks → Section 3 (the open reference architecture)</h2>
 <p>Because the agent only emits inert desired-state and never holds a session, it can be treated as <strong>fully untrusted</strong> — the precondition for a governed, zero-trust, multi-tenant platform (agent authors + opens a PR; CI runs the gate; a controller, not the agent, reconciles). The <strong>session-free GitOps authoring path is demonstrated locally</strong> (valid spec → <code>Run is COMPLETED</code>; invalid upstream → <code>TABLE_OR_VIEW_NOT_FOUND</code>/SQLSTATE 42P01). The <strong>production EKS / mTLS / zero-trust deployment is Section 3's proposal</strong> — documented design, not yet enabled. Section 2 demonstrates the control boundary; Section 3 proposes the platform built around it.</p>
 <h2 id="10-honesty-notes">10. Honesty notes</h2>
