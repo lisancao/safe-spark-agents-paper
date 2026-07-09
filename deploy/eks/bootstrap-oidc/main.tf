@@ -56,6 +56,12 @@ resource "aws_dynamodb_table" "tflock" {
     name = "LockID"
     type = "S"
   }
+  # This table often pre-exists (shared with the EKS stack's state locking). We
+  # adopt it into state so the module is complete + reproducible on a fresh
+  # account, but ignore all drift so we never modify a shared table in place.
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 # ---- Plan role: READ-ONLY, assumable from any ref (PR plans) ----------------
