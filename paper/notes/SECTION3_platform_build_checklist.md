@@ -13,6 +13,13 @@ HUMAN (Lisa: gates/creds/spend) · INFRA OPS (terraform/kubectl/ECR — cluster 
 - [x] **AWS spend APPROVED (2026-07-09, Lisa): "don't worry about cost, you have my blessing."** Sequencing to not waste it: de-risk the load-bearing Lakekeeper-vending→executor assumption LOCALLY + SP2.2 first, then `terraform apply` (SP3.1).
 - [x] **Governed-catalog LOCKED (2026-07-09, Lisa): Lakekeeper primary + Unity Catalog OSS second binding** (Polaris rejected on operational weight; Lakekeeper = single Rust binary, vendor-neutral, per-tenant grants + vending. UC-OSS non-load-bearing → the "catalog-agnostic" claim + an honest in-paper UC evaluation). Design: `SECTION3_isolation_experiment.md`.
 
+## Build harness — CI / GitHub Actions  (2026-07-09, Lisa's choice)
+The platform is built THROUGH CI: dogfoods the paper's GitOps thesis, reproducible, every run a citable artifact. Repo `sdp-paper-local` (public) is safe because AWS steps use **GitHub OIDC** (role trust scoped to this repo+branch, no long-lived keys) behind **GitHub Environments with required approval** (Lisa approves each AWS-mutating apply); fork PRs get no secrets/OIDC. Sequence:
+- **W0 (no AWS, runs free NOW):** Lakekeeper vending→executor de-risk spike (Lakekeeper + MinIO + local Spark Connect in the runner). Retires the load-bearing assumption before any spend.
+- **W1 (bootstrap):** AWS OIDC trust (GitHub → an IAM role). One-time; needs an initial AWS apply (the chicken-and-egg root of trust) — the only step Lisa may run by hand.
+- **W2 (SP3.1, gated apply):** `terraform apply` behind an Environment approval → EKS/RDS/S3/IRSA; capture outputs.
+- **W3+:** deploy Connect+Envoy → native mTLS (SP2.2) → elastic scaling (SP3.2) → EKS-wired GitOps (SP3.3) → frontier (Lakekeeper + IRSA lockdown + per-tenant servers + R1–R7).
+
 ## Phase 1 — Substrate  (P0)  [INFRA OPS] — SALVAGE: terraform stack, manifests, HMS, image all built
 - [ ] `terraform apply` → EKS + IRSA + S3 + RDS/HMS; capture `terraform output`. (Closes "NOT APPLIED" `[terraform/README.md:121-130]`.)
 - [ ] Build + push the Spark Connect image (Spark 4.1.2 / Iceberg 1.11.0 / interceptor) to ECR `[images/spark-connect/build.sh]`. *Caveat: use the env-var form, not the stale `--registry` flag.*
