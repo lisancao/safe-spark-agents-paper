@@ -10,7 +10,7 @@ HUMAN (Lisa: gates/creds/spend) · INFRA OPS (terraform/kubectl/ECR — cluster 
 
 ## Phase 0 — Decision gate  [HUMAN]
 - [x] **Scope picked (2026-07-09, Lisa): BOTH in sequence, one runway** — single-tenant P0–P4 as de-risking, then multi-tenant frontier P5–P6. Headline = SP3.4 isolation proof.
-- [ ] Approve AWS spend (terraform apply = first irreversible cost; EKS + RDS + S3 + node groups). *Path committed; confirm the actual `terraform apply` trigger at SP3.1 execution.*
+- [x] **AWS spend APPROVED (2026-07-09, Lisa): "don't worry about cost, you have my blessing."** Sequencing to not waste it: de-risk the load-bearing Lakekeeper-vending→executor assumption LOCALLY + SP2.2 first, then `terraform apply` (SP3.1).
 - [x] **Governed-catalog LOCKED (2026-07-09, Lisa): Lakekeeper primary + Unity Catalog OSS second binding** (Polaris rejected on operational weight; Lakekeeper = single Rust binary, vendor-neutral, per-tenant grants + vending. UC-OSS non-load-bearing → the "catalog-agnostic" claim + an honest in-paper UC evaluation). Design: `SECTION3_isolation_experiment.md`.
 
 ## Phase 1 — Substrate  (P0)  [INFRA OPS] — SALVAGE: terraform stack, manifests, HMS, image all built
