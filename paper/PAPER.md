@@ -605,11 +605,11 @@ not a finished production system (that is Section 3).
 
 # SECTION 3: The Open Reference Architecture
 ### Integrable, Scalable Agent Data Engineering on Spark Connect + Kubernetes
-*This section is a proposal, not a demonstration.* It describes the platform Section 2's control boundary makes possible, and marks honestly what is built versus what remains design.
+*This section is a proposal whose lower layers are already demonstrated and whose multi-tenant governance is still design.* The GitOps gate and the Connect-on-Kubernetes substrate are built and run here; per-tenant governance is marked honestly as the frontier. What is demonstrated versus proposed is called out pillar by pillar.
 
-If an agent can be treated as fully untrusted, because it only ever emits inert desired-state, then it can be dropped into a **governed, multi-tenant, zero-trust data platform**. This section lays out that reference architecture: **SDP** owns declarative authoring; a **GitOps/CI** layer continuously tests and integrates each change against a production catalog before a controller reconciles it; **Spark Connect** stays the single identity-pinned front door; and **Kubernetes** provides elastic execution behind it (a client-mode driver plus dynamically-allocated executor pods). Per-tenant governance, catalog authorization *and* execution isolation, is the explicitly-named frontier, delegated to a governed catalog and future multi-server orchestration rather than reinvented here.
+If an agent can be treated as fully untrusted, because it only ever emits inert desired-state, then it can be dropped into a **governed data platform that trusts it with nothing**. This section lays out that reference architecture: **SDP** owns declarative authoring; a **GitOps/CI** layer continuously tests and integrates each change against a real target catalog before a controller reconciles it; **Spark Connect** stays the single identity-pinned front door; and **Kubernetes** provides elastic execution behind it (a client-mode driver plus dynamically-allocated executor pods). What the open stack delivers today is **single-tenant**: an authenticated identity at the door, plus GitOps governance of every change. **Multi-tenancy**, per-tenant catalog authorization *and* execution isolation, is the explicitly-named frontier, delegated to a governed catalog and future multi-server orchestration rather than reinvented here.
 
-It builds on Section 2's boundary and does not relitigate the paradigm result (Section 1) or re-argue Connect; Connect stays the governed front door and Kubernetes is the horsepower behind it. What is demonstrated versus proposed is marked pillar by pillar below.
+It builds on Section 2's boundary and does not relitigate the paradigm result (Section 1) or re-argue Connect; Connect stays the governed front door and Kubernetes is the horsepower behind it.
 
 ## 3.0 The separation of concerns (the boundary this section draws)
 Each layer owns one thing and **delegates the rest**; this is the section's organizing principle:
@@ -617,10 +617,10 @@ Each layer owns one thing and **delegates the rest**; this is the section's orga
 | Layer | Owns | Delegates / does NOT own |
 |---|---|---|
 | **SDP** | declarative authoring: *what* the pipeline is; begins and ends at the spec | execution, identity, tenant authz |
-| **GitOps / CI** | continuous test + integration against a production catalog; reconciliation; scale-out orchestration | defining the pipeline (SDP's job); enforcing grants (catalog's job) |
+| **GitOps / CI** | continuous test + integration against a real target catalog; reconciliation; scale-out orchestration | defining the pipeline (SDP's job); enforcing grants (catalog's job) |
 | **Spark Connect** | the single governed, identity-pinned **ingress** (§2 boundary, at any scale) | doing the data work itself (delegated to executors) |
 | **Kubernetes** | elastic execution: client-mode driver + dynamically-allocated executor pods, containerized | the governance boundary (that stays at the Connect ingress) |
-| **Catalog** | tenant governance: authorization, grants, isolation | being reinvented by SDP or GitOps |
+| **Catalog** *(operator brings; e.g. Unity-Catalog-class, not part of the demonstrated open stack)* | tenant governance: authorization, grants, isolation | being reinvented by SDP or GitOps |
 
 ## 3.1 GitOps / CI integration boundary: *tested integration, not blind submission*
 **The problem it solves.** The naive way to give an agent a data platform is to let it submit code straight to a
@@ -634,7 +634,7 @@ tests and applies it.**
    is hard-denied a runtime: it refuses to run if `SPARK_REMOTE` is set and whitelists only `git`/`gh`
    subprocesses, re-checking the boundary immediately before writing `[gitops_demo/agent_pr_author.py]`.
    The emitted artifact has a fixed shape: `name`, `storage`, `catalog`, `database`, and a `libraries` glob
-   `[gitops_demo/sdp_artifact.py]`, i.e. inert desired-state, never executable handed an engine (§2 I1/I6).
+   `[gitops_demo/sdp_artifact.py]`: it is inert desired-state, never code handed to a live engine (the §2 boundary, restated).
 2. **PR-time gate = integration against the real catalog (CI).** A GitHub Actions workflow triggers on any PR
    touching `pipeline-definitions/**`, stands up a real Spark Connect server, ensures the target schema, resolves
    the changed specs, and runs the **SDP framework dry-run** on each
@@ -664,47 +664,55 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
   GitOps path is **documentation-only / not wired** `[gitops_demo/PRODUCTION_EKS.md]`. No captured artifact of
   a real agent-opened PR (the `gh pr create` path exists in code but no public PR run is evidenced here).
 - **ASPIRATIONAL, not a focus:** the CI gate today is **structural** (does the graph resolve against the catalog?).
-  **Data-quality / expectation tests**, the natural place to catch some of §1's silent/semantic residue (D2/D6/D7/D8)
-, are **not built**; they are the obvious extension of this layer, noted but not claimed.
+  **Data-quality / expectation tests**, the natural place to catch some of §1's silent, semantic defects (the wrong-but-runnable
+  bugs no structural gate can see), are **not built**; they are the obvious extension of this layer, noted but not claimed.
 
 ## 3.2 Connect-on-Kubernetes scale: *Connect is the governed ingress; k8s is the horsepower*
-**Thesis.** Connect is preserved as the single mTLS/identity-pinned ingress; a client-mode driver + dynamically-allocated executor pods, all from one container image, scale execution elastically **without bypassing the boundary**. One long-lived shared Connect driver serves many sessions: scaling happens *behind* the governed front door, never around it.
+*Primer for this subsection: Spark **Connect** is Spark's session-less front end, a client sends a query **plan** to a shared server that runs it, never code to execute. The **driver** is the server process that plans and coordinates a job; **executor pods** are the worker processes that actually crunch the data. mTLS is mutual TLS, where both sides present certificates.*
+
+**Thesis.** Connect is preserved as the single mTLS/identity-pinned ingress; a client-mode driver plus dynamically-allocated executor pods, all from one container image, scale execution elastically **without bypassing the boundary**. One long-lived shared Connect driver serves many sessions: scaling happens *behind* the governed front door, never around it.
 
 ### 3.2.1 Architecture (topology)
-**Governed ingress.** The only externally reachable Connect endpoint is an internal AWS NLB exposing TCP `15009`; the Service exposes only the `mtls` port and no path to raw Connect `15002` `[connect/base/service-mtls.yaml]`. TLS passes through to an **Envoy sidecar** in the Connect pod that requires a client cert, validates it against the Connect CA, pins URI SANs under `spiffe://safe-spark-agents/`, **strips any client-supplied identity, derives the principal from the cert, and writes `x-connect-principal`** before forwarding to the local Connect server at `127.0.0.1:15002` `[connect/base/envoy/envoy.yaml]`. The Connect container binds gRPC to loopback only `[connect/base/deployment.yaml]`, so the sidecar is the sole ingress; the §2 boundary holds regardless of how execution scales.
+**Governed ingress.** Only one door into the cluster is reachable from outside, and it establishes identity by cryptography, not by trusting what the caller claims. Three facts carry the boundary:
 
-**Driver + executors.** The Connect server pod *is* the Spark **client-mode driver** (`spark.master=k8s://…`, `spark.submit.deployMode=client`); the long-lived Connect JVM talks to the in-cluster Kubernetes API to create **executor pods**, advertising its pod IP and fixed RPC/block-manager ports `[connect/base/deployment.yaml]`. Namespace-scoped RBAC grants the `spark` ServiceAccount create/watch/delete on pods/services/configmaps `[connect/base/rbac.yaml]`. Executor placement comes from a mounted **pod template** (`spark.kubernetes.executor.podTemplateFile`): `nodeSelector: workload=spark-executor`, a toleration for `spark-role=executor:NoSchedule`, and topology spread `[connect/base/deployment.yaml; connect/base/pod-templates/executor.yaml]`, matching the Terraform executor managed node group `[terraform/eks.tf]`.
+- **One external port, mutual-TLS only.** The sole externally reachable endpoint is an internal load balancer on TCP `15009`, the mutual-TLS port; the raw Spark Connect port (`15002`) is never exposed `[connect/base/service-mtls.yaml]`.
+- **Identity comes from the client's certificate, not from the client's word.** An **Envoy** proxy sidecar sits in front of Connect: it requires a valid client certificate, checks it against the cluster's certificate authority, reads the caller's identity out of that certificate, discards any identity the client tried to assert, and stamps the verified identity onto the request before passing it on `[connect/base/envoy/envoy.yaml]`.
+- **Raw Connect is unreachable except through that proxy.** The Connect server itself listens only on loopback (`127.0.0.1:15002`) `[connect/base/deployment.yaml]`, so the sidecar is the only way in.
+
+The §2 boundary therefore holds no matter how execution scales behind it: every session arrives with a cryptographically-pinned principal, and there is no path around the proxy.
+
+**Driver + executors.** The Connect server pod *is* the Spark **client-mode driver** (`spark.master=k8s://…`, `spark.submit.deployMode=client`); the long-lived Connect JVM talks to the in-cluster Kubernetes API to create **executor pods**, advertising its pod IP and fixed RPC/block-manager ports `[connect/base/deployment.yaml]`. Kubernetes access control (RBAC) gives the driver's service account exactly the permission it needs and no more: create, watch, and delete pods in its own namespace, so it can manage its own executors `[connect/base/rbac.yaml]`. Where those executors land is fixed by a **pod template**, they are pinned to executor-labeled nodes and spread across availability zones `[connect/base/deployment.yaml; connect/base/pod-templates/executor.yaml]`, matching the Terraform executor node group `[terraform/eks.tf]`.
 
 **Elasticity.** Dynamic allocation is enabled (`minExecutors=0`, `initialExecutors=0`, `maxExecutors=10`, shuffle tracking; executors `2` cores / `2g`) `[connect/base/deployment.yaml]`; the Terraform executor pool defaults `m6i.2xlarge`, min=0/max=10/desired=2 `[terraform/variables.tf]`. This is a configured elasticity *envelope*, not a reproduced 0→10→0 autoscaling cycle: Karpenter is explicitly deferred `[terraform/README.md]`.
 
 **One shared driver.** The Deployment is a singleton (`replicas:1`, `Recreate`) because Connect sessions are server-local and can't be spread behind one address without breaking session affinity `[connect/base/deployment.yaml]`; the live cluster runs "one long-lived Spark Connect server application shared by every run" `[DEVIATIONS.md]`, and the harness caches that single application id `[harness/backends/live.py]`. The same image (Spark 4.1.2, Iceberg 1.11.0, S3A/AWS SDK, PostgreSQL JDBC, principal-pinning interceptor jar) serves both driver and executors via role-dispatch in the entrypoint `[images/spark-connect/Dockerfile:18-35,65-118; images/spark-connect/entrypoint.sh]`.
 
 ### 3.2.2 What actually ran
-The topology above was stood up on the EKS cluster, and one thing was measured directly: through the driver's Spark-UI REST API, a `spark.range(80_000_000).sum()` produced **real distributed Spark stages** (executor-seconds 1.246, cpu-seconds 0.878): execution genuinely ran on the cluster, not locally. The full deploy-and-connect runbook (image build → `kustomize` apply → mTLS client) lives in the repository; note that the Terraform substrate layer is *configured but not applied*, so the cluster is a design-only artifact stood up by hand, not a one-command reproduction.
+The topology above was stood up on a **real EKS cluster**, and one thing was measured directly: through the driver's Spark-UI REST API, a `spark.range(80_000_000).sum()` ran on the cluster's **executor pods, not in the local process**, and registered real Spark stages (executor-seconds 1.246, cpu-seconds 0.878). This is a small probe. It confirms execution genuinely left the client and ran on the cluster; it is *not* a large multi-executor parallelism benchmark, and the paper does not claim one. One honest caveat, and it is about reproducibility, not about whether it ran: the cluster was provisioned **by hand**, because the committed Terraform substrate is *configured but not applied*, so the deploy is not yet a one-command reproduction. The full deploy-and-connect runbook (image build → `kustomize` apply → mTLS client) lives in the repository.
 
 ### 3.2.3 Honest scoping
-- **DEMONSTRATED:** the topology was stood up on EKS; one shared long-lived Connect driver; distributed execution produced real Spark stages (the `spark.range` probe) `[DEVIATIONS.md]`.
+- **DEMONSTRATED:** the topology was stood up on EKS; one shared long-lived Connect driver; execution ran on cluster executor pods, not locally (the `spark.range` probe registered real Spark stages) `[DEVIATIONS.md]`.
 - **CONFIGURED-BUT-UNREPRODUCED:** elastic **0→10 executor** scale-up/down (dynamic allocation is enabled, but no captured 0→N→0 cycle); **no Cluster Autoscaler/Karpenter committed**, so node-level autoscaling is unshown `[connect/base/deployment.yaml; terraform/README.md]`.
 - **DESIGN-ONLY:** multiple / per-tenant Connect servers, today a **singleton** (`replicas:1`, session affinity) `[connect/base/deployment.yaml]`; Terraform not applied per its README `[terraform/README.md]`.
 
 ## 3.3 Tenant governance: *the named multi-tenancy frontier*
-**Where enforcement ends today.** Identity is strong at the door but not downstream. Envoy pins an unspoofable principal from the client cert SAN and the interceptor rejects a mismatched `user_id` `[connect/base/envoy/envoy.yaml; deploy/auth/interceptor/.../PrincipalPinningInterceptor.java]`: the platform *knows* who each session is. But **authorization is fleet-scoped**: a single shared Iceberg JDBC catalog on RDS and one fleet-wide IRSA role with RW to the entire warehouse `[images/spark-connect/conf/spark-defaults.template.conf; terraform/irsa.tf]`. Per-principal schema isolation (`sandbox_<principal>`) exists only **by convention, not enforcement** `[RUNBOOK.md]`, and OSS HMS/Iceberg **cannot express per-user grants**; the repo states this outright and does not claim it `[deploy/auth/README.md]`. Execution is shared too: one long-lived driver, shared executors, no per-tenant pool `[connect/base/deployment.yaml]`.
+**Where enforcement ends today.** Identity is strong at the door but not downstream. Envoy pins an unspoofable principal from the client cert SAN and the interceptor rejects a mismatched `user_id` `[connect/base/envoy/envoy.yaml; deploy/auth/interceptor/.../PrincipalPinningInterceptor.java]`: the platform *knows* who each session is. But **authorization is fleet-scoped**: a single shared Iceberg catalog and one fleet-wide cloud IAM role (via IRSA, *IAM Roles for Service Accounts*) with read/write to the entire warehouse `[images/spark-connect/conf/spark-defaults.template.conf; terraform/irsa.tf]`. Per-principal schema isolation (a `sandbox_<principal>` naming scheme) exists only **by convention, not enforcement** `[RUNBOOK.md]`, and the open-source Hive Metastore and Iceberg catalog (OSS HMS/Iceberg) **cannot express per-user grants** at all; the repo states this outright and does not claim it `[deploy/auth/README.md]`. Execution is shared too: one long-lived driver, shared executors, no per-tenant pool `[connect/base/deployment.yaml]`.
 
 **Two frontiers, one idea: multi-tenancy.**
 1. **Catalog authorization is a *catalog* function: delegate it.** Per-tenant grants/isolation belong in a governed catalog (Unity-Catalog-class), not reinvented in SDP or CI. The open stack's honest boundary: it gives you authenticated identity + GitOps governance; per-tenant *authorization* is where you bring a real catalog.
 2. **Per-tenant execution isolation needs multi-server Connect: future.** Because Connect sessions are server-local, true isolation means multiple Connect servers (per team/tenant) behind the governed ingress, orchestrated by k8s, not the singleton today.
 
-**Credential vending vs custody (the §3↔§4 line).** The catalog *vends* short-lived, scoped credentials (a catalog function) but does **not** hand them to the agent. Holding and managing the vended credential (custody + the agent interface) is the **orchestration layer's job (§4/Omnigent)**, precisely so the agent never sees a credential and §2's boundary survives at fleet scale. §3 owns the catalog as **authority + vendor + federation**; §4 owns **credential custody + the agent interface**.
+**Credential vending vs custody (the §3↔§4 line).** The catalog *vends* short-lived, scoped credentials (a catalog function) but does **not** hand them to the agent. Holding and managing the vended credential (custody + the agent interface) is the **orchestration layer's job (§4/Omnigent)**, precisely so the agent never sees a credential and §2's boundary survives at fleet scale. §3 owns the catalog as the **authority** that grants and the **vendor** that issues short-lived credentials; §4 owns **credential custody plus the agent interface**.
 
-**Why this is the framing's edge, not a hole.** §3 demonstrates the single-tenant governed, integrable, scalable boundary and **draws the multi-tenancy line exactly, delegating across it.** "You didn't solve multi-tenant authz" is answered before it's asked: that is scoped to the catalog layer by design, and the OSS-can't-enforce-per-user-grants limit is itself a finding, the edge of what an open stack enforces.
+**The edge, stated plainly.** §3 demonstrates the single-tenant governed, integrable, scalable boundary and draws the multi-tenancy line exactly, delegating across it. Multi-tenant authorization is scoped to the catalog layer by design, not left undone by accident. And the specific limit, that **OSS HMS/Iceberg cannot express per-user grants**, is itself a finding: it marks the edge of what an open stack can enforce on its own, and where a governed catalog has to take over.
 - **Tier:** **FRONTIER / DESIGN-ONLY** throughout: **no reproduction section, because nothing here is demonstrated to reproduce.** The demonstrated piece is only *identity authentication at the ingress*; *authorization* and *execution isolation* are delegated/future.
 
 ## 3.4 Evidence tiering
 | Pillar | Demonstrated | Configured-unrun | Frontier / design-only |
 |---|---|---|---|
-| GitOps/CI | PR-author session denial; dry-run+reconcile workflows; local gate smoke | EKS-target reconcile |, |
+| GitOps/CI | PR-author session denial; dry-run+reconcile workflows; local gate smoke | EKS-target reconcile | (none) |
 | Connect-on-k8s | topology; small-scale distributed exec on EKS | elastic 0→10 executors | node autoscaler |
-| Tenant governance | identity pinned at ingress |, | catalog authz; per-tenant execution isolation; multi-server Connect |
+| Tenant governance | identity pinned at ingress | (none) | catalog authz; per-tenant execution isolation; multi-server Connect |
 
 ## 3.5 What §3 unlocks → §4 (Omnigent)
 The governed, scalable, integrable substrate is the precondition for the agent *orchestration* layer, **Section 4 (Omnigent)**: a concrete thesis with a demonstrated core, whose governance pillar depends on the multi-tenancy frontier above (per-tenant authorization + isolation).
@@ -842,7 +850,7 @@ that is the definition of drift here.**
 
 | Layer | Claim it licenses | Enforces | Depends on |
 |---|---|---|---|
-| **L0 Substrate** | EKS Connect server + Envoy + catalog + S3 reachable |, |, |
+| **L0 Substrate** | EKS Connect server + Envoy + catalog + S3 reachable | (none) | (none) |
 | **L1 Authenticated channel** | controller → Connect via **native** mTLS/PSK, no tunnel | I2 (C│D) | L0 |
 | **L2 Off-host execution** | a trivial plan runs in D, driver+executors in pods | I3 | L1 |
 | **L3 SDP submission green** | agent-authored SDP spec submitted from C **completes + grades green** in D | I1, I6 | L2 |
@@ -859,7 +867,7 @@ that is the definition of drift here.**
 |---|---|---|---|
 | Inert artifact | I1, I6 | **IMPLEMENTED** | `runner.py:369-405`; spec+code only |
 | Plan-not-files submission | I6 | **IMPLEMENTED** (PySpark) | `cli.py:221-263` |
-| L0 substrate |, | **BUILT, ran 2026-06-24** (cluster `ssa-spark-eks`); current state not tracked | `DEVIATIONS.md:184-227`; TF README says "not applied" |
+| L0 substrate | (none) | **BUILT, ran 2026-06-24** (cluster `ssa-spark-eks`); current state not tracked | `DEVIATIONS.md:184-227`; TF README says "not applied" |
 | L1 native mTLS/PSK | I2 | **PARTIAL**: reached via socat tunnel, native client unproven (R3) | `study.config.live.json:2` |
 | L2 off-host execution | I3 | **DEMONSTRATED, both arms**: driver+executors in pods, tables materialized | `repro/h3_eks/` |
 | L3 SDP green remote | I1,I6 | **DEMONSTRATED (2026-07-06)**: Arm B SDP completes+grades green remotely (agent authors inert spec; CLI submits session-less). Took harness data-path/catalog fixes, not architecture | `repro/h3_eks/` |
