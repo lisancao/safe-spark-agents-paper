@@ -1,0 +1,16 @@
+{
+  "warehouse-name": "tenant_a",
+  "delete-profile": { "type": "soft", "expiration-seconds": 3600 },
+  "storage-credential": {
+    "type": "s3",
+    "credential-type": "aws-system-identity"
+  },
+  "storage-profile": {
+    "type": "s3",
+    "bucket": "REPLACE-warehouse-bucket",
+    "region": "us-east-1",
+    "key-prefix": "tenant_a",
+    "sts-enabled": true,
+    "sts-role-arn": "arn:aws:iam::REPLACE-ACCOUNT:role/REPLACE-name-prefix-lakekeeper-vending"
+  }
+}

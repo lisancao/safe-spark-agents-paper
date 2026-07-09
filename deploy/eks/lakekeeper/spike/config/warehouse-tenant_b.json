@@ -1,0 +1,20 @@
+{
+  "warehouse-name": "tenant_b",
+  "delete-profile": { "type": "hard" },
+  "storage-credential": {
+    "type": "s3",
+    "credential-type": "access-key",
+    "aws-access-key-id": "lakekeeper",
+    "aws-secret-access-key": "lakekeeper-secret"
+  },
+  "storage-profile": {
+    "type": "s3",
+    "flavor": "s3-compat",
+    "endpoint": "http://minio:9000",
+    "bucket": "warehouse",
+    "region": "local-01",
+    "path-style-access": true,
+    "key-prefix": "tenant_b",
+    "sts-enabled": true
+  }
+}

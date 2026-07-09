@@ -1,0 +1,182 @@
+# =============================================================================================
+# LOCAL config-shakeout smoke for the Lakekeeper credential-vending de-risk spike.
+#
+# SCOPE (read FINDINGS.md first): this stack gets the Lakekeeper + Spark-Connect + Iceberg
+# credential-vending WIRING right and proves, in a world with NO ambient credential, that a
+# per-tenant vended credential reaches a SEPARATE Spark executor and is prefix-scoped at the
+# storage layer. It does NOT (and cannot) prove the load-bearing EKS failure mode — an executor
+# POD silently falling back to its IRSA ambient role — because there are no pods and no IRSA here.
+# That proof lives in ../eks and runs on a real cluster. This is the cheap shakeout that de-risks
+# the config before spend.
+#
+# Pinned versions (state them):
+#   Spark 4.1.2 (scala 2.13, java17)        apache/spark:4.1.2-scala2.13-java17-python3-ubuntu
+#   Iceberg 1.11.0 (iceberg-spark-runtime-4.1_2.13 + iceberg-aws-bundle) — baked in images/spark
+#   Lakekeeper v0.13.1                       quay.io/lakekeeper/catalog:v0.13.1
+#   MinIO RELEASE.2025-04-08T15-41-24Z / mc RELEASE.2025-04-08T15-39-49Z
+#   Postgres 17-alpine
+#
+# Topology: Spark STANDALONE (master + worker) so the write runs on a genuinely separate executor
+# JVM (worker), NOT local[*] inside the driver. spark-connect is the client-mode driver.
+# =============================================================================================
+
+name: lakekeeper-vending-spike
+
+services:
+  # ── Lakekeeper metadata store ───────────────────────────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    tmpfs:
+      - /var/lib/postgresql/data   # ephemeral: a spike, not a database
+
+  lakekeeper-migrate:
+    image: quay.io/lakekeeper/catalog:v0.13.1
+    command: ["migrate"]
+    environment:
+      LAKEKEEPER__PG_ENCRYPTION_KEY: This-is-NOT-Secure-Spike-Only
+      LAKEKEEPER__PG_DATABASE_URL_READ: postgresql://postgres:postgres@db:5432/postgres
+      LAKEKEEPER__PG_DATABASE_URL_WRITE: postgresql://postgres:postgres@db:5432/postgres
+      RUST_LOG: info
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  lakekeeper:
+    image: quay.io/lakekeeper/catalog:v0.13.1
+    command: ["serve"]
+    environment:
+      LAKEKEEPER__PG_ENCRYPTION_KEY: This-is-NOT-Secure-Spike-Only
+      LAKEKEEPER__PG_DATABASE_URL_READ: postgresql://postgres:postgres@db:5432/postgres
+      LAKEKEEPER__PG_DATABASE_URL_WRITE: postgresql://postgres:postgres@db:5432/postgres
+      # No LAKEKEEPER__OPENID_PROVIDER_URI and no authz backend -> auth disabled, authz allow-all.
+      # DELIBERATE for this shakeout: the risky/undocumented layer is storage-vending-to-executor,
+      # NOT catalog RBAC (OpenFGA), which is well-understood and added on EKS. See FINDINGS.md.
+      RUST_LOG: info
+    ports:
+      # Host ports are for HUMAN debugging only; the runner reaches every service by its compose
+      # service name on the internal network. Remapped to high ports to avoid host conflicts.
+      - "18181:8181"
+    depends_on:
+      db:
+        condition: service_healthy
+      lakekeeper-migrate:
+        condition: service_completed_successfully
+
+  # ── Object storage ──────────────────────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:RELEASE.2025-04-08T15-41-24Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    tmpfs:
+      - /data
+
+  # One-shot: bucket + tenant prefixes + the broad `lakekeeper` storage-credential user.
+  # (Run explicitly by run.sh via `docker compose run --rm minio-setup`.)
+  minio-setup:
+    image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+    entrypoint: ["/bin/sh", "/scripts/minio-setup.sh"]
+    environment:
+      MINIO_URL: http://minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ./scripts/minio-setup.sh:/scripts/minio-setup.sh:ro
+      - ./config/minio-policy-warehouse.json:/config/minio-policy-warehouse.json:ro
+    depends_on:
+      - minio
+    profiles: ["setup"]
+
+  # ── Spark standalone: master + a SEPARATE worker (executor JVM) + the Connect driver ─────────
+  spark-master:
+    build: ./images/spark
+    image: spike-spark:4.1.2-iceberg1.11.0
+    command:
+      - bash
+      - -lc
+      - "export SPARK_NO_DAEMONIZE=1 SPARK_LOG_DIR=/tmp SPARK_PID_DIR=/tmp SPARK_MASTER_HOST=spark-master; exec /opt/spark/sbin/start-master.sh"
+    ports:
+      - "38080:8080"   # standalone master web UI (host-side remapped; 18080 was busy)
+
+  spark-worker:
+    image: spike-spark:4.1.2-iceberg1.11.0
+    command:
+      - bash
+      - -lc
+      - "export SPARK_NO_DAEMONIZE=1 SPARK_LOG_DIR=/tmp SPARK_PID_DIR=/tmp; exec /opt/spark/sbin/start-worker.sh spark://spark-master:7077"
+    environment:
+      SPARK_WORKER_CORES: "2"
+      SPARK_WORKER_MEMORY: "2g"
+    depends_on:
+      - spark-master
+    # NOTE the ABSENCE of any AWS_* env here. The executor JVM has NO ambient S3 credential;
+    # the only way it can authenticate to MinIO is the vended credential the catalog serializes
+    # into its tasks. That absence is load-bearing for the local proof (see FINDINGS.md).
+
+  spark-connect:
+    image: spike-spark:4.1.2-iceberg1.11.0
+    command:
+      - bash
+      - -lc
+      - "export SPARK_NO_DAEMONIZE=1 SPARK_LOG_DIR=/tmp SPARK_PID_DIR=/tmp; exec /opt/spark/sbin/start-connect-server.sh --wait --master spark://spark-master:7077"
+    volumes:
+      - ./config/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+    ports:
+      - "35002:15002"  # Spark Connect gRPC (host-side remapped; 15002 was busy)
+      - "14040:4040"   # driver UI (executors REST API -> proves a separate executor ran tasks)
+    depends_on:
+      - spark-master
+      - spark-worker
+    # Same story: NO AWS_* env on the driver either.
+
+  # Best-effort evidence: live S3 request trace. Used to corroborate that the executor's data-file
+  # PUT is signed by the temporary (vended) access key, not root/base. Not a gate — the structural
+  # "no ambient creds" fact already makes a successful executor write proof enough.
+  minio-trace:
+    image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+    entrypoint:
+      - /bin/sh
+      - -c
+      - "mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null 2>&1; exec mc admin trace --json local"
+    depends_on:
+      - minio
+    profiles: ["trace"]
+
+  # ── Test runner: provisions Lakekeeper warehouses + runs the PASS/FAIL cases ─────────────────
+  runner:
+    build: ./images/runner
+    image: spike-runner:latest
+    environment:
+      SPARK_REMOTE: sc://spark-connect:15002
+      LAKEKEEPER_URL: http://lakekeeper:8181
+      S3_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      LK_USER: lakekeeper
+      LK_PASS: lakekeeper-secret
+      SPARK_MASTER_UI: http://spark-master:8080
+      SPARK_DRIVER_UI: http://spark-connect:4040
+    volumes:
+      - ./run_spike.py:/spike/run_spike.py:ro
+      - ./config:/spike/config:ro
+      - ./out:/spike/out
+    working_dir: /spike
+    depends_on:
+      - spark-connect
+      - lakekeeper
+      - minio
+    profiles: ["run"]

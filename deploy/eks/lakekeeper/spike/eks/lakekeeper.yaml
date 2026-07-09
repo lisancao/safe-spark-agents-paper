@@ -1,0 +1,110 @@
+# =============================================================================================
+# Lakekeeper (Iceberg REST catalog) on EKS — for the credential-vending isolation proof.
+# Namespace: spark (same as the Connect server, so IRSA `sub` conditions line up).
+#
+# Pins: quay.io/lakekeeper/catalog:v0.13.1 (matches the local smoke).
+# Metadata DB: a small in-cluster Postgres (ephemeral — this is a spike). To use the existing RDS
+#   instead, delete the postgres objects and point LAKEKEEPER__PG_DATABASE_URL_* at RDS.
+#
+# Credential vending on AWS: the `lakekeeper` ServiceAccount is IRSA-bound to the
+# `${name_prefix}-lakekeeper-catalog` role (terraform/lakekeeper-vending.tf). Its ONLY power is to
+# assume the `${name_prefix}-lakekeeper-vending` role, which Lakekeeper then DOWNSCOPES per
+# warehouse (session policy on the tenant key-prefix) when it vends. LAKEKEEPER__ENABLE_AWS_SYSTEM_
+# CREDENTIALS=true lets the warehouse storage-credential be `aws-system-identity` (the pod's IRSA).
+# =============================================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lakekeeper
+  namespace: spark
+  labels: { app.kubernetes.io/name: lakekeeper, app.kubernetes.io/part-of: reference-lakehouse }
+  annotations:
+    # <-- terraform output `lakekeeper_catalog_role_arn`
+    eks.amazonaws.com/role-arn: arn:aws:iam::REPLACE-ACCOUNT:role/REPLACE-name-prefix-lakekeeper-catalog
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lakekeeper-postgres
+  namespace: spark
+  labels: { app.kubernetes.io/name: lakekeeper-postgres, app.kubernetes.io/part-of: reference-lakehouse }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: lakekeeper-postgres } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: lakekeeper-postgres } }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          env:
+            - { name: POSTGRES_USER, value: postgres }
+            - { name: POSTGRES_PASSWORD, value: postgres }
+            - { name: POSTGRES_DB, value: catalog }
+          ports: [{ containerPort: 5432 }]
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            periodSeconds: 5
+          volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]
+      volumes: [{ name: data, emptyDir: {} }]   # ephemeral: a spike
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lakekeeper-postgres
+  namespace: spark
+spec:
+  selector: { app.kubernetes.io/name: lakekeeper-postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lakekeeper
+  namespace: spark
+  labels: { app.kubernetes.io/name: lakekeeper, app.kubernetes.io/part-of: reference-lakehouse }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: lakekeeper } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: lakekeeper } }
+    spec:
+      serviceAccountName: lakekeeper       # IRSA -> catalog role -> assume vending role
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      initContainers:
+        - name: migrate
+          image: quay.io/lakekeeper/catalog:v0.13.1
+          args: ["migrate"]
+          env: &lkenv
+            - { name: LAKEKEEPER__PG_ENCRYPTION_KEY, value: REPLACE-with-a-real-32B-key }
+            - { name: LAKEKEEPER__PG_DATABASE_URL_READ,  value: postgresql://postgres:postgres@lakekeeper-postgres:5432/catalog }
+            - { name: LAKEKEEPER__PG_DATABASE_URL_WRITE, value: postgresql://postgres:postgres@lakekeeper-postgres:5432/catalog }
+            # Allow `aws-system-identity` storage-credentials (the pod's IRSA) to drive STS vending.
+            - { name: LAKEKEEPER__ENABLE_AWS_SYSTEM_CREDENTIALS, value: "true" }
+            - { name: RUST_LOG, value: info }
+      containers:
+        - name: lakekeeper
+          image: quay.io/lakekeeper/catalog:v0.13.1
+          args: ["serve"]
+          env: *lkenv
+          ports: [{ name: http, containerPort: 8181 }]
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits: { memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lakekeeper
+  namespace: spark
+  labels: { app.kubernetes.io/name: lakekeeper, app.kubernetes.io/part-of: reference-lakehouse }
+spec:
+  selector: { app.kubernetes.io/name: lakekeeper }
+  ports: [{ name: http, port: 8181, targetPort: http }]

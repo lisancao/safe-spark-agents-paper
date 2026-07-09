@@ -1,0 +1,59 @@
+# =============================================================================================
+# W0 de-risk spike (SP3.4): does a Lakekeeper-vended, prefix-scoped credential reach the Spark
+# executor through Spark Connect and enforce per-tenant S3 isolation? This runs the LOCAL
+# config-shakeout tier entirely inside the GitHub runner (Docker is available there).
+#
+# NO AWS. NO secrets. NO cloud. Safe on the public repo and on fork PRs (nothing privileged).
+# The EKS-native load-bearing proof (deploy/eks/lakekeeper/spike/eks) runs on the cluster, not here.
+# =============================================================================================
+name: lakekeeper-spike
+
+on:
+  push:
+    paths:
+      - "deploy/eks/lakekeeper/spike/**"
+      - ".github/workflows/lakekeeper-spike.yml"
+  pull_request:
+    paths:
+      - "deploy/eks/lakekeeper/spike/**"
+      - ".github/workflows/lakekeeper-spike.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  vending-spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: deploy/eks/lakekeeper/spike
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker + compose versions
+        run: docker version && docker compose version
+
+      - name: Run the credential-vending config-shakeout spike
+        run: ./run.sh
+
+      - name: Show results
+        if: always()
+        run: |
+          echo '----- structural checks -----'
+          cat out/structural.txt || true
+          echo '----- results.json -----'
+          cat out/results.json || true
+
+      - name: Upload spike artifacts (results + S3 trace)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakekeeper-spike-out
+          path: deploy/eks/lakekeeper/spike/out/
+          if-no-files-found: warn
+
+      - name: Tear down
+        if: always()
+        run: ./run.sh --down || true

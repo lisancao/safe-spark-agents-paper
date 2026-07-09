@@ -1,0 +1,49 @@
+# =============================================================================================
+# One-shot Job: bootstrap Lakekeeper + create the two tenant warehouses (AWS S3 + STS vending).
+# The warehouse JSONs come from the `spike-warehouses` ConfigMap (kustomize generates it from
+# eks/warehouse-tenant_*.aws.json — fill their REPLACE-* values first).
+#
+# No S3 seeding is needed: AWS returns 403 AccessDenied for a GetObject the scoped credential is
+# not permitted, whether or not the key exists — so the cross-tenant check needs no pre-seeded
+# object. (Both tenants also write real objects during the test.)
+# =============================================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lakekeeper-provision-warehouses
+  namespace: spark
+  labels: { app.kubernetes.io/part-of: reference-lakehouse }
+spec:
+  backoffLimit: 6
+  template:
+    metadata: { labels: { app.kubernetes.io/name: lakekeeper-provision } }
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: provision
+          image: curlimages/curl:8.11.1
+          env:
+            - { name: LK, value: http://lakekeeper:8181 }
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              echo "[provision] waiting for Lakekeeper /health ..."
+              until curl -fsS "$LK/health" >/dev/null 2>&1; do sleep 3; done
+              echo "[provision] bootstrap"
+              curl -fsS -X POST "$LK/management/v1/bootstrap" \
+                -H 'content-type: application/json' \
+                -d '{"accept-terms-of-use": true}' || echo "[provision] already bootstrapped"
+              for f in /warehouses/warehouse-tenant_a.aws.json /warehouses/warehouse-tenant_b.aws.json; do
+                echo "[provision] create warehouse from $f"
+                code=$(curl -s -o /tmp/resp -w '%{http_code}' -X POST "$LK/management/v1/warehouse" \
+                  -H 'content-type: application/json' --data @"$f")
+                echo "  -> HTTP $code"; cat /tmp/resp; echo
+                case "$code" in 200|201|409) : ;; *) echo "FATAL"; exit 1;; esac
+              done
+              echo "[provision] done."
+          volumeMounts:
+            - { name: warehouses, mountPath: /warehouses, readOnly: true }
+      volumes:
+        - name: warehouses
+          configMap: { name: spike-warehouses }

@@ -1,0 +1,89 @@
+# JSON6902 patch: APPEND the Lakekeeper REST catalogs (lk_a -> tenant_a, lk_b -> tenant_b)
+# to the spark-connect-server container's args. Spark merges these --conf entries ON TOP
+# of the image-rendered spark-defaults, so the driver gains two vended-credential REST
+# catalogs WITHOUT rebuilding the image. Each entry is appended as two args: --conf key=val.
+# The pre-existing JDBC `iceberg` catalog stays defined but unused (defaultCatalog=lk_a).
+#
+# LOAD-BEARING lines: `.header.X-Iceberg-Access-Delegation=vended-credentials` turns on
+# vending; `.io-impl=...S3FileIO` is the path that serializes the vended cred to executors.
+# Note the DELIBERATE absence of any spark.sql.catalog.*.s3.access-key-id / fs.s3a.* key:
+# the executor pod still carries a full-bucket IRSA role, and the proof is that the vended
+# cred — not that role — is what S3FileIO uses (cross-tenant => AccessDenied).
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_a=org.apache.iceberg.spark.SparkCatalog"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_a.type=rest"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_a.uri=http://lakekeeper:8181/catalog"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_a.warehouse=tenant_a"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_a.header.X-Iceberg-Access-Delegation=vended-credentials"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_a.io-impl=org.apache.iceberg.aws.s3.S3FileIO"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_b=org.apache.iceberg.spark.SparkCatalog"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_b.type=rest"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_b.uri=http://lakekeeper:8181/catalog"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_b.warehouse=tenant_b"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_b.header.X-Iceberg-Access-Delegation=vended-credentials"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.catalog.lk_b.io-impl=org.apache.iceberg.aws.s3.S3FileIO"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--conf"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "spark.sql.defaultCatalog=lk_a"

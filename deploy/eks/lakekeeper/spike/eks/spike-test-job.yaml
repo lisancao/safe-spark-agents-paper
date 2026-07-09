@@ -1,0 +1,66 @@
+# =============================================================================================
+# One-shot Job: run the SAME run_spike.py isolation test against the EKS cluster (PROVISION=0).
+# run_spike.py is mounted from the `spike-runner-code` ConfigMap (kustomize generates it from
+# ../run_spike.py) so no custom image push is needed — a stock python image pip-installs the
+# Connect client + boto3 at start.
+#
+# What this Job asserts automatically:
+#   * A/B create+insert+read Iceberg tables over Spark Connect (vended creds).
+#   * A SEPARATE executor (pod) ran the tasks (driver UI executors API).
+#   * A's actual vended credential, replayed against tenant_b's prefix, is DENIED at S3
+#     (AccessDenied) — even though the executor pod also holds a full-bucket IRSA role.
+#
+# Two on-cluster steps complete the load-bearing proof (see ../FINDINGS.md and README.md):
+#   (c) CloudTrail: confirm the tenant_a data-file PutObject was performed by the DOWNSCOPED
+#       vending session (role `${name_prefix}-lakekeeper-vending`), NOT the Spark IRSA role
+#       (`${name_prefix}-irsa-spark`). That is the direct "executor used the vend, not IRSA" proof.
+#   (d) Ablation (R7): remove the `.header.X-Iceberg-Access-Delegation` line (patches/rest-catalog
+#       .yaml), re-apply, re-run. The executor falls back to its IRSA role -> cross-tenant SUCCEEDS
+#       -> isolation breaks. The delta between (present) and (removed) is the whole result.
+#
+# REACHING CONNECT: the Connect gRPC is loopback-only behind the Envoy mTLS ingress. Set
+# SPARK_REMOTE to the mTLS service and mount the client cert + PSK (reuse the platform's existing
+# client-mTLS wiring; see deploy/eks/connect/README.md). For a first proof you may instead run
+# run_spike.py from the bastion with a port-forward. The placeholder below points at the in-cluster
+# mTLS service name.
+# =============================================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lakekeeper-spike-test
+  namespace: spark
+  labels: { app.kubernetes.io/part-of: reference-lakehouse }
+spec:
+  backoffLimit: 2
+  template:
+    metadata: { labels: { app.kubernetes.io/name: lakekeeper-spike-test } }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: runner
+          image: python:3.11-slim
+          env:
+            - { name: PROVISION, value: "0" }
+            - { name: LAKEKEEPER_URL, value: http://lakekeeper:8181 }
+            # <-- reuse the platform mTLS client path; see README. Storage checks hit real AWS S3.
+            - { name: SPARK_REMOTE, value: "sc://spark-connect-mtls:15009" }
+            - { name: SPARK_DRIVER_UI, value: "http://spark-connect:4040" }
+            - { name: BUCKET, value: "REPLACE-warehouse-bucket" }
+            - { name: S3_ENDPOINT, value: "" }      # empty -> boto3 uses real AWS S3
+            - { name: WAREHOUSE_A, value: "tenant_a" }
+            - { name: WAREHOUSE_B, value: "tenant_b" }
+            - { name: SEED_A_KEY, value: "tenant_a/probe" }
+            - { name: SEED_B_KEY, value: "tenant_b/probe" }
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              pip install --no-cache-dir "pyspark[connect]==4.1.2" "boto3>=1.34,<2" >/dev/null
+              exec python /spike/run_spike.py
+          volumeMounts:
+            - { name: code, mountPath: /spike, readOnly: true }
+      volumes:
+        - name: code
+          # Create this out-of-band before applying (shared code lives above the kustomize root):
+          #   kubectl -n spark create configmap spike-runner-code --from-file=run_spike.py=../run_spike.py
+          configMap: { name: spike-runner-code }

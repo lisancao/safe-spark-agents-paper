@@ -1,0 +1,49 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: spark
+
+# =============================================================================================
+# EKS credential-vending isolation proof overlay.
+#
+# REUSES the real governed-Connect platform (Envoy mTLS + principal interceptor + executor pod
+# template + IRSA SA + node placement) from deploy/eks/connect, and adds ONLY:
+#   * Lakekeeper (REST catalog) + its Postgres + IRSA (lakekeeper.yaml)
+#   * two vended-credential REST catalogs on the driver (patches/rest-catalog.yaml)
+#   * the warehouse provisioning Job + the spike test Job
+#
+# Prereqs (see README.md):
+#   1. cd deploy/eks/terraform && terraform apply   (now includes lakekeeper-vending.tf)
+#   2. Fill the REPLACE-* values (role ARNs, warehouse bucket, PG key) in lakekeeper.yaml,
+#      config/warehouse-*.aws.json, and the base example overlay's image/IRSA/RDS values.
+#   3. kustomize build deploy/eks/lakekeeper/spike/eks | kubectl apply -f -
+# =============================================================================================
+resources:
+  # The existing single-tenant governed Connect platform (driver+Envoy+SA+executor template).
+  - ../../../connect/overlays/example
+  # New: the governed catalog with per-warehouse credential vending.
+  - lakekeeper.yaml
+  # New: provision the two tenant warehouses, then run the isolation test.
+  - warehouse-provision-job.yaml
+  - spike-test-job.yaml
+
+patches:
+  # Add the two Lakekeeper REST catalogs (vended-credentials) to the Connect driver.
+  - target:
+      kind: Deployment
+      name: spark-connect
+    path: patches/rest-catalog.yaml
+
+# Warehouse payloads (fill REPLACE-* first), mounted into the provision Job.
+configMapGenerator:
+  - name: spike-warehouses
+    files:
+      - warehouse-tenant_a.aws.json
+      - warehouse-tenant_b.aws.json
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+# The test code (../run_spike.py) is shared with the local tier and lives above this dir, so it is
+# NOT generated here (kustomize's default load-restrictor forbids ../ file sources). Create its
+# ConfigMap out-of-band before applying — same convention the base uses for its Secrets:
+#   kubectl -n spark create configmap spike-runner-code --from-file=run_spike.py=../run_spike.py

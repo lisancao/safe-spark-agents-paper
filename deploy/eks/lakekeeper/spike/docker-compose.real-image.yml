@@ -1,0 +1,31 @@
+# =============================================================================================
+# Override: run the REAL project Spark Connect artifact (Spark 4.1.2 + Iceberg 1.11.0 + the
+# principal-pinning interceptor) as the DRIVER and the EXECUTOR — the same image deploy/eks ships
+# and EKS runs — instead of the generic base. Credential handling can differ between a stock Spark
+# and the real image (its baked spark-defaults template sets an S3A WebIdentity provider, etc.), so
+# this de-risks the ACTUAL artifact locally, cheaply, before the cluster.
+#
+#   ./run.sh --real-image
+#
+# Only spark-worker (executor JVM) and spark-connect (driver) are swapped — those are the roles that
+# touch S3. spark-master is just the standalone scheduler (image-agnostic), left on the generic
+# image so nothing rebuilds/clobbers the real ECR tag. We override the entrypoint to bypass the
+# image's k8s/HMS template rendering and run the standalone daemons with our mounted spark-defaults
+# (the REST catalogs + vending). The interceptor is NOT activated (no interceptor --conf), so no PSK
+# is needed — this exercises the S3-credential path, which is what the interceptor does not touch.
+#
+# NOTE: the real image is a private ECR tag (present locally on the dev box). CI uses the generic
+# image; this override is a local dev convenience + the definitive real-artifact test is EKS.
+# =============================================================================================
+services:
+  spark-worker:
+    image: ${ECR_REGISTRY}/ssa-spark/spark-connect:4.1.2-iceberg1.11.0   # set ECR_REGISTRY=<acct>.dkr.ecr.<region>.amazonaws.com
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - "export SPARK_NO_DAEMONIZE=1 SPARK_LOG_DIR=/tmp SPARK_PID_DIR=/tmp; exec /opt/spark/sbin/start-worker.sh spark://spark-master:7077"
+
+  spark-connect:
+    image: ${ECR_REGISTRY}/ssa-spark/spark-connect:4.1.2-iceberg1.11.0   # set ECR_REGISTRY=<acct>.dkr.ecr.<region>.amazonaws.com
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - "export SPARK_NO_DAEMONIZE=1 SPARK_LOG_DIR=/tmp SPARK_PID_DIR=/tmp; exec /opt/spark/sbin/start-connect-server.sh --wait --master spark://spark-master:7077"
