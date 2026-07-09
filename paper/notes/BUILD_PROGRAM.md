@@ -3,6 +3,15 @@
 **never rewrite** them. If a piece of work is not a subproject below that advances a named paper anchor, it is
 **drift — reject it.**
 
+## Scope lock (2026-07-09, Lisa)
+**§3 = BOTH in sequence, one runway.** Finish the single-tenant EKS runway (P0–P4: native mTLS, substrate,
+elastic scaling, EKS-wired GitOps) as de-risking, then roll straight into the multi-tenant frontier (P5–P6:
+governed catalog + per-tenant isolation, multi-server Connect) under one spend approval. **Headline frontier
+result = SP3.4** — the two-agent "A blocked from B" isolation proof. §4 stays scoped: SP4.1 custody (a P5
+dependency) + SP4.2 fleet study (a *separate* experiment with its own design doc, not §1's run). **Open input
+before SP3.4 can be specced concretely:** the governed-catalog choice (Polaris / Lakekeeper / Unity Catalog OSS)
+— research this in service of SP3.4, not as a replan.
+
 ## Anti-drift rules (binding on polly AND every sub-agent)
 1. **The paper is read-only during execution.** No sub-agent may edit `PAPER.md`. It changes ONLY at an explicit
    *paper-revision gate* with Lisa present — never as a side effect of building.
@@ -75,26 +84,33 @@ Every SP is dispatched to an implement sub-agent as a **self-contained card** (f
 
 ---
 
-## Status ledger (the ONLY sanctioned paper change — tier + evidence, reviewed by Lisa)
+## Status ledger (reconciled 2026-07-09 against the paper's evidence map; tier + evidence, reviewed by Lisa)
+*Was stale: it predated §1's completion and the EKS L2/L3/H3 demonstrations. Reconciled below from the paper's own Appendix S2-A / S3-A evidence map. Corrections welcome; this is the work-contract ledger, not a PAPER.md claim change.*
 | SP | Status | Evidence |
 |---|---|---|
-| SP0.1 | NOT STARTED (salvage T0.6) | — |
-| SP0.2 | AVAILABLE (install on go) | — |
-| SP1.1 | NOT STARTED | — |
-| SP1.2 | NOT STARTED | — |
-| SP1.3 | BLOCKED (spend gate) | — |
-| SP1.4 | BLOCKED (spend gate) | — |
-| SP2.1 | NOT STARTED | — |
-| SP2.2 | NOT STARTED | — |
-| SP2.3 | BLOCKED (SP2.2, EKS) | — |
-| SP2.4 | BLOCKED (SP2.3) | — |
-| SP3.1 | BLOCKED (spend gate) | — |
-| SP3.2–3.5 | BLOCKED (deps/scope) | — |
-| SP4.1–4.2 | BLOCKED (deps/scope) | — |
+| SP0.1 | salvage T0.6 (paper-bind CI); not enforced yet | (none) |
+| SP0.2 | available | (none) |
+| SP1.1 | **DONE**: Arm B = SDP + `pyspark-sdp`, no safety skill | current 2-arm design, PAPER.md §1 |
+| SP1.2 | **DONE**: per-attempt compute serialized | H3 rows (executor/cpu seconds) |
+| SP1.3 | **DONE**: calibration + $ projection | H3 $-model, $0.192/exec-hr |
+| SP1.4 | **DONE**: powered run A vs B (N=264/arm) | `results.powered.AB.n12.final.jsonl`; H1–H5 |
+| SP2.1 | PARTIAL: some remote-run evidence captured | `study/repro/h3_eks/` |
+| SP2.2 | **GAP**: native client mTLS still via socat | App S2-A R3 / L1 |
+| SP2.3 | **DONE (2026-07-06)**: Arm B SDP completes+grades green remote | `study/repro/h3_eks/`; App S2-A L3 |
+| SP2.4 | **GAP**: reconciler co-located on agent host | App S2-A L5 / R2 |
+| SP3.1 | PARTIAL: cluster built + ran once; Terraform not applied-as-tracked-artifact | App S3-A P0 |
+| SP3.2 | PARTIAL: small-scale exec on EKS; elastic 0→N→0 unproven | App S3-A P2 |
+| SP3.3 | **GAP**: GitOps gate/reconcile still runner-local, not EKS | App S3-A P3/P4 |
+| SP3.4 | **NEXT FRONTIER** (scope-approved): governed catalog + isolation proof | needs catalog choice |
+| SP3.5 | frontier (after SP3.4) | (none) |
+| SP4.1 | frontier (dep SP3.4) | (none) |
+| SP4.2 | separate experiment / own design doc | (none) |
 
-## Free, no-spend, delegatable NOW (critical-path-to-paper or evidence-capture)
-**SP1.1, SP1.2** (the §1 instrument PRs) · **SP2.1** (capture stranded evidence) · **SP2.2** (native mTLS de-risk).
-These four advance the paper with zero spend and each opens a cross-reviewed PR you merge.
+## Free, no-spend, delegatable NOW (post-§1)
+**SP2.2** (native client mTLS de-risk, on the L1 critical path) · **catalog-choice research** (Polaris /
+Lakekeeper / Unity Catalog OSS: the open SP3.4 input) · **SP2.1** (finish capturing stranded remote-run
+evidence). Zero spend; each firms a runway layer or the frontier input, and each opens a cross-reviewed PR you
+merge. **First SPEND gate is SP3.1 (`terraform apply` = EKS + RDS + S3 + node groups).**
 
 
 ---

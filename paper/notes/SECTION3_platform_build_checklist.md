@@ -9,8 +9,9 @@ HUMAN (Lisa: gates/creds/spend) · INFRA OPS (terraform/kubectl/ECR — cluster 
 ---
 
 ## Phase 0 — Decision gate  [HUMAN]
-- [ ] Approve AWS spend (terraform apply = first irreversible cost; EKS + RDS + S3 + node groups).
-- [ ] Pick scope: single-tenant demo (P0–P4) now, or commit to multi-tenant build (P5–P6) too.
+- [x] **Scope picked (2026-07-09, Lisa): BOTH in sequence, one runway** — single-tenant P0–P4 as de-risking, then multi-tenant frontier P5–P6. Headline = SP3.4 isolation proof.
+- [ ] Approve AWS spend (terraform apply = first irreversible cost; EKS + RDS + S3 + node groups). *Path committed; confirm the actual `terraform apply` trigger at SP3.1 execution.*
+- [ ] **Lock the governed-catalog choice** (Polaris / Lakekeeper / Unity Catalog OSS) — blocks Phase 5 (SP3.4); research in flight.
 
 ## Phase 1 — Substrate  (P0)  [INFRA OPS] — SALVAGE: terraform stack, manifests, HMS, image all built
 - [ ] `terraform apply` → EKS + IRSA + S3 + RDS/HMS; capture `terraform output`. (Closes "NOT APPLIED" `[terraform/README.md:121-130]`.)
