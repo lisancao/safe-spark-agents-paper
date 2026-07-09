@@ -32,13 +32,18 @@ HUMAN (Lisa: gates/creds/spend) · INFRA OPS (terraform/kubectl/ECR — cluster 
 - [ ] Enable production reconcile on merge (today doc-only `[gitops_demo/PRODUCTION_EKS.md:1-10]`).
 - [ ] [NEW BUILD, future / not-a-focus] Add **data-quality / expectation tests** to CI — the net for §1's silent residue (gate is structural-only today).
 
-## Phase 5 — Tenant isolation  (P5, FRONTIER)  [NEW BUILD] — SALVAGE: identity-at-ingress, namespace convention
-- [ ] [NEW BUILD] **Catalog authorization:** integrate a governed catalog (Unity-Catalog-class) for per-tenant grants — OSS HMS/Iceberg **cannot** enforce per-user grants `[deploy/auth/README.md:19-26]`. This is delegation, not reinvention.
-- [ ] [NEW BUILD] **Per-tenant execution isolation:** move from one shared driver to per-tenant Connect servers / executor pools `[deployment.yaml:18-34]`.
+## Phase 5 — Tenant isolation  (P5, FRONTIER)  [NEW BUILD] — SALVAGE: Envoy mTLS + principal interceptor, backends/live.py, blind oracle
+**Isolation is enforced on FOUR independent planes; the full proof design is in `SECTION3_isolation_experiment.md`.**
+- [ ] [DE-RISK SPIKE — do FIRST] Prove the per-tenant vended STS token reaches the **executor pods** (not their IRSA role) through Spark Connect on the 4.1.2 image, and B's prefix returns `AccessDenied`. Pin Spark/Iceberg/catalog versions (guard apache/polaris#3617 static-cred fallback). Load-bearing assumption of the whole proof.
+- [ ] [NEW BUILD · plane 1 identity · MOST load-bearing] Strip the fleet-wide IRSA role → per-tenant ServiceAccount + IRSA role scoped to that tenant's S3 prefix. Vending only isolates if the vended token is the SOLE path to data.
+- [ ] [NEW BUILD · plane 2 data/authz] Governed catalog for per-principal grants + prefix-scoped credential vending. **Primary: Apache Polaris** (STS session tags → CloudTrail attribution); **second binding (UC-OSS or Lakekeeper) → the "catalog-agnostic" claim.** Replaces HMS+Iceberg-JDBC `[deploy/auth/README.md]`.
+- [ ] [NEW BUILD · plane 3 compute] Per-namespace ResourceQuota + dedicated node pool (taints/affinity) + node selectors.
+- [ ] [NEW BUILD · plane 4 network] Default-deny NetworkPolicy between tenant namespaces.
+- [ ] [EXPERIMENT] Run the two-agent isolation proof (positive control + R1–R7 red-team incl. the R7 ablation) per `SECTION3_isolation_experiment.md`. Acceptance: mechanism ON = 0/N crossings, OFF = m/N, each denial a citable artifact.
 
 ## Phase 6 — Multi-tenant scale  (P6, FRONTIER)  [NEW BUILD]
-- [ ] [NEW BUILD] Multiple Connect servers behind one governed ingress + routing (today singleton `replicas:1`).
-- [ ] [NEW BUILD] Tie per-tenant pools to autoscaling.
+- [ ] [NEW BUILD] Per-tenant Connect servers behind ONE governed ingress that routes by client-cert SAN (extends P1; pattern: Kimahriman spark-connect-proxy). A single shared server is structurally NOT a tenant boundary (session isolation ≠ security isolation — state as a finding).
+- [ ] [NEW BUILD] Tie per-tenant executor pools to node autoscaling (Karpenter / Cluster-Autoscaler).
 
 ---
 
