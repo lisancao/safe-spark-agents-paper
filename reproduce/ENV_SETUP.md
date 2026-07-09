@@ -12,8 +12,8 @@ measurement needs the EKS cluster.
 - Python packages for the reader: `pip install markdown` (already stdlib otherwise).
 
 ## 2. Secrets & config (never committed)
-- **`ANTHROPIC_API_KEY`** — export in your shell for any live agent run.
-- **AWS / infra values** — copy the template and fill in your own; the file is gitignored and the
+- **`ANTHROPIC_API_KEY`**: export in your shell for any live agent run.
+- **AWS / infra values**: copy the template and fill in your own; the file is gitignored and the
   platform code references it as `${VARS}` (no account-specific value is in the tree):
   ```bash
   cp config/aws.env.example config/aws.env
@@ -21,7 +21,7 @@ measurement needs the EKS cluster.
   set -a && source config/aws.env && set +a
   ```
   Manifests/terraform that contain `${AWS_ACCOUNT_ID}` etc. are rendered with your values via
-  `envsubst` (or your own templating) at apply time — see `deploy/eks/RUNBOOK.md`.
+  `envsubst` (or your own templating) at apply time, see `deploy/eks/RUNBOOK.md`.
 
 ## 3. Run the study (local, no cloud)
 ```bash

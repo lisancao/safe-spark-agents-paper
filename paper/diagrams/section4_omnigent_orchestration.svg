@@ -1,6 +1,6 @@
 <svg width="100%" viewBox="0 0 680 452" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
-<title>Section 4 — Omnigent governed multi-agent orchestration</title>
-<desc>The Omnigent orchestrator provides four capabilities — model routing for cost, cross-vendor review for quality, credential custody for governance (the frontier keystone), and a shared skill library for knowledge — over a heterogeneous, credential-free agent fleet, all feeding the Section 3 governed platform.</desc>
+<title>Section 4: Omnigent governed multi-agent orchestration</title>
+<desc>The Omnigent orchestrator provides four capabilities: model routing for cost, cross-vendor review for quality, credential custody for governance (the frontier keystone), and a shared skill library for knowledge, over a heterogeneous, credential-free agent fleet, all feeding the Section 3 governed platform.</desc>
 <style>
   text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .t{font-size:14px;fill:#16201e}
@@ -21,11 +21,11 @@
 
 <!-- Orchestrator -->
 <rect x="40" y="45" width="600" height="155" rx="10" fill="none" stroke="#7F77DD" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
-<text x="52" y="63" class="ts">Omnigent orchestrator — one custodian, atop §3 (not N raw sessions)</text>
-<g class="c-purple"><rect x="55" y="78" width="270" height="48" rx="6"/><text x="190" y="100" class="th" text-anchor="middle">Model routing</text><text x="190" y="117" class="ts" text-anchor="middle">cost — cheap vs strong model</text></g>
-<g class="c-purple"><rect x="345" y="78" width="280" height="48" rx="6"/><text x="485" y="100" class="th" text-anchor="middle">Cross-vendor review</text><text x="485" y="117" class="ts" text-anchor="middle">quality — catches blind spots</text></g>
-<g class="c-purple"><rect x="55" y="138" width="270" height="48" rx="6" stroke-dasharray="1.5 3"/><text x="190" y="160" class="th" text-anchor="middle">Credential custody</text><text x="190" y="177" class="ts" text-anchor="middle">governance — keystone (frontier)</text></g>
-<g class="c-purple"><rect x="345" y="138" width="280" height="48" rx="6"/><text x="485" y="160" class="th" text-anchor="middle">Shared skill library</text><text x="485" y="177" class="ts" text-anchor="middle">knowledge — fleet-wide floor</text></g>
+<text x="52" y="63" class="ts">Omnigent orchestrator: one custodian, atop §3 (not N raw sessions)</text>
+<g class="c-purple"><rect x="55" y="78" width="270" height="48" rx="6"/><text x="190" y="100" class="th" text-anchor="middle">Model routing</text><text x="190" y="117" class="ts" text-anchor="middle">cost: cheap vs strong model</text></g>
+<g class="c-purple"><rect x="345" y="78" width="280" height="48" rx="6"/><text x="485" y="100" class="th" text-anchor="middle">Cross-vendor review</text><text x="485" y="117" class="ts" text-anchor="middle">quality: catches blind spots</text></g>
+<g class="c-purple"><rect x="55" y="138" width="270" height="48" rx="6" stroke-dasharray="1.5 3"/><text x="190" y="160" class="th" text-anchor="middle">Credential custody</text><text x="190" y="177" class="ts" text-anchor="middle">governance: keystone (frontier)</text></g>
+<g class="c-purple"><rect x="345" y="138" width="280" height="48" rx="6"/><text x="485" y="160" class="th" text-anchor="middle">Shared skill library</text><text x="485" y="177" class="ts" text-anchor="middle">knowledge: fleet-wide floor</text></g>
 
 <!-- orchestrator -> fleet -->
 <line x1="157" y1="200" x2="157" y2="235" class="arr" marker-end="url(#arrow)"/>
@@ -44,7 +44,7 @@
 
 <!-- Section 3 platform base -->
 <rect x="40" y="320" width="600" height="112" rx="10" fill="none" stroke="#1D9E75" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
-<text x="52" y="338" class="ts">§3 governed platform — the substrate Omnigent sits on</text>
+<text x="52" y="338" class="ts">§3 governed platform: the substrate Omnigent sits on</text>
 <g class="c-teal"><rect x="55" y="350" width="180" height="48" rx="6"/><text x="145" y="372" class="th" text-anchor="middle">GitOps gate</text><text x="145" y="389" class="ts" text-anchor="middle">PR dry-run vs catalog</text></g>
 <g class="c-teal"><rect x="255" y="350" width="170" height="48" rx="6"/><text x="340" y="372" class="th" text-anchor="middle">Connect ingress</text><text x="340" y="389" class="ts" text-anchor="middle">single mTLS door</text></g>
 <g class="c-teal"><rect x="445" y="350" width="180" height="48" rx="6"/><text x="535" y="372" class="th" text-anchor="middle">k8s execution</text><text x="535" y="389" class="ts" text-anchor="middle">driver + executor pods</text></g>

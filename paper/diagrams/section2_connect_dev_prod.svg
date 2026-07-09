@@ -1,6 +1,6 @@
 <svg width="100%" viewBox="0 0 680 270" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Spark Connect dev-to-prod: promote by changing one URL</title>
-<desc>The same agent, SDP spec, and dry-run gate develop against a local Spark Connect server and promote to the remote EKS cluster by changing a single endpoint URL (SPARK_REMOTE) — no code change. Local mode without a Connect server arrives in Spark 4.3.</desc>
+<desc>The same agent, SDP spec, and dry-run gate develop against a local Spark Connect server and promote to the remote EKS cluster by changing a single endpoint URL (SPARK_REMOTE), no code change. Local mode without a Connect server arrives in Spark 4.3.</desc>
 <style>
   text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .th{font-size:14px;font-weight:500;fill:#16201e}.ts{font-size:12px;fill:#5c6b66}

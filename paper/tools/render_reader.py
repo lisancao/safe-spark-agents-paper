@@ -5,7 +5,7 @@ Reusable: re-run after editing PAPER.md to regenerate the reader.
   python3 tools/render_reader.py            # -> build/paper_reader.html
 Design: light editorial-technical reading layout, sticky contents rail,
 per-section maturity badges, the Section 3/4 diagrams inlined.
-No external assets (fonts/JS/CSS) — safe for Artifact CSP and offline use.
+No external assets (fonts/JS/CSS): safe for Artifact CSP and offline use.
 """
 import re, subprocess, html, sys
 from pathlib import Path
@@ -125,7 +125,7 @@ body = body.replace("<p>[[[SVG-DEVLOOP]]]</p>",
            "The agent-native dev loop vs the normal imperative one: imperative finds errors by running (after data is touched and compute spent); the agent-native loop catches them at the gate, before any data."))
 body = body.replace("<p>[[[SVG-DEVPROD]]]</p>",
     figure(load_svg("section2_connect_dev_prod.svg"),
-           "Spark Connect makes dev→prod a one-URL change: the same agent, spec, and dry-run gate develop locally and promote to the cluster by changing SPARK_REMOTE — no code change."))
+           "Spark Connect makes dev→prod a one-URL change: the same agent, spec, and dry-run gate develop locally and promote to the cluster by changing SPARK_REMOTE, no code change."))
 
 # --- wrap wide tables so the page never scrolls sideways ---
 body = body.replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")
@@ -271,11 +271,11 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 """
 
 DOC = f"""{CSS}
-<title>Safe, Governed AI Data Engineering — working paper</title>
+<title>Safe, Governed AI Data Engineering: working paper</title>
 <header class="masthead"><div class="inner">
   <p class="eyebrow">Working paper · internal</p>
   <h1 class="title">Safe, Governed AI Data Engineering on Spark</h1>
-  <p class="sub">A four-part working paper — the imperative-vs-SDP safety study, the control boundary,
+  <p class="sub">A four-part working paper: the imperative-vs-SDP safety study, the control boundary,
     the open governed platform, and fleet orchestration.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-07</span><span>·</span>
@@ -294,15 +294,15 @@ DOC = f"""{CSS}
   <main>
     <div class="reading-map">
       <b>How to read this</b>
-      <p>Start with <b style="display:inline;text-transform:none;letter-spacing:0;font-size:inherit">Section&nbsp;1</b> — it is the finished, powered study; that is where the evidence lives.
+      <p>Start with <b style="display:inline;text-transform:none;letter-spacing:0;font-size:inherit">Section&nbsp;1</b>: it is the finished, powered study; that is where the evidence lives.
          Maturity is flagged on every section header and in the contents rail:</p>
-      <p><span class="pill done">Section 1 — complete</span> &nbsp;
-         <span class="pill done">Section 2 — demonstrated to L3</span> &nbsp;
-         <span class="pill scaffold">Section 3 — scaffold</span> &nbsp;
-         <span class="pill stub">Section 4 — stub</span> &nbsp;
-         <span class="pill ref">Appendices — reference specs</span></p>
+      <p><span class="pill done">Section 1: complete</span> &nbsp;
+         <span class="pill done">Section 2: demonstrated to L3</span> &nbsp;
+         <span class="pill scaffold">Section 3: scaffold</span> &nbsp;
+         <span class="pill stub">Section 4: stub</span> &nbsp;
+         <span class="pill ref">Appendices: reference specs</span></p>
       <p>Read §1→§2 as results, §3 as a locked north-star with honest gaps, §4 as a thesis. The two
-         appendices are executable reference targets — skim unless you are building against them.</p>
+         appendices are executable reference targets: skim unless you are building against them.</p>
     </div>
     {body}
   </main>

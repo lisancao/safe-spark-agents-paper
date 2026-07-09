@@ -1,5 +1,5 @@
 <svg width="100%" viewBox="0 0 680 240" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
-<title>Section 1 — the study run-loop for one cell</title>
+<title>Section 1: the study run-loop for one cell</title>
 <desc>For each (task, arm, seed): generate seeded data, the agent proposes a pipeline, arm B passes a structural SDP dry-run gate before execution while arm A has no gate, execute on Spark, blind-grade against ground truth, and record cost. Failures feed back to the agent up to an iteration cap.</desc>
 <style>
   text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -14,13 +14,13 @@
 
 <!-- legend -->
 <rect x="40" y="18" width="14" height="10" rx="2" fill="#FAEEDA" stroke="#BA7517" stroke-width=".75"/>
-<text x="60" y="27" class="ts">arm A — imperative, no gate</text>
+<text x="60" y="27" class="ts">arm A: imperative, no gate</text>
 <rect x="300" y="18" width="14" height="10" rx="2" fill="#EAF3DE" stroke="#3B6D11" stroke-width=".75"/>
-<text x="320" y="27" class="ts">arm B — SDP, dry-run gated</text>
+<text x="320" y="27" class="ts">arm B: SDP, dry-run gated</text>
 
 <!-- arm A bypass -->
 <path d="M214 120 V98 H450 V120" fill="none" stroke="#BA7517" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
-<text x="332" y="92" class="ts" text-anchor="middle">arm A — no gate</text>
+<text x="332" y="92" class="ts" text-anchor="middle">arm A: no gate</text>
 
 <!-- stages -->
 <g class="c-gray"><rect x="40" y="120" width="112" height="60" rx="6"/><text x="96" y="146" class="th" text-anchor="middle">Generate data</text><text x="96" y="164" class="ts" text-anchor="middle">seeded, per cell</text></g>
