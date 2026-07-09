@@ -11,7 +11,7 @@ HUMAN (Lisa: gates/creds/spend) · INFRA OPS (terraform/kubectl/ECR — cluster 
 ## Phase 0 — Decision gate  [HUMAN]
 - [x] **Scope picked (2026-07-09, Lisa): BOTH in sequence, one runway** — single-tenant P0–P4 as de-risking, then multi-tenant frontier P5–P6. Headline = SP3.4 isolation proof.
 - [ ] Approve AWS spend (terraform apply = first irreversible cost; EKS + RDS + S3 + node groups). *Path committed; confirm the actual `terraform apply` trigger at SP3.1 execution.*
-- [ ] **Lock the governed-catalog choice** (Polaris / Lakekeeper / Unity Catalog OSS) — blocks Phase 5 (SP3.4); research in flight.
+- [x] **Governed-catalog LOCKED (2026-07-09, Lisa): Apache Polaris primary + Unity Catalog OSS second binding** (UC-OSS non-load-bearing → the "catalog-agnostic" claim + an honest in-paper UC evaluation). Design: `SECTION3_isolation_experiment.md`.
 
 ## Phase 1 — Substrate  (P0)  [INFRA OPS] — SALVAGE: terraform stack, manifests, HMS, image all built
 - [ ] `terraform apply` → EKS + IRSA + S3 + RDS/HMS; capture `terraform output`. (Closes "NOT APPLIED" `[terraform/README.md:121-130]`.)
@@ -36,7 +36,7 @@ HUMAN (Lisa: gates/creds/spend) · INFRA OPS (terraform/kubectl/ECR — cluster 
 **Isolation is enforced on FOUR independent planes; the full proof design is in `SECTION3_isolation_experiment.md`.**
 - [ ] [DE-RISK SPIKE — do FIRST] Prove the per-tenant vended STS token reaches the **executor pods** (not their IRSA role) through Spark Connect on the 4.1.2 image, and B's prefix returns `AccessDenied`. Pin Spark/Iceberg/catalog versions (guard apache/polaris#3617 static-cred fallback). Load-bearing assumption of the whole proof.
 - [ ] [NEW BUILD · plane 1 identity · MOST load-bearing] Strip the fleet-wide IRSA role → per-tenant ServiceAccount + IRSA role scoped to that tenant's S3 prefix. Vending only isolates if the vended token is the SOLE path to data.
-- [ ] [NEW BUILD · plane 2 data/authz] Governed catalog for per-principal grants + prefix-scoped credential vending. **Primary: Apache Polaris** (STS session tags → CloudTrail attribution); **second binding (UC-OSS or Lakekeeper) → the "catalog-agnostic" claim.** Replaces HMS+Iceberg-JDBC `[deploy/auth/README.md]`.
+- [ ] [NEW BUILD · plane 2 data/authz] Governed catalog for per-principal grants + prefix-scoped credential vending. **Primary: Apache Polaris** (STS session tags → CloudTrail attribution); **second binding: Unity Catalog OSS** (non-load-bearing → the "catalog-agnostic" claim). Replaces HMS+Iceberg-JDBC `[deploy/auth/README.md]`.
 - [ ] [NEW BUILD · plane 3 compute] Per-namespace ResourceQuota + dedicated node pool (taints/affinity) + node selectors.
 - [ ] [NEW BUILD · plane 4 network] Default-deny NetworkPolicy between tenant namespaces.
 - [ ] [EXPERIMENT] Run the two-agent isolation proof (positive control + R1–R7 red-team incl. the R7 ablation) per `SECTION3_isolation_experiment.md`. Acceptance: mechanism ON = 0/N crossings, OFF = m/N, each denial a citable artifact.

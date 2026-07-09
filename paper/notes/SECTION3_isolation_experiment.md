@@ -29,9 +29,10 @@ backend server" (pattern: Kimahriman `spark-connect-proxy`). Behind the ingress,
    (replaces the fleet-wide role). **The single most load-bearing change**: credential vending only isolates if
    the vended token is the *sole* path to data. If a pod's role can already read the whole bucket, downscoped
    vending proves nothing.
-2. **Data / authorization** — a governed catalog (Apache **Polaris** primary; a **second binding** — UC-OSS or
-   Lakekeeper — for the catalog-agnostic claim) expressing per-principal grants + vending short-lived,
-   prefix-scoped credentials. Replaces Hive Metastore + Iceberg-JDBC (which cannot express per-tenant grants).
+2. **Data / authorization** — a governed catalog (Apache **Polaris** primary, load-bearing; **Unity Catalog OSS**
+   as the non-load-bearing second binding for the catalog-agnostic claim) expressing per-principal grants +
+   vending short-lived, prefix-scoped credentials. Replaces Hive Metastore + Iceberg-JDBC (which cannot express
+   per-tenant grants). *(Catalog locked 2026-07-09.)*
 3. **Compute** — per-namespace `ResourceQuota` + a dedicated node pool (taints/affinity) + node selectors, so A
    cannot schedule onto B's executors or spend B's quota.
 4. **Network** — default-deny `NetworkPolicy` so A's driver/executors cannot reach B's pods (blocks

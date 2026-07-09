@@ -8,9 +8,9 @@
 elastic scaling, EKS-wired GitOps) as de-risking, then roll straight into the multi-tenant frontier (P5–P6:
 governed catalog + per-tenant isolation, multi-server Connect) under one spend approval. **Headline frontier
 result = SP3.4** — the two-agent "A blocked from B" isolation proof. §4 stays scoped: SP4.1 custody (a P5
-dependency) + SP4.2 fleet study (a *separate* experiment with its own design doc, not §1's run). **Open input
-before SP3.4 can be specced concretely:** the governed-catalog choice (Polaris / Lakekeeper / Unity Catalog OSS)
-— research this in service of SP3.4, not as a replan.
+dependency) + SP4.2 fleet study (a *separate* experiment with its own design doc, not §1's run). **Catalog
+LOCKED (2026-07-09): Apache Polaris primary + Unity Catalog OSS second binding** (catalog-agnostic claim). The
+sharpened SP3.4/3.5 build spec + the isolation-proof design live in `SECTION3_isolation_experiment.md`.
 
 ## Anti-drift rules (binding on polly AND every sub-agent)
 1. **The paper is read-only during execution.** No sub-agent may edit `PAPER.md`. It changes ONLY at an explicit
