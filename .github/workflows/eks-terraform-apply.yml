@@ -1,0 +1,79 @@
+name: EKS Terraform
+
+# W2: plan on PRs (read-only OIDC role), apply only via manual dispatch behind
+# the "eks-apply" GitHub Environment (required reviewers = the approval gate).
+# No long-lived AWS keys: credentials come from GitHub OIDC assuming the roles
+# created by deploy/eks/bootstrap-oidc (W1). Role ARNs live in repo Variables so
+# no account id is committed to this file.
+
+on:
+  pull_request:
+    paths:
+      - "deploy/eks/terraform/**"
+      - ".github/workflows/eks-terraform-apply.yml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "plan or apply"
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+permissions:
+  id-token: write # required for OIDC
+  contents: read
+
+env:
+  TF_WORKDIR: deploy/eks/terraform
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  TFSTATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+  TFLOCK_TABLE: ${{ vars.TFLOCK_TABLE }}
+  TFSTATE_KEY: eks/terraform.tfstate
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TF_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${TFSTATE_BUCKET}" \
+            -backend-config="key=${TFSTATE_KEY}" \
+            -backend-config="dynamodb_table=${TFLOCK_TABLE}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true"
+      - name: Terraform plan (read-only, no lock)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform plan -lock=false -input=false -no-color -var "aws_profile="
+
+  apply:
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
+    runs-on: ubuntu-latest
+    environment: eks-apply # <-- required-reviewer gate: you approve every apply
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TF_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${TFSTATE_BUCKET}" \
+            -backend-config="key=${TFSTATE_KEY}" \
+            -backend-config="dynamodb_table=${TFLOCK_TABLE}" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true"
+      - name: Terraform apply
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform apply -auto-approve -input=false -no-color -var "aws_profile="

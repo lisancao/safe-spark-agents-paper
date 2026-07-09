@@ -12,3 +12,16 @@ dist/
 # agent working dirs / generated data (reproducible from seeds; raw archive is the release asset)
 **/.work.*
 **/_data/
+
+# Terraform — never commit state (holds the RDS master password) or filled tfvars.
+# The *.tfvars.example templates ARE committed.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+**/terraform.tfvars
+**/*.auto.tfvars
+crash.log
+
+# spike run artifacts (reproducible via ./run.sh)
+deploy/eks/lakekeeper/spike/out/*
+!deploy/eks/lakekeeper/spike/out/.gitkeep

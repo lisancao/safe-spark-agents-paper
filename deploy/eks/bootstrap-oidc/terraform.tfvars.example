@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars and fill in. No AWS account id is needed here (it is
+# derived from the caller's identity at apply time).
+github_org          = "lisancao"
+github_repo         = "safe-spark-agents-paper"
+region              = "us-east-1"
+aws_profile         = "ssa-deploy"        # your admin profile for the one-time local apply ("" for default chain)
+tfstate_bucket_name = "REPLACE-with-a-globally-unique-bucket-name"
+# apply_environment = "eks-apply"         # default; must match the GitHub Environment with required reviewers
+# lock_table_name   = "ssa-tf-locks"      # default; matches the EKS stack's backend example
+# name_prefix       = "ssa"
