@@ -53,6 +53,13 @@ integration is less documented than Polaris, so this spike matters MORE) + pin e
 versions. If Iceberg FileIO on Connect doesn't carry the vended credential to executors, that is a build gap to
 retire before ANY isolation number is claimable.
 
+**This proof is EKS-native, not local.** A local docker-compose can shake out the Lakekeeper + Spark-Connect +
+Iceberg *config* cheaply, but it CANNOT test the load-bearing failure mode (an executor pod falling back to its
+IRSA ambient role) because there are no pods and no IRSA locally. And the paper's §2 thesis is *prototype local,
+then submit to an **external** cluster* (one `SPARK_REMOTE` change), so a local-only isolation proof would be
+circular. The proof runs on **real Connect-on-k8s** (driver + separate executor pods) against real S3 with IRSA.
+Local docker-compose = config shakeout only.
+
 ## Positive control (the system works legitimately)
 Two tenants A, B fully provisioned as above. Each runs the §1/§3 authoring loop **credential-free**: agent
 authors an SDP pipeline as a session-denied PR author → CI dry-run gate → merge-time reconcile submits

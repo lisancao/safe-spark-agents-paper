@@ -15,9 +15,10 @@ HUMAN (Lisa: gates/creds/spend) · INFRA OPS (terraform/kubectl/ECR — cluster 
 
 ## Build harness — CI / GitHub Actions  (2026-07-09, Lisa's choice)
 The platform is built THROUGH CI: dogfoods the paper's GitOps thesis, reproducible, every run a citable artifact. Repo `sdp-paper-local` (public) is safe because AWS steps use **GitHub OIDC** (role trust scoped to this repo+branch, no long-lived keys) behind **GitHub Environments with required approval** (Lisa approves each AWS-mutating apply); fork PRs get no secrets/OIDC. Sequence:
-- **W0 (no AWS, runs free NOW):** Lakekeeper vending→executor de-risk spike (Lakekeeper + MinIO + local Spark Connect in the runner). Retires the load-bearing assumption before any spend.
+- **W0 (no AWS, free):** Lakekeeper + Spark-Connect + Iceberg **config shakeout** (local docker-compose). Gets the catalog/Spark wiring right cheaply. Does NOT prove isolation — no pods, no IRSA locally, so it can't test the load-bearing failure mode.
 - **W1 (bootstrap):** AWS OIDC trust (GitHub → an IAM role). One-time; needs an initial AWS apply (the chicken-and-egg root of trust) — the only step Lisa may run by hand.
 - **W2 (SP3.1, gated apply):** `terraform apply` behind an Environment approval → EKS/RDS/S3/IRSA; capture outputs.
+- **W2.5 (EKS-native de-risk — the REAL proof):** on the cluster, Connect-on-k8s (driver + separate executor pods) + Lakekeeper + 2 tenants; prove the vended cred reaches executors and cross-tenant is `AccessDenied`. Load-bearing; MUST be on EKS (local can't test IRSA-vs-vended on real pods). This also demonstrates §2's prototype-local → submit-to-external-cluster loop. Proceed to W3+ only if it passes.
 - **W3+:** deploy Connect+Envoy → native mTLS (SP2.2) → elastic scaling (SP3.2) → EKS-wired GitOps (SP3.3) → frontier (Lakekeeper + IRSA lockdown + per-tenant servers + R1–R7).
 
 ## Phase 1 — Substrate  (P0)  [INFRA OPS] — SALVAGE: terraform stack, manifests, HMS, image all built
