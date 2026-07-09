@@ -9,8 +9,9 @@ elastic scaling, EKS-wired GitOps) as de-risking, then roll straight into the mu
 governed catalog + per-tenant isolation, multi-server Connect) under one spend approval. **Headline frontier
 result = SP3.4** — the two-agent "A blocked from B" isolation proof. §4 stays scoped: SP4.1 custody (a P5
 dependency) + SP4.2 fleet study (a *separate* experiment with its own design doc, not §1's run). **Catalog
-LOCKED (2026-07-09): Apache Polaris primary + Unity Catalog OSS second binding** (catalog-agnostic claim). The
-sharpened SP3.4/3.5 build spec + the isolation-proof design live in `SECTION3_isolation_experiment.md`.
+LOCKED (2026-07-09): Lakekeeper primary + Unity Catalog OSS second binding** (Polaris rejected on operational
+weight; catalog-agnostic claim). The sharpened SP3.4/3.5 build spec + the isolation-proof design live in
+`SECTION3_isolation_experiment.md`.
 
 ## Anti-drift rules (binding on polly AND every sub-agent)
 1. **The paper is read-only during execution.** No sub-agent may edit `PAPER.md`. It changes ONLY at an explicit
@@ -107,10 +108,10 @@ Every SP is dispatched to an implement sub-agent as a **self-contained card** (f
 | SP4.2 | separate experiment / own design doc | (none) |
 
 ## Free, no-spend, delegatable NOW (post-§1)
-**SP2.2** (native client mTLS de-risk, on the L1 critical path) · **catalog-choice research** (Polaris /
-Lakekeeper / Unity Catalog OSS: the open SP3.4 input) · **SP2.1** (finish capturing stranded remote-run
-evidence). Zero spend; each firms a runway layer or the frontier input, and each opens a cross-reviewed PR you
-merge. **First SPEND gate is SP3.1 (`terraform apply` = EKS + RDS + S3 + node groups).**
+**SP2.2** (native client mTLS de-risk, on the L1 critical path) · **SP2.1** (finish capturing stranded
+remote-run evidence). Zero spend; each firms a runway layer, and each opens a cross-reviewed PR you merge.
+**Catalog choice is now LOCKED (Lakekeeper + UC-OSS).** **First SPEND gate is SP3.1 (`terraform apply` = EKS +
+RDS + S3 + node groups).**
 
 
 ---

@@ -29,10 +29,11 @@ backend server" (pattern: Kimahriman `spark-connect-proxy`). Behind the ingress,
    (replaces the fleet-wide role). **The single most load-bearing change**: credential vending only isolates if
    the vended token is the *sole* path to data. If a pod's role can already read the whole bucket, downscoped
    vending proves nothing.
-2. **Data / authorization** — a governed catalog (Apache **Polaris** primary, load-bearing; **Unity Catalog OSS**
-   as the non-load-bearing second binding for the catalog-agnostic claim) expressing per-principal grants +
-   vending short-lived, prefix-scoped credentials. Replaces Hive Metastore + Iceberg-JDBC (which cannot express
-   per-tenant grants). *(Catalog locked 2026-07-09.)*
+2. **Data / authorization** — a governed catalog (**Lakekeeper** primary, load-bearing: single Rust binary,
+   per-tenant grants via OpenFGA + prefix-scoped credential vending; **Unity Catalog OSS** as the non-load-bearing
+   second binding for the catalog-agnostic claim) expressing per-principal grants + vending short-lived,
+   prefix-scoped credentials. Replaces Hive Metastore + Iceberg-JDBC (which cannot express per-tenant grants).
+   *(Catalog locked 2026-07-09; Polaris considered + rejected on operational weight.)*
 3. **Compute** — per-namespace `ResourceQuota` + a dedicated node pool (taints/affinity) + node selectors, so A
    cannot schedule onto B's executors or spend B's quota.
 4. **Network** — default-deny `NetworkPolicy` so A's driver/executors cannot reach B's pods (blocks
@@ -40,15 +41,17 @@ backend server" (pattern: Kimahriman `spark-connect-proxy`). Behind the ingress,
 
 **The two-layer citable boundary (Spark can't do query-time row/col masking):** (1) catalog REST authz → `403`
 on `loadTable` for B; (2) storage-scoped vending → STS token scoped to A's prefix → **`AccessDenied` in
-CloudTrail** on B's data. Layer 2 is the money shot: a storage-layer denial, attributable to A's principal
-(Polaris 1.4 STS session tags), not an app-level check reviewers must trust.
+CloudTrail** on B's data. Layer 2 is the money shot: a storage-layer denial, not an app-level check reviewers
+must trust. *(Verify Lakekeeper's per-principal attribution in the audit trail during the spike; Polaris's STS
+session-tag mechanism was the reference for attribution.)*
 
 ### De-risk spike to run FIRST (load-bearing assumption)
-Verify on the real cluster that the per-tenant vended STS token reaches the **executor pods** (which do the S3
-FileIO) through Spark Connect — *not* their IRSA role — on the Spark 4.1.2 image, and that B's prefix returns
-`AccessDenied`. Pin exact Spark/Iceberg/Polaris versions (guard apache/polaris#3617: Spark static-cred fallback
-on some write paths). If Iceberg FileIO on Connect doesn't carry the vended credential to executors, that is a
-build gap to retire before ANY isolation number is claimable.
+Verify on the real cluster that the per-tenant **Lakekeeper**-vended credential reaches the **executor pods**
+(which do the S3 FileIO) through Spark Connect — *not* their IRSA role — on the Spark 4.1.2 image, and that B's
+prefix returns `AccessDenied`. Verify Lakekeeper's Spark-Connect vending path specifically (its Spark
+integration is less documented than Polaris, so this spike matters MORE) + pin exact Spark/Iceberg/Lakekeeper
+versions. If Iceberg FileIO on Connect doesn't carry the vended credential to executors, that is a build gap to
+retire before ANY isolation number is claimable.
 
 ## Positive control (the system works legitimately)
 Two tenants A, B fully provisioned as above. Each runs the §1/§3 authoring loop **credential-free**: agent
@@ -83,7 +86,7 @@ isolation."
 ## Citable artifacts (mirror §1 provenance discipline)
 Per case bundle: (1) exact plan/command the agent issued; (2) gRPC status + error; (3) catalog audit-log entry
 (denied grant / vend refusal); (4) cloud audit — S3 `AccessDenied` / STS `AssumeRole` denial via CloudTrail
-(Polaris session tags → attributable to A); (5) k8s API-server audit (RBAC deny on pod-create in B's ns); (6)
+(vended-credential scope → attributable to A; verify Lakekeeper's audit attribution); (5) k8s API-server audit (RBAC deny on pod-create in B's ns); (6)
 NetworkPolicy drop. Tamper-evident negatives: B's Iceberg snapshot history (unchanged commit chain) + S3
 object-version listing (no new versions) prove no write; B's namespace pod accounting (zero A-attributed pods)
 proves no compute spend. Stamp every record with `git_sha` (manifests), `image_digest`, `spark_version`,
@@ -94,6 +97,6 @@ Reviewers re-run and must reproduce **0 crossings ON / m crossings OFF**.
 - **Salvage:** the red-team harness is a thin adversarial wrapper over `backends/live.py` emitting R1–R6 plans;
   the §1 "grade green" oracle becomes a "graded DENY" oracle; Envoy mTLS + principal-pinning interceptor +
   result-row provenance stamping reused unchanged; the §1/§3 authoring loop for the positive control.
-- **New build:** per-tenant IRSA lockdown; governed catalog (Polaris + 2nd binding) with grants + vending;
+- **New build:** per-tenant IRSA lockdown; governed catalog (Lakekeeper + UC-OSS 2nd binding) with grants + vending;
   per-tenant Connect servers + SAN-routing ingress; per-ns ResourceQuota/node pools/NetworkPolicy; the vended
   cred → executor propagation (de-risk spike first).
