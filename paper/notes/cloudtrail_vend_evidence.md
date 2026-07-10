@@ -10,7 +10,7 @@ role the catalog assumes), `ssa-spark-irsa-spark` (the Spark driver+executor fle
 
 ---
 
-## Layer 1 — STS: the vend happened (management Event history, always-on; no trail needed)
+## Layer 1, STS: the vend happened (management Event history, always-on; no trail needed)
 
 Queried `cloudtrail lookup-events EventName=AssumeRole`. Every assumption of the vending role is made by
 the **catalog pod's web-identity (IRSA) session**, carries the **external-id** (confused-deputy
@@ -31,7 +31,7 @@ catalog's own identity and not the fleet IRSA role. This is the credential the e
 
 ---
 
-## Layer 2 — S3: the executor's object I/O carried the vended session, and cross-tenant was denied
+## Layer 2, S3: the executor's object I/O carried the vended session, and cross-tenant was denied
 
 To capture S3 **data events** (object-level Get/Put, incl. `AccessDenied`) we stood up a single-region
 CloudTrail trail (`ssa-isolation-audit`) with an advanced data-event selector scoped to
@@ -51,7 +51,7 @@ made each S3 call (`userIdentity.sessionContext.sessionIssuer.arn`):
 | `ssa-spark-lakekeeper-vending` | **PutObject** | **AccessDenied** | **2** |
 | `safe-spark-dep` (broad ablation cred) | GetObject | OK | 2 |
 | `safe-spark-dep` | PutObject | OK | 1 |
-| **`ssa-spark-irsa-spark` (executor fleet IRSA role)** | — | — | **0** |
+| **`ssa-spark-irsa-spark` (executor fleet IRSA role)** | (none) | (none) | **0** |
 
 Sample cross-tenant DENIALS, all under the vended session identity:
 
@@ -64,7 +64,7 @@ Sample cross-tenant DENIALS, all under the vended session identity:
 
 **Three independent facts, from S3's own audit log:**
 1. **Every** warehouse object I/O (all 41 events, own-tenant success + cross-tenant deny) was made under the
-   **vended `ssa-spark-lakekeeper-vending` session** — the downscoped STS credential, not any ambient identity.
+   **vended `ssa-spark-lakekeeper-vending` session**: the downscoped STS credential, not any ambient identity.
 2. Cross-tenant is denied **at storage**, both directions and both verbs (`GetObject` + `PutObject`
    `AccessDenied`), while own-tenant Get/Put/Head/List succeed.
 3. **The fleet IRSA role `ssa-spark-irsa-spark` made ZERO warehouse data calls.** The executor pod carries
@@ -73,14 +73,14 @@ Sample cross-tenant DENIALS, all under the vended session identity:
 
 (The `safe-spark-dep` rows are the ablation: a broad whole-bucket credential DOES cross both prefixes, so the
 deny is a property of the downscoping vend, not of a missing base permission. Caveat: `safe-spark-dep` is a
-convenience stand-in for a whole-bucket identity; the stronger statement is fact 3 — the actual fleet IRSA role
+convenience stand-in for a whole-bucket identity; the stronger statement is fact 3: the actual fleet IRSA role
 was present on the pod and simply never used for data.)
 
 Extraction script: `scratchpad/ct_poll.sh`; raw redacted dump: `scratchpad/cloudtrail_s3_events.txt`.
 
 ---
 
-## Teardown (deferred — cluster + trail kept up by decision, 2026-07-09)
+## Teardown (deferred; cluster + trail kept up by decision, 2026-07-09)
 Not tearing down for now (cost is not a constraint; the live substrate is wanted for further
 frontier work). When we do:
 - `aws cloudtrail delete-trail --name ssa-isolation-audit --region us-east-1`
