@@ -235,3 +235,26 @@ authorization AT THE CATALOG is demonstrated. **Still frontier:** binding the pe
 Spark Connect session (so an agent can't present another tenant's token) = §4 custody; per-tenant execution
 isolation. Manifests + runbook: `deploy/eks/lakekeeper/authz/`; secrets (JWTs, keys, external-id) in scratchpad,
 never committed.
+
+### Multi-server Connect CLOSED: token custody + per-tenant execution isolation (2026-07-10)
+Closed the last two multi-tenancy frontiers with **per-tenant Spark Connect servers**. Built two Connect
+servers on live EKS (`spark-connect-tenant-a`, `spark-connect-tenant-b`; generator
+`scratchpad/authz-demo/gen_connect_server.py`), each with an Iceberg REST catalog `lk` pointed at
+`lakekeeper-authz` and configured with **only its own tenant's JWT**, injected server-side via
+`spark.sql.catalog.lk.header.Authorization=Bearer <jwt>` (the client never holds or chooses it). Reused the
+existing connect image's principal-pinning interceptor (P1); connected with the pinned principal in the
+connection string.
+- **Token custody (PASS):** a session on tenant-A's server wrote+read tenant_a (4000 rows via the injected
+  token); when it added a runtime catalog for tenant_b (holding no tenant_b credential) it was refused,
+  `NotAuthorizedException: Missing Authorization Header`. The agent never sees a token, so it cannot present
+  another tenant's; the server binds the identity.
+- **Execution isolation (PASS):** tenant_a's write ran on executor pods `...16e7649f...-exec-1/-exec-2`
+  (IPs 10.40.24.74, 10.40.30.141) owned by tenant_a's driver app; tenant_b's on `...0a1c5d9f...-exec-1`
+  (10.40.15.108), a **separate** driver app and pod. Disjoint pod sets => the two tenants' compute never shares
+  a JVM. (Pods carry `spark.kubernetes.executor.label.tenant=<t>`.)
+- **Remaining seam (honest):** per-principal **ingress routing**, binding each authenticated principal to its
+  own server at the Envoy mTLS gateway so a client cannot connect to another tenant's server. That is a
+  per-principal Envoy upstream config on the already-demonstrated cert-SAN pinning (P1), not yet wired.
+
+Evidence `proof_2026-07-10_multiserver.log`. Generator + runbook `deploy/eks/lakekeeper/authz/` (JWTs in
+scratchpad). **All four multi-tenancy layers now demonstrated on EKS; ingress routing + scale remain frontier.**

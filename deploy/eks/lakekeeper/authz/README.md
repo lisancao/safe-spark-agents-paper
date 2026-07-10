@@ -66,3 +66,28 @@ no token        401          401
 ```
 `404` = existence hidden for a zero-relation principal (grant a `describe` to see a clean `200`, i.e.
 the deny is authorization, not nonexistence). Full evidence: `paper/notes/proof_2026-07-10_perprincipal_authz.log`.
+
+## Multi-server Connect (token custody + per-tenant execution isolation)
+
+Beyond catalog authorization, stand up ONE Spark Connect server per tenant, each injecting only that
+tenant's catalog token server-side. A client never holds or chooses the token, and each tenant's
+compute runs on its own executor pods.
+
+```bash
+# one server per tenant (JWT injected as a static Authorization header on catalog `lk`)
+export CONNECT_IMAGE=<your-ecr>/ssa-spark/spark-connect:4.1.2-iceberg1.11.0
+python3 gen_connect_server.py tenant_a jwt_tenant_a.txt | kubectl apply -f -
+python3 gen_connect_server.py tenant_b jwt_tenant_b.txt | kubectl apply -f -
+
+# connect (the image's principal-pinning interceptor requires the pinned principal + PSK):
+#   sc://<svc>:15002/;x-connect-principal=tenant_a;token=<spark-connect-psk>;user_id=tenant_a
+```
+
+**Proves (see `paper/notes/proof_2026-07-10_multiserver.log`):**
+- **Token custody** -- a session on tenant_a's server writes/reads tenant_a; reaching tenant_b is refused
+  (`NotAuthorized: Missing Authorization Header`) because the client holds no tenant_b credential.
+- **Execution isolation** -- tenant_a's executor pods (distinct IPs, own driver app) are disjoint from
+  tenant_b's; the two tenants' compute never shares a JVM. Pods carry label `tenant=<t>`.
+
+**Remaining seam:** per-principal ingress routing (bind each authenticated principal to its own server at
+the Envoy mTLS gateway) -- a per-principal upstream config on the demonstrated cert-SAN pinning (P1).

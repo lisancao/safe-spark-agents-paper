@@ -1,0 +1,12 @@
+[PASS] server tenant_a: wrote+read own warehouse via injected token; rows=4000
+[PASS] server tenant_b: wrote+read own warehouse via injected token; rows=4000
+[PASS-CUSTODY] server A (tenant_a) CANNOT reach tenant_b: (org.apache.iceberg.exceptions.NotAuthorizedException) Not authorized: Missing Authorization Header
+----- EXECUTION ISOLATION: executor pods per tenant (distinct driver apps, disjoint pods) -----
+tenant_a executor pods:
+POD                                            PHASE     IP
+spark-connect-server-16e7649f4adf9a12-exec-1   Running   10.40.24.74
+spark-connect-server-16e7649f4adf9a12-exec-2   Running   10.40.30.141
+tenant_b executor pods:
+POD                                            PHASE     IP
+spark-connect-server-0a1c5d9f4ae0d33f-exec-1   Running   10.40.15.108
+(distinct pod names/IPs and distinct owning driver apps => tenant_a and tenant_b compute never share a JVM/pod)
