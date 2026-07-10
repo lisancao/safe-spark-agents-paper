@@ -173,3 +173,14 @@ credential would have crossed freely. **Still frontier:** per-tenant *execution*
 executor pods served both tenants sequentially; dedicated per-tenant pools/servers need multi-server Connect
 orchestration) and multi-tenant scale (P6). Harness: `scratchpad/run_proof2.sh` (Connect gRPC + Spark-UI 4040
 port-forwards, `SPARK_DRIVER_UI=localhost:4041`); secrets stay in scratchpad, never committed.
+
+### CloudTrail "vend-not-IRSA" discriminator (2026-07-10)
+Independent confirmation from AWS's own audit log that the isolation is enforced by the **vended** credential,
+not the executor's ambient fleet role. Full writeup: `paper/notes/cloudtrail_vend_evidence.md`.
+- **STS (Event history, always-on):** the vending role `ssa-spark-lakekeeper-vending` is assumed ONLY by the
+  catalog IRSA identity, always with the **external-id** (confused-deputy), and the tenant vends carry a
+  **session policy** (the downscoping).
+- **S3 (data-event trail `ssa-isolation-audit`, re-ran the 13/13 proof under it):** all 41 warehouse object
+  events were made under the **vended session**; cross-tenant `GetObject`+`PutObject` = `AccessDenied` both
+  directions; own-tenant Get/Put/Head/List = OK; and the fleet role `ssa-spark-irsa-spark` made **0** warehouse
+  data calls. Trail + delivery bucket kept up (cost is not a constraint).
