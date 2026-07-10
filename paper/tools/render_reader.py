@@ -68,6 +68,7 @@ for level, hid, raw in heads:
     if m: cls = m[2]
     toc_items.append((int(level), hid, txt, cls))
 toc_html = ['<nav class="toc" aria-label="Contents">']
+toc_html.append('<a class="l1 tochome" href="#overview"><span>Overview</span></a>')
 for level, hid, txt, cls in toc_items:
     if level == 1:
         dot = f'<span class="dot {cls}"></span>' if cls else ""
@@ -243,6 +244,8 @@ a:hover{text-decoration:underline}
 .toc a{padding:4px 8px;border-radius:6px;color:var(--body);display:flex;align-items:center;gap:8px}
 .toc a:hover{background:var(--panel);text-decoration:none}
 .toc .l1{font-size:13.5px;font-weight:500;color:var(--ink);margin-top:9px}
+.toc .l1.tochome{color:var(--accent);font-weight:600;margin-top:0}
+.toc .l1.tochome + .l1{margin-top:14px;padding-top:11px;border-top:1px solid var(--rule)}
 .toc .l2{font-size:12.5px;color:var(--muted);padding-left:20px}
 .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
 .dot.done{background:var(--done)}.dot.scaffold{background:var(--scaffold)}
@@ -262,6 +265,7 @@ main{padding:30px 0 90px;min-width:0}
 .pill.scaffold{color:var(--scaffold);background:var(--scaffold-bg)}
 .pill.stub{color:var(--stub);background:var(--stub-bg)}
 .pill.ref{color:var(--ref);background:var(--ref-bg)}
+.overview-lede{font-family:var(--sans);font-size:14px;color:var(--muted);margin:2px 0 22px;max-width:64ch}
 /* --- the 1-pager: section highlight cards --- */
 .onepager{margin:28px 0 8px}
 .onepager-h{font-size:12px;letter-spacing:.15em;text-transform:uppercase;font-family:var(--sans);color:var(--muted);margin:0 0 14px;font-weight:600}
@@ -355,7 +359,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 
 DOC = f"""{CSS}
 <title>Safe, Governed AI Data Engineering: working paper</title>
-<header class="masthead"><div class="inner">
+<header class="masthead" id="top"><div class="inner">
   <p class="eyebrow">Working paper · internal</p>
   <h1 class="title">Safe, Governed AI Data Engineering on Spark</h1>
   <p class="sub">Can you let an AI agent write your production data pipelines without trusting it? This paper
@@ -376,6 +380,8 @@ DOC = f"""{CSS}
 <div class="wrap">
   <aside class="rail"><h2>Contents</h2>{toc_html}</aside>
   <main>
+    <h1 id="overview" class="section overview-h">Overview</h1>
+    <p class="overview-lede">The one-minute summary and the headline findings per section. Start here, then follow any card into the full text below.</p>
     <div class="reading-map">
       <b>What this is, in one minute</b>
       <p>AI coding agents now write real data pipelines. The failure that matters is not a crash, it is a
