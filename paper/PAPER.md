@@ -763,6 +763,10 @@ The topology above was stood up on a **real EKS cluster**, and one thing was mea
 | Connect-on-k8s | topology; small-scale distributed exec on EKS | elastic 0→10 executors | node autoscaler |
 | Tenant governance | **per-principal mTLS ingress routing** (Envoy routes by client-cert SAN: tenant-A cert reaches only tenant-A's server, un-granted principal `403`, no cert refused); **token custody + execution isolation** via two per-tenant Connect servers (server-injected token; tenant-A session refused on tenant-B; disjoint executor pods per tenant); **per-principal catalog authorization** (Lakekeeper+OpenFGA+OIDC: tenant-A identity denied at the catalog for tenant-B, both directions, every op; grants toggle); **per-tenant storage isolation** (Lakekeeper vended creds; cross-tenant `AccessDenied` both directions; cluster-side FileIO via the vend per CloudTrail, fleet IRSA 0 data calls; separate executor pod per Spark UI) | (none) | multi-tenant scale (many tenants + node autoscaling) |
 
+**Reproduce it.** The end-to-end setup is `deploy/eks/lakekeeper/SETUP.md`: four sub-deployments, built inside-out, each standing up one or more layers and writing the proof log cited above.
+
+[[[SVG-REPRODUCE]]]
+
 ## 3.5 What §3 unlocks → §4 (Omnigent)
 The governed, scalable, integrable substrate is the precondition for the agent *orchestration* layer, **Section 4 (Omnigent)**: a concrete thesis with a demonstrated core, whose governance pillar rests on the multi-tenancy stack demonstrated above (per-principal routing, token custody, execution isolation, catalog authorization, and storage scoping). §3 proves the *mechanism* per tenant; §4 is what operates it across a *fleet* of agents at scale, holding credential custody so each agent stays credential-free.
 
