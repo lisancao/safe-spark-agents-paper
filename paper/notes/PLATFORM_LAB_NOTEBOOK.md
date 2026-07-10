@@ -148,3 +148,28 @@ session scratchpad (secrets, never committed).
 spike-test Job (mount a tenant client cert; `SPARK_REMOTE=sc://spark-connect-mtls:15009`) → (c) capture the
 **CloudTrail "vend-not-IRSA"** discriminator + the **R7 ablation** (drop the `X-Iceberg-Access-Delegation` conf →
 cross-tenant succeeds). Design + acceptance: `SECTION3_isolation_experiment.md`.
+
+### RESOLVED — airtight 13/13 (2026-07-09, later same day)
+Both harness gaps from the "State at pause" run were **harness artifacts, not isolation failures**, and are now
+closed. Full log: `paper/notes/proof_2026-07-09_airtight_13of13.log`.
+
+- **`*.executor` (was FAIL → PASS).** Root cause was *detection*, not execution: the Connect server runs
+  `dynamicAllocation` ON, so executors recycle after an idle timeout, and run_spike queried the *active*
+  `/executors` view (empty by scrape time) against a possibly-stale `apps[0]`. Fix (committed in
+  `run_spike.py::executor_ran_tasks`): query **`/allexecutors`** (retains removed executors + their `totalTasks`
+  history) across **all** app attempts, take the max. Result: the 8-partition writes ran on **3 distinct executor
+  pods** — distinct pod IPs `10.40.14.134`, `10.40.19.60`, `10.40.22.221` — with non-driver `totalTasks` 38 (A)
+  and 50 (B). So the write genuinely fanned out to executor-side S3 FileIO on separate pods, each using the
+  tenant-scoped vend. The "distinct executor **pod**" wording is now **demonstrated**, not frontier.
+- **`ablation.broad_ambient` (was FAIL → PASS).** The prior `NoSuchKey` was just an unseeded probe key. Seeded
+  `tenant_a/probe` + `tenant_b/probe`; the broad `ssa-deploy` (whole-bucket) credential now **succeeds** on
+  *both* tenants' prefixes → confirms the base identity CAN cross tenants, so the cross-tenant `AccessDenied` on
+  the vended path is caused by the **downscoping vend**, not the base policy. The vend is load-bearing.
+
+**Net result (the frontier claim, airtight):** on live EKS, three distinct executor pods run each tenant's write
+via a Lakekeeper-vended, prefix-scoped credential and are **denied at S3 cross-tenant, both directions**
+(`AccessDenied` A→B and B→A), while each tenant reads/writes its own — and the ablation shows a full-bucket
+credential would have crossed freely. **Still frontier:** per-tenant *execution* isolation (the same shared
+executor pods served both tenants sequentially; dedicated per-tenant pools/servers need multi-server Connect
+orchestration) and multi-tenant scale (P6). Harness: `scratchpad/run_proof2.sh` (Connect gRPC + Spark-UI 4040
+port-forwards, `SPARK_DRIVER_UI=localhost:4041`); secrets stay in scratchpad, never committed.

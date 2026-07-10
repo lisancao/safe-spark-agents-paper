@@ -147,7 +147,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     the open governed platform, and fleet orchestration.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-07</span><span>·</span>
-    <span class="k">git c55db64</span><span>·</span>
+    <span class="k">git 7d1026e</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -1585,7 +1585,7 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 2. <strong>Per-tenant execution isolation needs multi-server Connect: future.</strong> Because Connect sessions are server-local, true isolation means multiple Connect servers (per team/tenant) behind the governed ingress, orchestrated by k8s, not the singleton today.</p>
 <p><strong>Credential vending vs custody (the §3↔§4 line).</strong> The catalog <em>vends</em> short-lived, scoped credentials (a catalog function) but does <strong>not</strong> hand them to the agent. Holding and managing the vended credential (custody + the agent interface) is the <strong>orchestration layer's job (§4/Omnigent)</strong>, precisely so the agent never sees a credential and §2's boundary survives at fleet scale. §3 owns the catalog as the <strong>authority</strong> that grants and the <strong>vendor</strong> that issues short-lived credentials; §4 owns <strong>credential custody plus the agent interface</strong>.</p>
 <p><strong>The edge, stated plainly.</strong> §3 demonstrates the single-tenant governed, integrable, scalable boundary and draws the multi-tenancy line exactly, delegating across it. Multi-tenant authorization is scoped to the catalog layer by design, not left undone by accident. And the specific limit, that <strong>OSS HMS/Iceberg cannot express per-user grants</strong>, is itself a finding: it marks the edge of what an open stack can enforce on its own, and where a governed catalog has to take over.
-- <strong>Tier:</strong> <strong>DEMONSTRATED (per-tenant data isolation) + FRONTIER (per-tenant execution isolation).</strong> On a live EKS cluster (2026-07-09) a governed catalog (<strong>Lakekeeper</strong>) vends per-tenant, prefix-scoped credentials, and an agent scoped to tenant A is <strong>denied at S3</strong> on tenant B's data, read <em>and</em> write, and symmetrically B→A (<code>AccessDenied</code> both directions), while each tenant reads/writes its own. So per-tenant <strong>authorization</strong> is no longer "future": it is demonstrated end-to-end through Spark Connect + the vended-credential path to the compute. What remains frontier: the <em>airtight distributed wording</em> (proving it on a distinct executor <strong>pod</strong>; the small write currently runs driver-side, though the driver carries the full fleet role and still uses the scoped vend), and per-tenant <strong>execution</strong> isolation (multiple Connect servers). Full build + proof narrative: <code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code>.</p>
+- <strong>Tier:</strong> <strong>DEMONSTRATED (per-tenant data isolation) + FRONTIER (per-tenant execution isolation).</strong> On a live EKS cluster (2026-07-09) a governed catalog (<strong>Lakekeeper</strong>) vends per-tenant, prefix-scoped credentials, and an agent scoped to tenant A is <strong>denied at S3</strong> on tenant B's data, read <em>and</em> write, and symmetrically B→A (<code>AccessDenied</code> both directions), while each tenant reads/writes its own. So per-tenant <strong>authorization</strong> is no longer "future": it is demonstrated end-to-end through Spark Connect + the vended-credential path to the compute. And it holds on <strong>distinct executor pods</strong>, not just the driver: the tenant write fans out (an 8-partition shuffle) to <strong>three separate executor pods</strong> (distinct pod IPs; 38 and 50 non-driver tasks for A and B), each performing S3 FileIO with the tenant-scoped vend and each denied cross-tenant. An ablation confirms the mechanism is load-bearing: the broad whole-bucket credential <em>does</em> reach both prefixes, so the deny comes from the downscoping vend, not the base policy. What remains frontier: per-tenant <strong>execution</strong> isolation, meaning dedicated per-tenant pools or servers rather than the shared executor set that served both tenants sequentially here, which needs multi-server Connect orchestration. Full build + proof narrative: <code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code>.</p>
 <h2 id="34-evidence-tiering">3.4 Evidence tiering</h2>
 <div class="tablewrap"><table>
 <thead>
@@ -1611,9 +1611,9 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 </tr>
 <tr>
 <td>Tenant governance</td>
-<td>identity pinned at ingress; <strong>per-tenant storage isolation</strong> on EKS (Lakekeeper vended creds; cross-tenant <code>AccessDenied</code> both directions)</td>
+<td>identity pinned at ingress; <strong>per-tenant storage isolation</strong> on EKS (Lakekeeper vended creds; cross-tenant <code>AccessDenied</code> both directions) on <strong>3 distinct executor pods</strong></td>
 <td>(none)</td>
-<td>distinct-executor-pod wording; per-tenant execution isolation; multi-server Connect</td>
+<td>per-tenant execution isolation (dedicated pools/servers); multi-server Connect</td>
 </tr>
 </tbody>
 </table></div>
@@ -2030,7 +2030,7 @@ remaining work; L1 needs native-mTLS de-risking; L6 needs capturing as a clean a
 <tr>
 <td><strong>P5 tenant isolation</strong></td>
 <td>per-tenant authz + per-tenant execution</td>
-<td><strong>authz DEMONSTRATED</strong> (Lakekeeper vended creds; cross-tenant <code>AccessDenied</code> both directions on EKS); per-tenant execution isolation = FRONTIER</td>
+<td><strong>authz DEMONSTRATED</strong> (Lakekeeper vended creds; cross-tenant <code>AccessDenied</code> both directions on EKS, on 3 distinct executor pods; ablation confirms the vend is load-bearing); per-tenant execution isolation = FRONTIER</td>
 </tr>
 <tr>
 <td><strong>P6 multi-tenant scale</strong></td>
@@ -2039,7 +2039,7 @@ remaining work; L1 needs native-mTLS de-risking; L6 needs capturing as a clean a
 </tr>
 </tbody>
 </table></div>
-<p><strong>Highest honestly-claimable today ≈ P5 authorization (per-tenant storage isolation, demonstrated on EKS 2026-07-09).</strong> The airtight distributed-executor-pod wording, per-tenant <em>execution</em> isolation (P5b), and multi-tenant scale (P6) remain the frontier.</p>
+<p><strong>Highest honestly-claimable today ≈ P5 authorization (per-tenant storage isolation, demonstrated on EKS 2026-07-09, on distinct executor pods).</strong> Per-tenant <em>execution</em> isolation (P5b: dedicated per-tenant pools/servers) and multi-tenant scale (P6) remain the frontier.</p>
 <h4 id="r-reverse-engineering-map-reference-as-built-salvage-gap">R: Reverse-engineering map (reference → as-built → SALVAGE / GAP)</h4>
 <div class="tablewrap"><table>
 <thead>

@@ -215,21 +215,37 @@ def spark_session():
 
 def executor_ran_tasks():
     """Prove a SEPARATE executor (not the driver) executed tasks, via the driver UI REST API.
-    Returns (ok, detail, total_non_driver_tasks)."""
+    Returns (ok, detail, total_non_driver_tasks).
+
+    Robustness (2026-07-09): the Connect server runs with dynamicAllocation ON, so executors
+    are recycled after an idle timeout. We therefore query /allexecutors (which RETAINS removed
+    executors together with their historical totalTasks) rather than the /executors active view,
+    which can be empty by scrape time even though a separate executor genuinely ran the write.
+    We also scan ALL application attempts (there is normally one long-lived Connect app) and take
+    the max non-driver task count, so a stale/empty attempt at index 0 cannot mask the real one."""
     try:
         st, apps = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications", timeout=8)
         if st != 200 or not apps:
             return False, f"applications API -> {st}", 0
-        app_id = apps[0]["id"]
-        st, execs = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications/{app_id}/executors", timeout=8)
-        if st != 200:
-            return False, f"executors API -> {st}", 0
-        non_driver = [e for e in execs if e.get("id") != "driver"]
-        total_tasks = sum(e.get("totalTasks", 0) for e in non_driver)
-        if non_driver:
-            hosts = ",".join(sorted({e.get("hostPort", "?") for e in non_driver}))
-            return True, f"{len(non_driver)} executor(s) host(s)={hosts} totalTasks={total_tasks}", total_tasks
-        return False, "no non-driver executor registered", 0
+        best_tasks, best_detail = 0, "no non-driver executor recorded"
+        for app in apps:
+            app_id = app.get("id")
+            if not app_id:
+                continue
+            # /allexecutors includes REMOVED executors (with their totalTasks history);
+            # fall back to the active view if this build lacks the endpoint.
+            st, execs = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications/{app_id}/allexecutors", timeout=8)
+            if st != 200 or not isinstance(execs, list):
+                st, execs = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications/{app_id}/executors", timeout=8)
+            if st != 200 or not isinstance(execs, list):
+                continue
+            non_driver = [e for e in execs if e.get("id") != "driver"]
+            total_tasks = sum(e.get("totalTasks", 0) for e in non_driver)
+            if total_tasks > best_tasks:
+                hosts = ",".join(sorted({e.get("hostPort", "?") for e in non_driver}))
+                best_tasks = total_tasks
+                best_detail = f"{len(non_driver)} executor(s) host(s)={hosts} totalTasks={total_tasks} (app {app_id})"
+        return (best_tasks > 0), best_detail, best_tasks
     except Exception as e:
         return False, f"driver UI unreachable: {e}", 0
 
