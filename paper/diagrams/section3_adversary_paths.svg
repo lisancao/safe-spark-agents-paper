@@ -43,5 +43,5 @@
   <g transform="translate(364,229)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
   <g transform="translate(364,281)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
 </g>
-<text x="40" y="326" class="ts" fill="#5c6b66">Each layer is independently defeatable, so all five must hold. The early layers keep the identity honest; the late layers bound what an honest identity may do.</text>
+<text x="40" y="326" class="ts" fill="#5c6b66">Each layer is independently defeatable, so all five must hold, and none is redundant.</text>
 </svg>

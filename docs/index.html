@@ -171,7 +171,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git d81cb7a</span><span>·</span>
+    <span class="k">git 4c33dc7</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -1677,7 +1677,7 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
   <g transform="translate(364,229)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
   <g transform="translate(364,281)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
 </g>
-<text x="40" y="326" class="ts" fill="#5c6b66">Each layer is independently defeatable, so all five must hold. The early layers keep the identity honest; the late layers bound what an honest identity may do.</text>
+<text x="40" y="326" class="ts" fill="#5c6b66">Each layer is independently defeatable, so all five must hold, and none is redundant.</text>
 </svg>
 </div><figcaption>The adversary, and the five paths to tenant B. Each attack route is closed by exactly one of the five isolation layers, so all five must hold.</figcaption></figure>
 <p><strong>The stack at a glance</strong> (see the diagram below, and the interactive <code>paper/figures/isolation-architecture.html</code>). From the outside in: an <strong>mTLS gateway</strong> routes a request to a server by the <em>authenticated</em> principal on its client certificate (closes <em>connect</em>); a <strong>per-tenant Connect server</strong> injects only that tenant's catalog token, so the agent never holds a credential it could redirect (<em>be handed</em>); the tenant's <strong>own executor pods</strong> run the work, never sharing a JVM (<em>execute</em>); the <strong>governed catalog</strong> (Lakekeeper + OpenFGA) authorizes credential requests per principal (<em>ask the catalog</em>); and the <strong>vended credential</strong> is prefix-scoped at storage (<em>hit storage</em>). An agent authenticated as tenant A is therefore routed to tenant-A's server, handed tenant-A's token, run on tenant-A's executors, authorized only for tenant-A, and prefix-scoped at storage: no path reaches tenant B. The rest of this section walks the five links outside-in, each with the residual threat it uniquely closes and the proof that it runs; all five run on a live EKS cluster today. Scaling past two tenants is the open capability, and two proof-completeness seams remain, named after the walk.</p>
