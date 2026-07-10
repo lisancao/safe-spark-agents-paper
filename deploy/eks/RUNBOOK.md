@@ -1,4 +1,4 @@
-# Operations Runbook — Agent-Native Spark Connect on EKS
+# Operations Runbook: Agent-Native Spark Connect on EKS
 
 This runbook covers standing up, operating, and tearing down the production
 reference deployment: an OSS **Apache Spark Connect** server on **EKS**
@@ -9,8 +9,8 @@ It ties together the components built across PRs #3, #5, #6, #7, #8, #9. The
 single-EC2 build (PRs #1, #2) is the optional cheap **dev tier** and is covered
 briefly at the end.
 
-> **Format:** Iceberg (not Delta). Delta cannot be a Spark AUTO CDC target — it
-> lacks `SupportsRowLevelOperations` — so Iceberg is the correct and only viable
+> **Format:** Iceberg (not Delta). Delta cannot be a Spark AUTO CDC target, it
+> lacks `SupportsRowLevelOperations`, so Iceberg is the correct and only viable
 > native CDC sink. See the image README for the AUTO CDC version detail.
 
 ---
@@ -45,7 +45,7 @@ path to raw 15002** (loopback-bound, no Service targets it).
 
 **By convention (not hard-enforced):** per-principal schema isolation
 (`sandbox_<principal>`) and fleet-scoped catalog access. HMS/Iceberg do not
-enforce per-user grants — that is deliberate and documented.
+enforce per-user grants, that is deliberate and documented.
 
 ---
 
@@ -110,14 +110,14 @@ Deploy bottom-up; each layer depends on the previous one's outputs.
    The schema-init Job runs `schematool -initSchema` (idempotent) before the
    metastore serves on `hive-metastore.hive-metastore.svc.cluster.local:9083`.
 
-4. **Connect server + executors** (`deploy/eks/connect`, PR #9) — see §4 for the
+4. **Connect server + executors** (`deploy/eks/connect`, PR #9), see §4 for the
    certs/PSK first, then:
    ```bash
    kustomize build deploy/eks/connect/overlays/example | kubectl apply -f -
    kubectl -n spark get pods,svc            # Connect pod Running; mTLS NLB provisioned
    ```
 
-5. **Load real + messy data** (`deploy/data`, PR #7) — see §6.
+5. **Load real + messy data** (`deploy/data`, PR #7), see §6.
 
 ---
 
@@ -168,7 +168,7 @@ cd deploy/auth/certs
   through a local mTLS proxy (or the sandbox egress sidecar) to
   `sc://<nlb-dns>:15009`.
 - **Agent sandbox:** mount the cert **into the egress sidecar only**
-  (`deploy/spark-omnigent`, PR #4) — never into the agent container — and set
+  (`deploy/spark-omnigent`, PR #4), never into the agent container, and set
   `AGENT_PRINCIPAL=alice`. The sidecar verifies SAN == principal and refuses to
   start on mismatch.
 - **Schema:** create the principal's namespace once:
@@ -177,7 +177,7 @@ cd deploy/auth/certs
   ```
 
 To **revoke**: remove/expire the client cert (and, for hard cutoff, rotate the
-CA — §7). Drop the schema to remove data access.
+CA, §7). Drop the schema to remove data access.
 
 ---
 
@@ -215,7 +215,7 @@ kubectl -n spark get pods -l spark-role=executor              # executor pods
 
 - **PSK:** generate a new value, update the `connect-psk` Secret, `kubectl
   rollout restart deploy/spark-connect -n spark`, then update the Envoy config's
-  injected bearer (same Secret) — both sides come from the one Secret, so it's a
+  injected bearer (same Secret), both sides come from the one Secret, so it's a
   single update + restart.
 - **Client certs:** re-issue per principal (§5); short-lived certs are preferred.
 - **CA rotation (hard revocation):** issue a new Connect-layer CA, update the
@@ -233,7 +233,7 @@ The whole point of self-managed Spark on EKS: **you own the version.**
 2. Update the image tag in `deploy/eks/connect` (driver + executor use the same
    image) and `kubectl apply`.
 3. For native AUTO CDC, switch to the **Tier-B** base (Spark 5.0-SNAPSHOT +
-   `iceberg-port`) until a released Spark + released Iceberg 4.2 runtime exist —
+   `iceberg-port`) until a released Spark + released Iceberg 4.2 runtime exist,
    track both upstreams; that is the only thing standing between you and a fully
    released-bits stack.
 
@@ -263,7 +263,7 @@ compute. The single-EC2 dev tier (below) is far cheaper for iteration.
 
 ---
 
-## 11. Dev tier (single EC2) — optional
+## 11. Dev tier (single EC2): optional
 
 `deploy/aws` (PR #1) + `scripts/*connect-server*` (PR #2) stand up a single-EC2
 Spark Connect server (one JVM, local execution) behind a Client VPN + NLB, with
@@ -273,7 +273,7 @@ profile and remote-state pattern.
 
 ---
 
-## Security model — what's enforced vs convention
+## Security model: what's enforced vs convention
 
 | Property | Status |
 |---|---|
@@ -286,5 +286,5 @@ profile and remote-state pattern.
 
 This is the honest line: identity, encryption, and the no-bypass path are real
 and tested; per-user *authorization* is convention, because OSS Spark + HMS +
-Iceberg don't enforce it (and that's a documented, deliberate scope choice — not
+Iceberg don't enforce it (and that's a documented, deliberate scope choice, not
 a gap we papered over).
