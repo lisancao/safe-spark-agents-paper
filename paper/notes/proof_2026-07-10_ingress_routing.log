@@ -1,0 +1,16 @@
+== Per-principal ingress routing: client cert SAN decides the tenant server ==
+   (Envoy terminates mTLS, derives principal from the cert URI-SAN, routes on it.)
+
+cert 'tenant_a':  HTTP 200   x-routed-to=spark-connect-tenant-a
+            server response: Spark Connect request completed without asserting a user_id that matches the verified principal 'tenant_a'
+cert 'tenant_b':  HTTP 200   x-routed-to=spark-connect-tenant-b
+            server response: Spark Connect request completed without asserting a user_id that matches the verified principal 'tenant_b'
+cert 'agent_a':  HTTP 200   x-routed-to=DENIED
+            server response: no tenant route for this principal%0A
+
+no client cert:  http_code=000 (000 => TLS handshake refused: require_client_certificate)
+TLS handshake refused (no client cert)
+
+VERDICT: the authenticated principal (client-cert SAN), not the client's choice, selects the tenant
+server. A tenant_a cert reaches ONLY spark-connect-tenant-a (its interceptor echoes principal
+'tenant_a'); tenant_b -> spark-connect-tenant-b; an un-granted principal -> 403 DENIED; no cert -> refused.

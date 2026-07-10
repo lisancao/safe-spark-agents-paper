@@ -91,3 +91,27 @@ python3 gen_connect_server.py tenant_b jwt_tenant_b.txt | kubectl apply -f -
 
 **Remaining seam:** per-principal ingress routing (bind each authenticated principal to its own server at
 the Envoy mTLS gateway) -- a per-principal upstream config on the demonstrated cert-SAN pinning (P1).
+
+## Per-principal ingress routing (gateway Envoy)
+
+The last seam: bind each authenticated principal to its OWN Connect server so a client cannot connect to
+another tenant's server. A gateway Envoy terminates client mTLS, derives the principal from the client-cert
+URI-SAN, and routes on it.
+
+```bash
+# certs: reuse the Connect CA + per-tenant client certs (SAN spiffe://safe-spark-agents/<tenant>)
+kubectl -n spark create secret generic connect-gateway-certs \
+  --from-file=server.crt --from-file=server.key --from-file=connect-ca.crt
+kubectl -n spark create configmap connect-gateway-config --from-file=envoy.yaml=gateway-envoy.yaml
+kubectl apply -f 20-connect-gateway.yaml
+```
+
+**Proves (`paper/notes/proof_2026-07-10_ingress_routing.log`):**
+- tenant_a client cert  -> routed to `spark-connect-tenant-a` (only)
+- tenant_b client cert  -> routed to `spark-connect-tenant-b` (only)
+- un-granted principal   -> `403` (no tenant route)
+- no client cert         -> TLS handshake refused
+
+There is no route that sends a tenant_a cert to tenant_b's server: the authenticated identity, not the
+client's choice, selects the server. (Gotcha: forward the gateway on a local port other than 15009 if an old
+`spark-connect-mtls` port-forward is still bound there, or probes will hit the wrong proxy.)

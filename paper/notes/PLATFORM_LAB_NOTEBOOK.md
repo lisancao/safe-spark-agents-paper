@@ -258,3 +258,21 @@ connection string.
 
 Evidence `proof_2026-07-10_multiserver.log`. Generator + runbook `deploy/eks/lakekeeper/authz/` (JWTs in
 scratchpad). **All four multi-tenancy layers now demonstrated on EKS; ingress routing + scale remain frontier.**
+
+### Per-principal ingress routing CLOSED (2026-07-10) -- the last seam
+Built a gateway Envoy (`connect-gateway`) that terminates client mTLS, derives the principal from the client
+cert URI-SAN (`spiffe://safe-spark-agents/<tenant>`, same Lua as the sidecar), and **routes on it** to the
+matching per-tenant Connect server. Config `deploy/eks/lakekeeper/authz/gateway-envoy.yaml`; deploy
+`20-connect-gateway.yaml`. Reused the existing Connect CA + per-tenant client certs from `scratchpad/w25-certs`.
+- **Proof (`proof_2026-07-10_ingress_routing.log`):** tenant_a client cert -> `x-routed-to: spark-connect-tenant-a`
+  (server A's interceptor echoes principal 'tenant_a'); tenant_b cert -> `spark-connect-tenant-b`; an un-granted
+  principal (`agent_a`) -> **403** `no tenant route for this principal`; **no client cert -> TLS handshake refused**.
+  Envoy admin cluster stats confirmed the split (connect_tenant_a rq=1, connect_tenant_b rq=1, agent_a denied).
+- **Debug note (do not repeat):** a STALE `port-forward svc/spark-connect-mtls 15009:15009` from early recon was
+  silently hijacking local :15009, so probes hit the OLD shared Envoy (which routes everything to one server) and
+  looked like broken routing. Fix: forward the gateway on a DISTINCT local port (15011). The Lua+`clearRouteCache()`
+  header routing works correctly once you hit the right proxy.
+- **Full chain, end to end:** client mTLS cert (SAN=tenant_a) -> gateway routes to server A -> server A injects
+  tenant_a's catalog token -> Lakekeeper+OpenFGA authorizes only tenant_a -> vended cred is prefix-scoped at S3 ->
+  runs on tenant_a's own executor pods. An agent authenticated as tenant_a cannot address, be handed, or execute
+  against tenant_b by ANY path. **Only multi-tenant SCALE (N tenants + node autoscaling) remains frontier.**

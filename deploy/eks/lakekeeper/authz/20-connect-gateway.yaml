@@ -1,0 +1,52 @@
+# Per-principal routing gateway (Envoy). Terminates client mTLS, derives the principal from the
+# client-cert URI-SAN, and routes each principal to ONLY its own tenant Connect server. Config is
+# gateway-envoy.yaml (mount it as configmap connect-gateway-config, key envoy.yaml). __CONNECT_PSK__
+# is rendered from the spark-connect-psk Secret at pod start. Certs come from connect-gateway-certs
+# (server.crt/key signed by the Connect CA + connect-ca.crt for client-cert validation).
+#   kubectl -n spark create configmap connect-gateway-config --from-file=envoy.yaml=gateway-envoy.yaml
+#   kubectl -n spark create secret generic connect-gateway-certs \
+#       --from-file=server.crt --from-file=server.key --from-file=connect-ca.crt
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: connect-gateway, namespace: spark, labels: { app: connect-gateway } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: connect-gateway } }
+  template:
+    metadata: { labels: { app: connect-gateway } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 101, runAsGroup: 101 }
+      initContainers:
+        - name: render
+          image: busybox:1.36
+          command: ["/bin/sh","-c"]
+          args:
+            - |
+              set -eu; test -n "$CONNECT_PSK"
+              sed "s|__CONNECT_PSK__|${CONNECT_PSK}|g" /tmpl/envoy.yaml > /rendered/envoy.yaml
+          env:
+            - { name: CONNECT_PSK, valueFrom: { secretKeyRef: { name: spark-connect-psk, key: token } } }
+          volumeMounts:
+            - { name: tmpl, mountPath: /tmpl, readOnly: true }
+            - { name: rendered, mountPath: /rendered }
+      containers:
+        - name: envoy
+          image: envoyproxy/envoy:v1.31.5
+          command: ["/usr/local/bin/envoy"]
+          args: ["-c","/rendered/envoy.yaml","--concurrency","2"]
+          ports: [{ containerPort: 15009, name: mtls }]
+          volumeMounts:
+            - { name: rendered, mountPath: /rendered, readOnly: true }
+            - { name: certs, mountPath: /etc/envoy/certs, readOnly: true }
+            - { name: run, mountPath: /var/run/envoy }
+          readinessProbe: { tcpSocket: { port: 15009 }, initialDelaySeconds: 5, periodSeconds: 10 }
+      volumes:
+        - { name: tmpl, configMap: { name: connect-gateway-config } }
+        - { name: rendered, emptyDir: { medium: Memory } }
+        - { name: certs, secret: { secretName: connect-gateway-certs, defaultMode: 0444 } }
+        - { name: run, emptyDir: { medium: Memory } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: connect-gateway, namespace: spark }
+spec: { selector: { app: connect-gateway }, ports: [{ port: 15009, targetPort: 15009, name: mtls }] }
