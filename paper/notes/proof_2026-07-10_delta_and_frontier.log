@@ -46,3 +46,9 @@
 
   VERDICT: vended credential reaches the executor AND enforces per-tenant S3 isolation: YES
 EXIT=0
+
+-- NOTE (added post-hoc): the "[FRONTIER] catalog does NOT gate by principal" probe above ran against the
+   ALLOW-ALL Lakekeeper (vend-by-warehouse-address). That frontier was subsequently CLOSED on a separate
+   authorization-enabled catalog (Lakekeeper + OpenFGA + OIDC): a tenant_a identity is denied at the catalog
+   for tenant_b, including the direct vend path. See proof_2026-07-10_perprincipal_authz.log (sections A-D).
+   The probe here is the "before"; the authz proof is the "after".

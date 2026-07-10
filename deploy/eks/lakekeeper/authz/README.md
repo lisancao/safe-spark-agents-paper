@@ -62,9 +62,15 @@ for s in tenant_a tenant_b; do
   curl -sf -X POST $LK/management/v1/warehouse -H "Authorization: Bearer $ADMIN" -H 'content-type: application/json' \
     -H 'x-project-id: 00000000-0000-0000-0000-000000000000' --data @../spike/eks/warehouse-$s.aws.json   # fill REPLACE-* first
 done
-# grant each tenant ONLY its own warehouse (WID from GET /management/v1/warehouse):
-#   POST $LK/management/v1/permissions/warehouse/<WID>/assignments
-#   {"writes":[{"type":"select","user":"oidc~tenant_a"},{"type":"describe",...},{"type":"modify",...},{"type":"create",...}],"deletes":[]}
+# grant each tenant select/describe/modify/create on ONLY its own warehouse (runnable):
+for s in tenant_a tenant_b; do
+  WID=$(curl -sf $LK/management/v1/warehouse -H "Authorization: Bearer $ADMIN" \
+        -H 'x-project-id: 00000000-0000-0000-0000-000000000000' \
+        | python3 -c "import json,sys;print({x['name']:x['id'] for x in json.load(sys.stdin)['warehouses']}['$s'])")
+  curl -sf -X POST $LK/management/v1/permissions/warehouse/$WID/assignments \
+    -H "Authorization: Bearer $ADMIN" -H 'content-type: application/json' \
+    -d "{\"writes\":[{\"type\":\"select\",\"user\":\"oidc~$s\"},{\"type\":\"describe\",\"user\":\"oidc~$s\"},{\"type\":\"modify\",\"user\":\"oidc~$s\"},{\"type\":\"create\",\"user\":\"oidc~$s\"}],\"deletes\":[]}"
+done
 
 # 5. capture the warehouse IDs the proof script needs, then prove it
 curl -sf $LK/management/v1/warehouse -H "Authorization: Bearer $ADMIN" \

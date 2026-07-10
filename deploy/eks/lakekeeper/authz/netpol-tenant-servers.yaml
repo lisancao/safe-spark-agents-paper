@@ -1,0 +1,30 @@
+# INTENDED defense-in-depth, NOT YET APPLIED. Restricts inbound to each per-tenant Connect server so a
+# direct in-cluster dial (bypassing the gateway) is dropped at the network layer, making "reachable only
+# from the gateway" literally true rather than relying solely on the shared Connect PSK + interceptor.
+#
+# Requires: a policy-enforcing CNI (EKS VPC CNI with ENABLE_NETWORK_POLICY=true, or Calico/Cilium).
+# Note the executor<->driver allowance: Spark executors dial the driver (the Connect server pod) back on
+# 7078/7079, so a naive "gateway-only" ingress rule would break execution. Apply + verify a direct dial is
+# refused before citing this as enforced.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tenant-connect-servers-ingress
+  namespace: spark
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app, operator: In, values: [spark-connect-tenant-a, spark-connect-tenant-b] }
+  policyTypes: [Ingress]
+  ingress:
+    # 1) the routing gateway may reach the Connect gRPC port
+    - from:
+        - podSelector: { matchLabels: { app: connect-gateway } }
+      ports:
+        - { protocol: TCP, port: 15002 }
+    # 2) this tenant's own executors dial the driver back (block-manager + driver RPC)
+    - from:
+        - podSelector: { matchLabels: { spark-role: executor } }
+      ports:
+        - { protocol: TCP, port: 7078 }
+        - { protocol: TCP, port: 7079 }

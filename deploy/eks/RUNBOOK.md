@@ -85,9 +85,11 @@ Deploy bottom-up; each layer depends on the previous one's outputs.
 
 2. **Build + push the Spark image** (`deploy/eks/images/spark-connect`, PR #6)
    ```bash
-   # Tier A (released: Spark 4.1.2 + Iceberg 1.11.0). Pass the PR #3 interceptor jar.
-   ./build.sh --interceptor-jar /path/to/principal-pinning-interceptor.jar \
-              --registry <ecr-repo> --push
+   # Tier A (released: Spark 4.1.2 + Iceberg 1.11.0). build.sh reads env vars (INTERCEPTOR_JAR, IMAGE_TAG);
+   # the registry is part of IMAGE_TAG, and --push (or PUSH=1) pushes.
+   INTERCEPTOR_JAR=/path/to/principal-pinning-interceptor.jar \
+   IMAGE_TAG=<ecr-repo>/ssa-spark/spark-connect:4.1.2-iceberg1.11.0 \
+   ./build.sh --push
    ```
    Tier B (native AUTO CDC, Spark 5.0-SNAPSHOT + iceberg-port) is a `--tier-b`
    build off your existing `lakehouse/spark:5.0.0-snapshot-cdc` base.
@@ -136,13 +138,17 @@ openssl rand -hex 32 > ~/ssa-deploy/psk/connect.psk
 Load them as k8s Secrets in the `spark` namespace (referenced by PR #9, never
 committed):
 
+The deployed secret **names and keys** are authoritative in `connect/base/secret.example.yaml`, create
+those exact names (not the drifted ones):
+
 ```bash
-kubectl -n spark create secret generic connect-mtls \
-  --from-file=ca.crt=out/ca.crt \
-  --from-file=tls.crt=out/connect.crt \
-  --from-file=tls.key=out/connect.key
-kubectl -n spark create secret generic connect-psk \
-  --from-file=token=~/ssa-deploy/psk/connect.psk
+# PSK (single-line base64url/hex): secret spark-connect-psk, key `token`
+kubectl -n spark create secret generic spark-connect-psk --from-file=token=psk.token
+# Envoy mTLS material from deploy/auth/certs/issue-all.sh: secret spark-connect-envoy-certs
+kubectl -n spark create secret generic spark-connect-envoy-certs \
+  --from-file=server.crt=out/server.crt \
+  --from-file=server.key=out/server.key \
+  --from-file=connect-ca.crt=out/connect-ca.crt
 ```
 
 ---
