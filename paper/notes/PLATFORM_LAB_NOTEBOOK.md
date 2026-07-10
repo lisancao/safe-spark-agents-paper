@@ -68,7 +68,30 @@ the RDS metastore creds) is required and not in kustomize — created it from th
 entry `ssa-spark/metastore/connection` (via `--from-file`, password never on argv). After that + a rollout
 restart the pod came up 2/2. **Net: the governed platform (P1 mTLS ingress + P2 Connect-on-k8s + P5 Lakekeeper)
 is LIVE on EKS.**
-**Remaining for the proof:** apply the `lk_a`/`lk_b` REST-catalog patch (vended-credentials) to the connect
-deployment → run the warehouse-provision job (2 tenants) → run the isolation test → capture the **CloudTrail
-"vend-not-IRSA"** discriminator + the **R7 ablation** (vending off → cross-tenant succeeds). Design + acceptance:
-`SECTION3_isolation_experiment.md`.
+**REST-catalog patch applied** (JSON6902 appends `lk_a`/`lk_b` vended-credential catalogs to the connect-server
+args; container 0 confirmed = connect server; rolled out clean).
+
+### Findings from warehouse provisioning (paper-worthy; Lakekeeper storage model)
+Running the provision job surfaced two real Lakekeeper behaviors (its Spark/AWS integration is under-documented):
+1. **Warehouse-management writes use the pod's base identity, not the vended role.** With
+   `credential-type: aws-system-identity`, Lakekeeper's warehouse-creation validation `PutObject` ran as the
+   catalog pod's IRSA identity (`ssa-spark-lakekeeper-catalog`), which by design had *no* direct S3 → denied.
+   **Fix:** grant the trusted catalog role its own warehouse S3 (`catalog-manage-s3` policy in
+   `lakekeeper-vending.tf`). This does **not** weaken the isolation result — tenant isolation is enforced at the
+   AGENT **executor** via vended, prefix-scoped creds, not at Lakekeeper's identity.
+2. **Assume-role vending requires an `external-id`.** After (1), Lakekeeper returns
+   `An 'external-id' is required when using 'assume-role-arn'`. Adding `external-id` to the warehouse
+   `storage-profile` did NOT satisfy it → the correct field placement (likely the `storage-credential` block,
+   and/or the vending role's trust policy must add a matching `sts:ExternalId` condition) needs the Lakekeeper
+   v0.13.1 storage-credential schema. **This is the current blocking point for provisioning.**
+
+### State at pause (2026-07-09)
+**Platform is LIVE on EKS:** Lakekeeper+Postgres, Spark Connect + Envoy mTLS (2/2), vending roles, `lk_a`/`lk_b`
+catalogs. **Blocked:** warehouse provisioning, on the Lakekeeper `external-id` schema (finding #2). All infra +
+the SSOT are committed; the bastion SSM tunnel + the filled deploy work-dir + the issued certs live in the
+session scratchpad (secrets, never committed).
+**REMAINING recipe (resumable):** (a) fix the `external-id` placement per Lakekeeper's storage docs (+ add the
+`sts:ExternalId` trust condition on `lakekeeper-vending` for correctness) → provision the 2 tenants; (b) run the
+spike-test Job (mount a tenant client cert; `SPARK_REMOTE=sc://spark-connect-mtls:15009`) → (c) capture the
+**CloudTrail "vend-not-IRSA"** discriminator + the **R7 ablation** (drop the `X-Iceberg-Access-Delegation` conf →
+cross-tenant succeeds). Design + acceptance: `SECTION3_isolation_experiment.md`.
