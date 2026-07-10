@@ -175,6 +175,8 @@ The whole A−B gap is **D7 (+7) and D8 (+6)**; D6, the largest class, is tied. 
 Iteration-level error events: A gate = 0, runtime = 193, **intercepts = 0**; B gate = 349, runtime = 155, **intercepts = 353**. SDP's framework dry-run intercepts 79 structural defects (353 iteration-level error events) *before any data is processed*; bare imperative has no gate and intercepts zero: the structural catches surface at runtime (or, for semantic defects, ship). Arm A is *bare* imperative with **no structural gate by construction**, so the contrast measures each paradigm as it natively is: there is no gate-rigor to conflate.
 `[src: results.powered.AB.n12.final.jsonl · per_defect_detection / dry_run_intercepts / per_iteration · per arm × class-group × stage · recompute: §SM6 (see §9 error-taxonomy block)]`
 
+[[[SVG-WHERE]]]
+
 **Framing (F1).** The asymmetry *is* the finding: the declarative paradigm provides a structural dry-run **by construction**, and imperative PySpark has no native structural gate. Injecting a harness-enforced gate into the imperative arm is explicitly rejected (F2): it would contaminate imperative with a declarative feature it would never naturally have. Stated claim:
 > "SDP catches structural defects (D1/D4/D5) at a real framework dry-run *before any data is processed*; imperative PySpark has no equivalent and surfaces those defects at runtime or ships them."
 
