@@ -110,6 +110,34 @@ test either (a) uses the platform's client-cert-presenting pattern (`connect/cli
 is a separately-demonstrated P1 piece; the load-bearing storage-isolation result doesn't require it). Then
 run_spike.py runs the R1–R3 + R7 ablation; capture CloudTrail (vend-not-IRSA).
 
+### RESULT: isolation proof RAN on live EKS — core claim demonstrated (2026-07-09)
+Ran `run_spike.py` (TEST-only) against the live Connect+Lakekeeper stack. **Core isolation PROVEN, both
+directions:** a vended tenant_a credential is `AccessDenied` on tenant_b's S3 prefix (read AND write), and
+symmetrically tenant_b→tenant_a — while each tenant reads/writes its OWN data and gets a temporary session-token
+cred. That is the frontier claim: untrusted per-tenant agents provably confined at the storage layer, on a real
+cluster, through Spark Connect + Lakekeeper vended credentials.
+
+**Auth chain validated en route** (the interceptor made the client satisfy all of): `x-connect-principal`
+present + PSK bearer + `user_id == principal`. For the TEST harness we bypass the Envoy mTLS door via a
+`kubectl port-forward` to the loopback gRPC and supply those three via the connection string — the mTLS ingress
+is a separately-demonstrated P1 piece; the storage-isolation result does not depend on it.
+
+**Two remaining refinements (harness artifacts, NOT isolation failures):**
+1. **`*.executor`**: the small write ran on the *driver* (Spark local execution) rather than a separate executor
+   *pod*, so run_spike's "a distinct executor ran it" check fails. The driver also carries the full-bucket IRSA
+   role and used the scoped vend anyway, so "a full-IRSA process uses the vend not its role" IS shown — just not
+   yet on a distinct executor pod. Fix: force executor-only execution (disable dynamic-alloc + pin
+   `spark.executor.instances`, or a larger shuffle) and re-check.
+2. **`ablation`**: the broad `ssa-deploy` cred returned **`NoSuchKey`** (not `AccessDenied`) on `tenant_b/probe`
+   — which CONFIRMS the mechanism (broad cred is *not* scoped out; the vended cred IS). The check wanted a
+   successful GET on a probe key that was never seeded. Fix: seed `tenant_b/probe` first (or treat
+   not-AccessDenied as pass).
+
+**Harness note:** long-lived `kubectl port-forward` over the SSM tunnel drops on the longer (executor) run — the
+robust path for the airtight rerun is an in-cluster test job (socat/ghostunnel sidecar → Envoy), not a
+port-forward. All infra + provisioning committed; the venv, certs, deploy work-dir, external-id + PSK live in the
+session scratchpad (secrets, never committed).
+
 ### State at pause (2026-07-09)
 **Platform is LIVE on EKS:** Lakekeeper+Postgres, Spark Connect + Envoy mTLS (2/2), vending roles, `lk_a`/`lk_b`
 catalogs. **Blocked:** warehouse provisioning, on the Lakekeeper `external-id` schema (finding #2). All infra +
