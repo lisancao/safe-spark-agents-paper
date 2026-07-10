@@ -123,6 +123,9 @@ body = body.replace("<p>[[[SVG-COMPOSITION]]]</p>",
 body = body.replace("<p>[[[SVG-WHERE]]]</p>",
     figure(load_svg("section1_where_defects_caught.svg"),
            "The load-bearing result. Structural defects (D1/D4/D5) meet a boundary, before any data is processed. Bare imperative has no structural gate, so zero are caught early; four surface later at runtime, after compute is spent. SDP's framework dry-run catches 79 at that boundary before any executor starts; 30 more surface at runtime. Neither arm ships a structural defect."))
+body = body.replace("<p>[[[SVG-WASTE]]]</p>",
+    figure(load_svg("section1_wasted_compute.svg"),
+           "The sharpest cost result (N2), measured on live EKS. Executor-seconds spent on attempts that ultimately failed: bare imperative burns 521 because spark-submit runs over the data before the fault surfaces; SDP burns ≈0.5 because its dry-run rejects the pipeline before any executor starts. Roughly 1000×, finite vs ≈0. The projection scales the measured mechanism to production-sized tasks."))
 body = body.replace("<p>[[[SVG-COST]]]</p>",
     figure(load_svg("cost_tokens_conciseness.svg"),
            "The cost of the declarative paradigm, arm B relative to arm A (= 100%): SDP writes far less code and spends more tokens. Bars show B as a percentage of A; absolute medians beneath."))

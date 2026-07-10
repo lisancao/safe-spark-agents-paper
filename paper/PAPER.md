@@ -218,6 +218,8 @@ Measured directly on a live EKS Spark-Connect cluster (48-cell sweep; m5.xlarge-
 
 Nine of arm A's cells hit the iteration cap (each one running, processing data, then failing) while SDP's failed cells cost ≈ 0. **The dollar amounts are small because the study is small** (tiny tasks, a 4-executor cluster), not because the effect is: the mechanism scales linearly with data size, cluster size, and failure rate. `[src: repro/h3_eks/ · results.h3.sweep2.jsonl · 48 cells]`
 
+[[[SVG-WASTE]]]
+
 > **At production scale** *(a projection from the measured mechanism, not a measured result).* A real pipeline over ~100 GB whose failed attempt burns ~10 minutes across a 20-executor cluster wastes ≈ **`$0.60` of compute per failed attempt**. An imperative agent that fails ~2× before it converges wastes ≈ `$1.20` per pipeline; a fleet authoring ~1,000 pipelines a week ≈ **`$5,000`/month of compute that SDP would never spend**, because its gate rejects those attempts before execution. The study measures the *ratio and the mechanism*; this is what they cost once the tasks and clusters are production-sized.
 
 [[[SVG-COST]]]
