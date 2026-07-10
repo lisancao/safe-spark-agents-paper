@@ -26,7 +26,7 @@ def git_short():
 # --- section maturity (matched by leading text of each top-level heading) ---
 MATURITY = [
     ("SECTION 1", "Complete", "powered study · results bound", "done"),
-    ("SECTION 2", "Demonstrated", "the agent-safety boundary", "done"),
+    ("SECTION 2", "Demonstrated", "the agent-native dev loop", "done"),
     ("SECTION 3", "Demonstrated", "5-layer per-tenant isolation, live on EKS", "done"),
     ("SECTION 4", "Thesis + core", "pattern demonstrated · fleet study out of scope", "stub"),
     ("Appendix S2-A", "Reference spec", "executable target (SSOT)", "ref"),
@@ -105,7 +105,7 @@ def figure(svg, cap):
     return f'<figure class="diagram"><div class="diagram-frame">{svg}</div><figcaption>{cap}</figcaption></figure>'
 body = body.replace("<p>[[[SVG-SECTION3]]]</p>",
     figure(load_svg("section3_open_governed_platform.svg"),
-           "The open governed reference architecture. Solid = demonstrated · dashed = configured but unrun · dotted = frontier."))
+           "The open governed reference architecture: three trust zones, untrusted agent authoring, a governed control plane, and the EKS data plane, joined by a GitOps loop, with Spark Connect as the single identity-pinned door and per-tenant isolation demonstrated on live EKS. Solid = demonstrated · dashed = configured but unrun · dotted = frontier."))
 body = body.replace("<p>[[[SVG-SECTION4]]]</p>",
     figure(load_svg("section4_omnigent_orchestration.svg"),
            "Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody (dotted) is the frontier keystone."))
@@ -114,7 +114,7 @@ body = body.replace("<p>[[[SVG-ADVERSARY]]]</p>",
            "The adversary, and the five paths to tenant B. Each attack route is closed by exactly one of the five isolation layers, so all five must hold."))
 body = body.replace("<p>[[[SVG-ISOLATION]]]</p>",
     figure(load_svg("section3_isolation_chain.svg"),
-           "The five-layer per-tenant isolation chain, all demonstrated on live EKS. An agent authenticated as tenant A is routed to its own server, handed only its own credential, run on its own executor pods, authorized only for itself, and prefix-scoped at storage; tenant B travels a fully separate lane, and cannot be reached by any path."))
+           "The five-layer per-tenant isolation chain, all demonstrated on live EKS, link by link. An agent authenticated as tenant A is routed to its own server, handed only its own credential, run on its own executor pods, authorized only for itself, and prefix-scoped at storage; tenant B travels a fully separate lane. (Proven per link; one request composing all five remains a seam, see §3.3.)"))
 body = body.replace("<p>[[[SVG-REPRODUCE]]]</p>",
     figure(load_svg("section3_reproduce_flow.svg"),
            "How to reproduce the five-layer stack, from SETUP.md. Once the prerequisites are in place, four sub-deployments run inside-out (storage first, ingress last): each column maps what you run to the layer it stands up to the proof log it writes. The five logs are the per-layer evidence cited in §3.3; one composed request through all five links remains the frontier."))

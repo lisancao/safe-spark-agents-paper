@@ -22,7 +22,9 @@ The five layers (outside-in), and where each is built:
 - The warehouse configs (`spike/eks/warehouse-tenant_*.aws.json`) carry `REPLACE-external-id`; set it to the
   **same value as `TF_VAR lakekeeper_external_id`** (the vending role's `sts:ExternalId` trust condition) or
   `AssumeRole` fails and no credential is vended.
-- The `spark-connect` image in ECR (Spark 4.1.2 + Iceberg 1.11.0). `export CONNECT_IMAGE=<ecr>/…`.
+- The `spark-connect` image in ECR (Spark 4.1.2 + Iceberg 1.11.0). Build and push it with
+  `deploy/eks/images/spark-connect/build.sh --push` (see `deploy/eks/RUNBOOK.md` §3 "Deployment order";
+  `build.sh` reads `INTERCEPTOR_JAR`/`IMAGE_TAG`, and the registry is part of `IMAGE_TAG`), then `export CONNECT_IMAGE=<ecr>/…`.
 - A Connect-layer CA + certs, issued with `../../auth/certs/issue-*.sh`:
   a gateway server cert and one client cert per tenant with URI-SAN `spiffe://safe-spark-agents/<tenant>`.
 - `kubectl` context on the cluster (via the bastion SSM tunnel), and a Python venv with

@@ -1,16 +1,20 @@
-# EKS Spark stack (Terraform) — `deploy/eks/terraform`
+# EKS Spark stack (Terraform), `deploy/eks/terraform`
 
-> **NOT APPLIED — review only.** This stack has been authored and statically validated
-> (`terraform fmt`, `terraform init -backend=false`, `terraform validate`) but **never
-> applied**. No AWS resources were created or mutated. See **Gates** below.
+> **APPLIED via reviewer-gated CI (2026-07-09).** This stack was applied through the gated
+> `eks-terraform-apply.yml` workflow (GitHub OIDC, S3-backed remote state), standing up the live
+> `ssa-spark-eks` cluster (Kubernetes 1.31, ~118 resources) that Section 3's isolation proof runs on;
+> provenance in `paper/notes/PLATFORM_LAB_NOTEBOOK.md` (entries W1/W2). Static checks
+> (`terraform fmt`, `terraform init -backend=false`, `terraform validate`) still gate every change.
+> **Caution:** a fresh `terraform apply` creates real, billable AWS infrastructure (EKS, NAT, RDS,
+> S3); `terraform destroy` tears it down to stop the meter.
 
-Kubernetes-native **production** target for the OSS Spark stack — chosen over EMR so the
+Kubernetes-native **production** target for the OSS Spark stack, chosen over EMR so the
 team owns the Spark version (**4.1 now, 4.2 soon**; the engine version lives in the Spark
 Connect / executor container images, not in this infra). This stack stands up:
 
 - an **EKS** cluster (private API by default, OIDC/IRSA enabled),
 - a **fresh VPC** (2 private + 2 public subnets, 2 AZs, IGW, single NAT),
-- two **managed node groups** — a small on-demand *system* pool and a taint-isolated,
+- two **managed node groups**, a small on-demand *system* pool and a taint-isolated,
   scalable *executor* pool,
 - **IRSA** roles for the Spark driver/executor SA and the Hive Metastore SA,
 - a **durable Hive Metastore** backing DB on **RDS PostgreSQL** (private, Multi-AZ),
@@ -93,7 +97,7 @@ does; driver/HMS/system pods stay on the untainted system pool.
 
 ## Init (partial S3 backend)
 
-The `backend "s3" {}` block in `versions.tf` is intentionally empty — pass the
+The `backend "s3" {}` block in `versions.tf` is intentionally empty, pass the
 environment specifics at init time:
 
 ```bash
@@ -139,7 +143,7 @@ The API is **private by default**. Pick one path:
    aws ssm start-session --target <bastion_instance_id> --profile ssa-deploy
    # then run update-kubeconfig from the bastion, or set up an SSM port-forward to :443.
    ```
-2. **AWS Client VPN (recommended at team scale — reuse the B1 pattern).** Associate a
+2. **AWS Client VPN (recommended at team scale, reuse the B1 pattern).** Associate a
    Client VPN endpoint with the private subnets, push routes to the VPC CIDR, then run
    `update-kubeconfig` from your laptop while connected. Not provisioned here (it needs
    ACM server/client certs); add it as a sibling stack or extend B1's VPN to this VPC.
@@ -160,7 +164,7 @@ kubectl get nodes
 terraform destroy -var-file=terraform.tfvars
 ```
 
-Prod-safety defaults will block a clean destroy on purpose — flip these first if you
+Prod-safety defaults will block a clean destroy on purpose, flip these first if you
 really mean it:
 
 - `rds_deletion_protection = false` and `rds_skip_final_snapshot = true` (or keep the
@@ -194,7 +198,7 @@ entirely.
 - **Managed node groups over Karpenter.** Fully declarative in Terraform with no
   in-cluster controller to bootstrap (no Helm/CRD dependency in the IaC), which is the
   simpler, more reproducible first prod stand-up. Karpenter can be layered on later for
-  finer-grained executor bin-packing — the executor pool's taint/label contract stays
+  finer-grained executor bin-packing, the executor pool's taint/label contract stays
   the same. The executor group already scales `min=0..max=10`.
 - **Fresh VPC, variabilized.** Default path; a documented `data.tf` alternative reuses
   an existing VPC (e.g. B1's) if the team prefers one network.
@@ -202,7 +206,7 @@ entirely.
   Terraform and written only to Secrets Manager (and the *remote, encrypted* S3 state).
   No password is emitted as an output. `terraform.tfvars` is git-ignored.
 
-## Gates (run; not applied)
+## Gates (static checks on every change)
 
 ```bash
 terraform fmt -recursive
@@ -210,4 +214,6 @@ terraform init -backend=false
 terraform validate
 ```
 
-All three pass. Apply is intentionally **not** run here.
+All three pass and gate every change. **Apply** is not run ad-hoc from a workstation: it goes through
+the reviewer-gated `eks-terraform-apply.yml` CI workflow (GitHub OIDC, S3-backed remote state), which
+applied this stack on 2026-07-09 to produce the live `ssa-spark-eks` cluster (`paper/notes/PLATFORM_LAB_NOTEBOOK.md`, W1/W2).

@@ -1,6 +1,6 @@
 <svg width="100%" viewBox="0 0 680 340" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Cost of SDP relative to imperative: conciseness and tokens</title>
-<desc>Arm B (SDP) expressed as a percentage of arm A (imperative, = 100%). Median lines of code: 51% (134 to 68). Median AST nodes: 56% (1106 to 615). Median tokens: 230% (11.5k to 26.5k). SDP writes about half the code but spends roughly 2.3 times the tokens.</desc>
+<desc>Arm B (SDP) expressed as a percentage of arm A (imperative, = 100%). Mean lines of code: 51% (134 to 68). Mean AST nodes: 56% (1106 to 615). Median tokens: 230% (11.5k to 26.5k). SDP writes about half the code but spends roughly 2.3 times the tokens.</desc>
 <style>
   text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .ts{font-size:12px;fill:#5c6b66}
