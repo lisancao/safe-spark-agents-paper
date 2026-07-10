@@ -147,7 +147,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     the open governed platform, and fleet orchestration.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-07</span><span>·</span>
-    <span class="k">git 0f2c929</span><span>·</span>
+    <span class="k">git 92a75ff</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -195,7 +195,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <a class="l2" href="#30-the-separation-of-concerns-the-boundary-this-section-draws">3.0 The separation of concerns (the boundary this section draws)</a>
 <a class="l2" href="#31-gitops-ci-integration-boundary-tested-integration-not-blind-submission">3.1 GitOps / CI integration boundary: tested integration, not blind submission</a>
 <a class="l2" href="#32-connect-on-kubernetes-scale-connect-is-the-governed-ingress-k8s-is-the-horsepower">3.2 Connect-on-Kubernetes scale: Connect is the governed ingress; k8s is the horsepower</a>
-<a class="l2" href="#33-tenant-governance-the-named-multi-tenancy-frontier">3.3 Tenant governance: the named multi-tenancy frontier</a>
+<a class="l2" href="#33-tenant-governance-the-multi-tenancy-stack-built-and-demonstrated">3.3 Tenant governance: the multi-tenancy stack, built and demonstrated</a>
 <a class="l2" href="#34-evidence-tiering">3.4 Evidence tiering</a>
 <a class="l2" href="#35-what-3-unlocks-4-omnigent">3.5 What §3 unlocks → §4 (Omnigent)</a>
 <a class="l1" href="#section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering"><span class="dot stub"></span><span>SECTION 4, Omnigent: Governed Multi-Agent Orchestration for Data Engineering</span></a>
@@ -1510,8 +1510,8 @@ not a finished production system (that is Section 3).</p>
 <td>the governance boundary (that stays at the Connect ingress)</td>
 </tr>
 <tr>
-<td><strong>Catalog</strong> <em>(operator brings; e.g. Unity-Catalog-class, not part of the demonstrated open stack)</em></td>
-<td>tenant governance: authorization, grants, isolation</td>
+<td><strong>Catalog</strong> <em>(governed Iceberg-REST; demonstrated with Lakekeeper + OpenFGA, vendor-neutral)</em></td>
+<td>tenant governance: per-principal authorization, grants, credential vending + isolation</td>
 <td>being reinvented by SDP or GitOps</td>
 </tr>
 </tbody>
@@ -1578,7 +1578,8 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <li><strong>CONFIGURED-BUT-UNREPRODUCED:</strong> elastic <strong>0→10 executor</strong> scale-up/down (dynamic allocation is enabled, but no captured 0→N→0 cycle); <strong>no Cluster Autoscaler/Karpenter committed</strong>, so node-level autoscaling is unshown <code>[connect/base/deployment.yaml; terraform/README.md]</code>.</li>
 <li><strong>DESIGN-ONLY:</strong> multiple / per-tenant Connect servers, today a <strong>singleton</strong> (<code>replicas:1</code>, session affinity) <code>[connect/base/deployment.yaml]</code>. <em>(The Terraform substrate is now applied + CI-gated as of 2026-07-09; only the multi-server topology remains design-only.)</em></li>
 </ul>
-<h2 id="33-tenant-governance-the-named-multi-tenancy-frontier">3.3 Tenant governance: <em>the named multi-tenancy frontier</em></h2>
+<h2 id="33-tenant-governance-the-multi-tenancy-stack-built-and-demonstrated">3.3 Tenant governance: <em>the multi-tenancy stack, built and demonstrated</em></h2>
+<p><strong>The stack at a glance</strong> (see <code>paper/figures/isolation-architecture.html</code>). Confining one tenant's agent from another's data is not a single control but a <em>chain</em> of five, each owned by a different layer and each independently defeatable, so all five must hold. From the outside in: an <strong>mTLS gateway</strong> routes a request to a server by the <em>authenticated</em> principal on its client certificate; a <strong>per-tenant Connect server</strong> injects only that tenant's catalog token, so the agent never holds a credential it could redirect; the tenant's <strong>own executor pods</strong> run the work, never sharing a JVM with another tenant; the <strong>governed catalog</strong> (Lakekeeper + OpenFGA) authorizes credential requests per principal; and the <strong>vended credential</strong> is prefix-scoped at storage as a final backstop. An agent authenticated as tenant A is therefore routed to tenant-A's server, handed tenant-A's token, run on tenant-A's executors, authorized at the catalog only for tenant-A, and prefix-scoped at storage: it cannot address, be handed, or execute against tenant B by any path. The rest of this section walks the chain link by link; all five links run on a live EKS cluster today, and only scaling past two tenants remains open.</p>
 <p><strong>Where enforcement ends in the default open stack (the baseline this section then closes, layer by layer, below).</strong> Identity is strong at the door but not downstream. Envoy pins an unspoofable principal from the client cert SAN and the interceptor rejects a mismatched <code>user_id</code> <code>[connect/base/envoy/envoy.yaml; deploy/auth/interceptor/.../PrincipalPinningInterceptor.java]</code>: the platform <em>knows</em> who each session is. But <strong>authorization is fleet-scoped</strong>: a single shared Iceberg catalog and one fleet-wide cloud IAM role (via IRSA, <em>IAM Roles for Service Accounts</em>) with read/write to the entire warehouse <code>[images/spark-connect/conf/spark-defaults.template.conf; terraform/irsa.tf]</code>. Per-principal schema isolation (a <code>sandbox_&lt;principal&gt;</code> naming scheme) exists only <strong>by convention, not enforcement</strong> <code>[RUNBOOK.md]</code>, and the open-source Hive Metastore and Iceberg catalog (OSS HMS/Iceberg) <strong>cannot express per-user grants</strong> at all; the repo states this outright and does not claim it <code>[deploy/auth/README.md]</code>. Execution is shared too: one long-lived driver, shared executors, no per-tenant pool <code>[connect/base/deployment.yaml]</code>.</p>
 <p><strong>Multi-tenancy: the full per-tenant isolation path is now demonstrated end-to-end on live EKS (mTLS ingress routing by principal, per-tenant Connect servers with token custody, per-tenant execution isolation, per-principal catalog authorization, and storage-scoped credentials); only multi-tenant <em>scale</em> (many tenants + node autoscaling) remains frontier.</strong>
 1. <strong>Catalog credential vending + per-tenant storage scoping: DEMONSTRATED (Lakekeeper).</strong> Per-tenant grants + credential vending belong in a governed catalog, not reinvented in SDP or CI. We brought one (<strong>Lakekeeper</strong>, vendor-neutral) and demonstrated it on live EKS: per-tenant, prefix-scoped vended credentials enforce cross-tenant <code>AccessDenied</code> at storage, both directions, <strong>keylessly</strong> (IRSA assumes a downscoping STS role, external-id-pinned). The executor uses the scoped vend for all warehouse I/O (CloudTrail: every warehouse object call is under the vended session; the fleet IRSA role makes <strong>zero</strong>), and that same vended credential is denied cross-tenant when exercised against the other prefix, with the full-bucket fleet role present but unused for data. That denial, caused by the downscoping vend rather than the base policy, is the load-bearing result. OSS HMS/Iceberg still can't express per-user grants at all; the governed Iceberg-REST catalog is what makes even the storage-scoping enforceable.
@@ -1620,7 +1621,7 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 </tbody>
 </table></div>
 <h2 id="35-what-3-unlocks-4-omnigent">3.5 What §3 unlocks → §4 (Omnigent)</h2>
-<p>The governed, scalable, integrable substrate is the precondition for the agent <em>orchestration</em> layer, <strong>Section 4 (Omnigent)</strong>: a concrete thesis with a demonstrated core, whose governance pillar depends on the multi-tenancy frontier above (per-tenant authorization + isolation).</p>
+<p>The governed, scalable, integrable substrate is the precondition for the agent <em>orchestration</em> layer, <strong>Section 4 (Omnigent)</strong>: a concrete thesis with a demonstrated core, whose governance pillar rests on the multi-tenancy stack demonstrated above (per-principal routing, token custody, execution isolation, catalog authorization, and storage scoping). §3 proves the <em>mechanism</em> per tenant; §4 is what operates it across a <em>fleet</em> of agents at scale, holding credential custody so each agent stays credential-free.</p>
 <hr />
 <h1 id="section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering" class="section">SECTION 4, Omnigent: Governed Multi-Agent Orchestration for Data Engineering <span class="badge stub" title="thesis locked · numbers out of scope">Stub</span></h1>
 <h3 id="an-orchestration-layer-for-a-fleet-of-governed-agents">An orchestration layer for a fleet of governed agents</h3>
