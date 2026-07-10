@@ -166,11 +166,17 @@ closed. Full log: `paper/notes/proof_2026-07-09_airtight_13of13.log`.
   *both* tenants' prefixes → confirms the base identity CAN cross tenants, so the cross-tenant `AccessDenied` on
   the vended path is caused by the **downscoping vend**, not the base policy. The vend is load-bearing.
 
-**Net result (the frontier claim, airtight):** on live EKS, three distinct executor pods run each tenant's write
-via a Lakekeeper-vended, prefix-scoped credential and are **denied at S3 cross-tenant, both directions**
-(`AccessDenied` A→B and B→A), while each tenant reads/writes its own — and the ablation shows a full-bucket
-credential would have crossed freely. **Still frontier:** per-tenant *execution* isolation (the same shared
-executor pods served both tenants sequentially; dedicated per-tenant pools/servers need multi-server Connect
+**Net result (the frontier claim, stated precisely).** Two evidence channels, kept distinct: (1) the Spark UI
+shows each tenant's write, an 8-partition shuffle, fanning out to **three distinct executor pods**; (2) CloudTrail
+shows all cluster-side warehouse FileIO went through the **tenant-scoped vend** (fleet IRSA role: 0 warehouse
+data calls). The **cross-tenant deny** (`AccessDenied` A→B and B→A, read and write) is observed by **replaying
+that same vended credential** against the other prefix, not by a pod being refused in-cluster; the ablation shows
+a full-bucket credential would have crossed freely, so the deny is the downscoping vend. What this demonstrates
+is **per-tenant DATA isolation / credential scoping at storage**, NOT principal-gated confinement: the harness
+runs one session pinned to `tenant_a` and reuses it for both tenants, so that session freely obtains tenant_b's
+vended credential (the catalog vends by warehouse address, not by pinned principal). **Still frontier:**
+per-principal authorization (the principal→tenant binding = §4 custody), and per-tenant *execution* isolation
+(the same shared executor pods served both tenants sequentially; dedicated per-tenant pools/servers need multi-server Connect
 orchestration) and multi-tenant scale (P6). Harness: `scratchpad/run_proof2.sh` (Connect gRPC + Spark-UI 4040
 port-forwards, `SPARK_DRIVER_UI=localhost:4041`); secrets stay in scratchpad, never committed.
 
