@@ -64,7 +64,10 @@ main{padding:30px 0 90px;min-width:0}
 .reading-map b{font-family:var(--sans);font-weight:600;font-size:12px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--accent);display:block;margin-bottom:6px}
 .reading-map p{margin:.4em 0}
-.reading-map .pill{font-family:var(--sans);font-size:12px;font-weight:500;padding:1px 7px;border-radius:20px;white-space:nowrap}
+.reading-map ol.arc{margin:.7em 0 .9em;padding-left:1.4em;display:flex;flex-direction:column;gap:.55em}
+.reading-map ol.arc li{padding-left:.2em;line-height:1.5}
+.reading-map ol.arc li::marker{color:var(--accent);font-family:var(--sans);font-weight:700}
+.reading-map .pill{display:inline-block;margin:2px 4px 2px 0;font-family:var(--sans);font-size:12px;font-weight:500;padding:1px 7px;border-radius:20px;white-space:nowrap}
 .pill.done{color:var(--done);background:var(--done-bg)}
 .pill.scaffold{color:var(--scaffold);background:var(--scaffold-bg)}
 .pill.stub{color:var(--stub);background:var(--stub-bg)}
@@ -143,11 +146,12 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <header class="masthead"><div class="inner">
   <p class="eyebrow">Working paper · internal</p>
   <h1 class="title">Safe, Governed AI Data Engineering on Spark</h1>
-  <p class="sub">A four-part working paper: the imperative-vs-SDP safety study, the control boundary,
-    the open governed platform, and fleet orchestration.</p>
+  <p class="sub">Can you let an AI agent write your production data pipelines without trusting it? This paper
+    measures the risk, draws the boundary that makes an agent safe to run untrusted, and builds an open
+    platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
-    <span class="k">Updated 2026-07-07</span><span>·</span>
-    <span class="k">git cc5f8f9</span><span>·</span>
+    <span class="k">Updated 2026-07-10</span><span>·</span>
+    <span class="k">git d251bc6</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -191,7 +195,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <a class="l2" href="#9-what-the-boundary-unlocks-section-3-the-open-reference-architecture">9. What the boundary unlocks → Section 3 (the open reference architecture)</a>
 <a class="l2" href="#10-honesty-notes">10. Honesty notes</a>
 <a class="l2" href="#11-reference-architecture-invariants-demonstration-layers">11. Reference architecture, invariants &amp;amp; demonstration layers</a>
-<a class="l1" href="#section-3-the-open-reference-architecture"><span class="dot scaffold"></span><span>SECTION 3: The Open Reference Architecture</span></a>
+<a class="l1" href="#section-3-the-open-reference-architecture"><span class="dot done"></span><span>SECTION 3: The Open Reference Architecture</span></a>
 <a class="l2" href="#30-the-separation-of-concerns-the-boundary-this-section-draws">3.0 The separation of concerns (the boundary this section draws)</a>
 <a class="l2" href="#31-gitops-ci-integration-boundary-tested-integration-not-blind-submission">3.1 GitOps / CI integration boundary: tested integration, not blind submission</a>
 <a class="l2" href="#32-connect-on-kubernetes-scale-connect-is-the-governed-ingress-k8s-is-the-horsepower">3.2 Connect-on-Kubernetes scale: Connect is the governed ingress; k8s is the horsepower</a>
@@ -210,18 +214,37 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 </nav></aside>
   <main>
     <div class="reading-map">
-      <b>How to read this</b>
-      <p>Start with <b style="display:inline;text-transform:none;letter-spacing:0;font-size:inherit">Section&nbsp;1</b>: it is the finished, powered study; that is where the evidence lives.
-         Maturity is flagged on every section header and in the contents rail:</p>
-      <p><span class="pill done">Section 1: complete</span> &nbsp;
-         <span class="pill done">Section 2: demonstrated to L3</span> &nbsp;
-         <span class="pill scaffold">Section 3: scaffold</span> &nbsp;
-         <span class="pill stub">Section 4: stub</span> &nbsp;
-         <span class="pill ref">Appendices: reference specs</span></p>
-      <p>Read §1→§2 as results, §3 as a locked north-star with honest gaps, §4 as a thesis. The two
-         appendices are executable reference targets: skim unless you are building against them.</p>
+      <b>What this is, in one minute</b>
+      <p>AI coding agents now write real data pipelines. The failure that matters is not a crash, it is a
+         pipeline that runs green and <em>silently corrupts the data</em>. So: can you get the productivity of an
+         agent writing your pipelines <em>without trusting the agent</em>? This paper answers in four parts, building
+         from a measurement to a running system.</p>
+      <ol class="arc">
+        <li><b>Section&nbsp;1: the risk, measured.</b> A controlled, pre-registered study (528 runs) of the
+           same agent writing pipelines two ways: free-form imperative code, versus a declarative framework (SDP).
+           The declarative dry-run catches <b>79</b> structural defects before any data moves; imperative catches
+           <b>0</b>.</li>
+        <li><b>Section&nbsp;2: the safety boundary.</b> Why a declarative agent can be treated as <em>fully
+           untrusted</em>: it only ever emits an inert plan, never touching data or credentials, so it can be dropped
+           into a platform that trusts it with nothing.</li>
+        <li><b>Section&nbsp;3: the platform, built and demonstrated.</b> An open, governed stack (Spark Connect
+           + Kubernetes + a governed catalog) that isolates every tenant from every other. Five isolation layers,
+           <em>all demonstrated on a live EKS cluster</em>: an agent authenticated as tenant&nbsp;A cannot reach
+           tenant&nbsp;B by any path, it is routed to its own server, handed only its own credential, run on its
+           own compute, authorized only for itself, and prefix-scoped at storage.</li>
+        <li><b>Section&nbsp;4: running it at fleet scale.</b> The orchestration layer that holds credentials so
+           the agent never sees one. A thesis with a demonstrated core; the quantitative fleet study is future work.</li>
+      </ol>
+      <p style="margin-bottom:6px"><b>Maturity</b>, flagged on every section header:
+         <span class="pill done">§1 complete</span>
+         <span class="pill done">§2 demonstrated</span>
+         <span class="pill done">§3 demonstrated on live EKS</span>
+         <span class="pill stub">§4 thesis + core</span>
+         <span class="pill ref">appendices: reference specs</span></p>
+      <p><b>Where to start:</b> §1 for the evidence, §3 for the architecture and the live isolation proof (see its
+         diagram). The two appendices are executable reference targets, skim unless you are building against them.</p>
     </div>
-    <h1 id="section-1-imperative-vs-sdp" class="section">SECTION 1: Imperative vs SDP <span class="badge done" title="powered run · results bound">Complete</span></h1>
+    <h1 id="section-1-imperative-vs-sdp" class="section">SECTION 1: Imperative vs SDP <span class="badge done" title="powered study · results bound">Complete</span></h1>
 <h3 id="a-safety-and-cost-study-of-ai-agents-writing-spark-pipelines">A Safety-and-Cost Study of AI Agents Writing Spark Pipelines</h3>
 <h2 id="abstract">Abstract</h2>
 <p>AI coding agents are increasingly trusted to author production data pipelines, where the failure that matters is rarely a crash but a <em>silent defect</em>: a job that runs to completion, passes its checks, and ships subtly wrong data. We ask whether the authoring <strong>paradigm</strong> an agent is given changes how safely it writes Spark pipelines, and at what cost. In a controlled study we hold the model, task corpus, seeds, prompt, and decoding fixed and vary only the paradigm across two arms: <strong>A</strong>, bare imperative PySpark, and <strong>B</strong>, Spark Declarative Pipelines (SDP) with its intrinsic structural dry-run and an API skill. Across 528 runs (22 tasks × 12 seeds × 2 arms; N = 264 per arm, statistically powered), SDP's dry-run intercepts <strong>79</strong> structural defects before any data is processed, against <strong>0</strong> for imperative, which surfaces the same faults only at runtime. SDP's agent also writes roughly <strong>half the code</strong> (−49% lines, −44% AST) at about <strong>2.3× the tokens</strong>, with comparable task completion. On a real EKS Spark-Connect cluster we also measure data-processing compute: because the dry-run rejects a broken pipeline before any executor starts, SDP is <em>categorically incapable</em> of burning cluster compute on a bad pipeline; imperative spends roughly <strong>34× the total compute</strong> (about <strong>1000×</strong> on failed attempts), executing pipelines that only then fail. A raw silent-defect gap that appears to favor imperative proves, under a controlled skill-swap, to be <em>skill-induced</em> rather than paradigm-inherent: its main driver, timezone/day-bucket errors, collapses <strong>from 7 to 0</strong> once the SDP skill teaches a UTC idiom. We conclude that declarative structure buys an early, real safety margin on structural faults and does not, by itself, make an agent less safe on semantic ones, provided it is paired with a paradigm-matched skill.</p>
@@ -1165,7 +1188,7 @@ Analysis: <code>python3 analysis/analyze.py &lt;out.jsonl&gt; --tasks TASKS.lock
 <h3 id="sm77-execution-run-triggering">SM7.7 Execution / run-triggering</h3>
 <p>Launched via <code>python3 harness/runner.py</code> with <code>--backend {replay,live,local}</code>, <code>--config study.config.json</code>, <code>--arms-dir</code>, <code>--tasks</code>, <code>--seeds</code>, <code>--only-arms</code>, <code>--only-tasks</code>, <code>--max-seeds</code>, <code>--out &lt;jsonl&gt;</code>, <code>--work-dir</code>, <code>--per-cell-timeout</code> (<code>runner.py:1321-1344</code>). Backends: <strong>replay</strong> (offline deterministic, no LLM/Spark, needs a recorded trace), <strong>live</strong> (Anthropic + Spark Connect, needs a reachable endpoint + <code>ANTHROPIC_API_KEY</code>), <strong>local</strong> (real local Spark, paradigm-split). Outputs: one JSONL row per cell to <code>--out</code>, transcripts to <code>--work-dir</code>; <code>analysis/analyze.py &lt;out&gt; --tasks TASKS.lock.json</code> aggregates to <code>report.json</code>. Each row is stamped with provenance: <code>git_sha</code>, <code>image_digest</code>, <code>spark_version</code>, <code>base_model_id</code>, which is how instrument-version contamination (§SM6.4) is detectable. Literal commands in §SM6.8.</p>
 <hr />
-<h1 id="section-2-the-agent-native-development-loop" class="section">SECTION 2: The Agent-Native Development Loop <span class="badge done" title="control boundary to L3">Demonstrated</span></h1>
+<h1 id="section-2-the-agent-native-development-loop" class="section">SECTION 2: The Agent-Native Development Loop <span class="badge done" title="the agent-safety boundary">Demonstrated</span></h1>
 <h3 id="the-control-boundary-separating-authoring-from-execution">The Control Boundary: separating <em>authoring</em> from <em>execution</em></h3>
 <p>Section 1 showed that a declarative agent writes safer and far more concise pipelines. This section asks the architectural question that follows: <strong>if the agent only ever emits inert desired-state and never holds a live session, can we let it work <em>inside</em> a production data platform safely?</strong></p>
 <p>The answer is a <strong>control boundary</strong> that separates <em>authoring</em> from <em>execution</em>. The agent proposes desired state; a governed system validates it with a structural dry-run (before any data) and executes it; the agent never holds a session, credentials, or touches data. The dev loop, <strong>propose → dry-run gate → reconcile/execute</strong>, <em>is</em> that boundary; declarative pipelines make it expressible, and Spark Connect enforces it.</p>
@@ -1410,7 +1433,7 @@ native-mTLS de-risking (paper-cheap, no cluster); L6 needs capturing as a clean 
 control boundary as <em>architecturally sound and demonstrated across hosts up to L3</em>, with L5 (governance split) the named gap, 
 not a finished production system (that is Section 3).</p>
 <hr />
-<h1 id="section-3-the-open-reference-architecture" class="section">SECTION 3: The Open Reference Architecture <span class="badge scaffold" title="north-star locked · honest gaps">Scaffold</span></h1>
+<h1 id="section-3-the-open-reference-architecture" class="section">SECTION 3: The Open Reference Architecture <span class="badge done" title="5-layer per-tenant isolation, live on EKS">Demonstrated</span></h1>
 <h3 id="integrable-scalable-agent-data-engineering-on-spark-connect-kubernetes">Integrable, Scalable Agent Data Engineering on Spark Connect + Kubernetes</h3>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 512" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Section 3: the open governed reference architecture</title>
@@ -1635,7 +1658,7 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <h2 id="35-what-3-unlocks-4-omnigent">3.5 What §3 unlocks → §4 (Omnigent)</h2>
 <p>The governed, scalable, integrable substrate is the precondition for the agent <em>orchestration</em> layer, <strong>Section 4 (Omnigent)</strong>: a concrete thesis with a demonstrated core, whose governance pillar rests on the multi-tenancy stack demonstrated above (per-principal routing, token custody, execution isolation, catalog authorization, and storage scoping). §3 proves the <em>mechanism</em> per tenant; §4 is what operates it across a <em>fleet</em> of agents at scale, holding credential custody so each agent stays credential-free.</p>
 <hr />
-<h1 id="section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering" class="section">SECTION 4, Omnigent: Governed Multi-Agent Orchestration for Data Engineering <span class="badge stub" title="thesis locked · numbers out of scope">Stub</span></h1>
+<h1 id="section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering" class="section">SECTION 4, Omnigent: Governed Multi-Agent Orchestration for Data Engineering <span class="badge stub" title="pattern demonstrated · fleet study out of scope">Thesis + core</span></h1>
 <h3 id="an-orchestration-layer-for-a-fleet-of-governed-agents">An orchestration layer for a fleet of governed agents</h3>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 452" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Section 4: Omnigent governed multi-agent orchestration</title>

@@ -25,10 +25,10 @@ def git_short():
 
 # --- section maturity (matched by leading text of each top-level heading) ---
 MATURITY = [
-    ("SECTION 1", "Complete", "powered run · results bound", "done"),
-    ("SECTION 2", "Demonstrated", "control boundary to L3", "done"),
-    ("SECTION 3", "Scaffold", "north-star locked · honest gaps", "scaffold"),
-    ("SECTION 4", "Stub", "thesis locked · numbers out of scope", "stub"),
+    ("SECTION 1", "Complete", "powered study · results bound", "done"),
+    ("SECTION 2", "Demonstrated", "the agent-safety boundary", "done"),
+    ("SECTION 3", "Demonstrated", "5-layer per-tenant isolation, live on EKS", "done"),
+    ("SECTION 4", "Thesis + core", "pattern demonstrated · fleet study out of scope", "stub"),
     ("Appendix S2-A", "Reference spec", "executable target (SSOT)", "ref"),
     ("Appendix S3-A", "Reference spec", "executable target (SSOT)", "ref"),
 ]
@@ -194,7 +194,10 @@ main{padding:30px 0 90px;min-width:0}
 .reading-map b{font-family:var(--sans);font-weight:600;font-size:12px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--accent);display:block;margin-bottom:6px}
 .reading-map p{margin:.4em 0}
-.reading-map .pill{font-family:var(--sans);font-size:12px;font-weight:500;padding:1px 7px;border-radius:20px;white-space:nowrap}
+.reading-map ol.arc{margin:.7em 0 .9em;padding-left:1.4em;display:flex;flex-direction:column;gap:.55em}
+.reading-map ol.arc li{padding-left:.2em;line-height:1.5}
+.reading-map ol.arc li::marker{color:var(--accent);font-family:var(--sans);font-weight:700}
+.reading-map .pill{display:inline-block;margin:2px 4px 2px 0;font-family:var(--sans);font-size:12px;font-weight:500;padding:1px 7px;border-radius:20px;white-space:nowrap}
 .pill.done{color:var(--done);background:var(--done-bg)}
 .pill.scaffold{color:var(--scaffold);background:var(--scaffold-bg)}
 .pill.stub{color:var(--stub);background:var(--stub-bg)}
@@ -275,10 +278,11 @@ DOC = f"""{CSS}
 <header class="masthead"><div class="inner">
   <p class="eyebrow">Working paper · internal</p>
   <h1 class="title">Safe, Governed AI Data Engineering on Spark</h1>
-  <p class="sub">A four-part working paper: the imperative-vs-SDP safety study, the control boundary,
-    the open governed platform, and fleet orchestration.</p>
+  <p class="sub">Can you let an AI agent write your production data pipelines without trusting it? This paper
+    measures the risk, draws the boundary that makes an agent safe to run untrusted, and builds an open
+    platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
-    <span class="k">Updated 2026-07-07</span><span>·</span>
+    <span class="k">Updated 2026-07-10</span><span>·</span>
     <span class="k">git {git_short()}</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
@@ -293,16 +297,35 @@ DOC = f"""{CSS}
   <aside class="rail"><h2>Contents</h2>{toc_html}</aside>
   <main>
     <div class="reading-map">
-      <b>How to read this</b>
-      <p>Start with <b style="display:inline;text-transform:none;letter-spacing:0;font-size:inherit">Section&nbsp;1</b>: it is the finished, powered study; that is where the evidence lives.
-         Maturity is flagged on every section header and in the contents rail:</p>
-      <p><span class="pill done">Section 1: complete</span> &nbsp;
-         <span class="pill done">Section 2: demonstrated to L3</span> &nbsp;
-         <span class="pill scaffold">Section 3: scaffold</span> &nbsp;
-         <span class="pill stub">Section 4: stub</span> &nbsp;
-         <span class="pill ref">Appendices: reference specs</span></p>
-      <p>Read §1→§2 as results, §3 as a locked north-star with honest gaps, §4 as a thesis. The two
-         appendices are executable reference targets: skim unless you are building against them.</p>
+      <b>What this is, in one minute</b>
+      <p>AI coding agents now write real data pipelines. The failure that matters is not a crash, it is a
+         pipeline that runs green and <em>silently corrupts the data</em>. So: can you get the productivity of an
+         agent writing your pipelines <em>without trusting the agent</em>? This paper answers in four parts, building
+         from a measurement to a running system.</p>
+      <ol class="arc">
+        <li><b>Section&nbsp;1: the risk, measured.</b> A controlled, pre-registered study (528 runs) of the
+           same agent writing pipelines two ways: free-form imperative code, versus a declarative framework (SDP).
+           The declarative dry-run catches <b>79</b> structural defects before any data moves; imperative catches
+           <b>0</b>.</li>
+        <li><b>Section&nbsp;2: the safety boundary.</b> Why a declarative agent can be treated as <em>fully
+           untrusted</em>: it only ever emits an inert plan, never touching data or credentials, so it can be dropped
+           into a platform that trusts it with nothing.</li>
+        <li><b>Section&nbsp;3: the platform, built and demonstrated.</b> An open, governed stack (Spark Connect
+           + Kubernetes + a governed catalog) that isolates every tenant from every other. Five isolation layers,
+           <em>all demonstrated on a live EKS cluster</em>: an agent authenticated as tenant&nbsp;A cannot reach
+           tenant&nbsp;B by any path, it is routed to its own server, handed only its own credential, run on its
+           own compute, authorized only for itself, and prefix-scoped at storage.</li>
+        <li><b>Section&nbsp;4: running it at fleet scale.</b> The orchestration layer that holds credentials so
+           the agent never sees one. A thesis with a demonstrated core; the quantitative fleet study is future work.</li>
+      </ol>
+      <p style="margin-bottom:6px"><b>Maturity</b>, flagged on every section header:
+         <span class="pill done">§1 complete</span>
+         <span class="pill done">§2 demonstrated</span>
+         <span class="pill done">§3 demonstrated on live EKS</span>
+         <span class="pill stub">§4 thesis + core</span>
+         <span class="pill ref">appendices: reference specs</span></p>
+      <p><b>Where to start:</b> §1 for the evidence, §3 for the architecture and the live isolation proof (see its
+         diagram). The two appendices are executable reference targets, skim unless you are building against them.</p>
     </div>
     {body}
   </main>
