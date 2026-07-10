@@ -1,0 +1,48 @@
+[harness] spark UI /applications -> HTTP 200
+== Lakekeeper vended-credential -> executor spike ==
+   spark   : sc://localhost:15100/;x-connect-principal=tenant_a;token=<PSK>;user_id=tenant_a
+   catalog : http://localhost:8181
+   s3      : 
+   mode    : TEST-only (eks)
+
+[wait] lakekeeper at http://localhost:8181/health ...
+[wait] lakekeeper up (200)
+[spark] connected; version=4.1.2
+[PASS] A.write: A: multi-partition Iceberg write+read via vended cred (8 partitions)  -- row_count=4000
+[PASS] A.executor: A: a SEPARATE executor ran the 8-partition write (>= 8 tasks)  -- 1 executor pod(s) ran 12 NEW tasks for this write; pod IPs=10.40.14.134
+[PASS] A.vend: A: catalog vends a temporary (session-token) credential  -- access-key-id=<KEY>... session-token=<PSK>
+[PASS] A.own: A: vended cred reads its OWN table object (positive control)  -- s3://ssa-spark-warehouse-<ACCT>/tenant_a/019f4aa9-cc7f-72e2-a6d9-b7be2e2f5e38/metadata/00001-019f4aa9-d03c-7100-aafc-2997ae86812a.gz.metadata.json
+[PASS] A.cross_read: A: vended cred DENIED reading other tenant (tenant_b/probe) at S3  -- AccessDenied
+[PASS] A.cross_write: A: vended cred DENIED writing other tenant's prefix at S3  -- AccessDenied
+[PASS] B.write: B: multi-partition Iceberg write+read via vended cred (8 partitions)  -- row_count=4000
+[PASS] B.executor: B: a SEPARATE executor ran the 8-partition write (>= 8 tasks)  -- 1 executor pod(s) ran 12 NEW tasks for this write; pod IPs=10.40.14.134
+[PASS] B.vend: B: catalog vends a temporary (session-token) credential  -- access-key-id=<KEY>... session-token=<PSK>
+[PASS] B.own: B: vended cred reads its OWN table object (positive control)  -- s3://ssa-spark-warehouse-<ACCT>/tenant_b/019f4aa9-dc05-73f2-8c23-d7e28d53dc6c/metadata/00001-019f4aa9-df17-7413-a6e9-74d7bb07be49.gz.metadata.json
+[PASS] B.cross_read: B: vended cred DENIED reading other tenant (tenant_a/probe) at S3  -- AccessDenied
+[PASS] B.cross_write: B: vended cred DENIED writing other tenant's prefix at S3  -- AccessDenied
+[PASS] ablation.broad_ambient: BROAD ambient cred SUCCEEDS on BOTH tenants' prefixes (=> the VEND is load-bearing)  -- cross-tenant read+write allowed with the whole-bucket credential
+
+[FRONTIER] per-principal authorization probe (session pinned 'tenant_a', target tenant 'tenant_b'):
+[FRONTIER]   catalog did NOT gate by principal: the 'tenant_a'-pinned session was handed tenant
+[FRONTIER]   'tenant_b''s vended credential AND read its table. Principal->tenant binding is not
+[FRONTIER]   enforced here (catalog vends by warehouse address); agent confinement = Section 4 custody, FRONTIER.
+
+================ SPIKE RESULTS ================
+  PASS  A.write              A: multi-partition Iceberg write+read via vended cred (8 partitions)
+  PASS  A.executor           A: a SEPARATE executor ran the 8-partition write (>= 8 tasks)
+  PASS  A.vend               A: catalog vends a temporary (session-token) credential
+  PASS  A.own                A: vended cred reads its OWN table object (positive control)
+  PASS  A.cross_read         A: vended cred DENIED reading other tenant (tenant_b/probe) at S3
+  PASS  A.cross_write        A: vended cred DENIED writing other tenant's prefix at S3
+  PASS  B.write              B: multi-partition Iceberg write+read via vended cred (8 partitions)
+  PASS  B.executor           B: a SEPARATE executor ran the 8-partition write (>= 8 tasks)
+  PASS  B.vend               B: catalog vends a temporary (session-token) credential
+  PASS  B.own                B: vended cred reads its OWN table object (positive control)
+  PASS  B.cross_read         B: vended cred DENIED reading other tenant (tenant_a/probe) at S3
+  PASS  B.cross_write        B: vended cred DENIED writing other tenant's prefix at S3
+  PASS  ablation.broad_ambient BROAD ambient cred SUCCEEDS on BOTH tenants' prefixes (=> the VEND is load-bearing)
+----------------------------------------------
+  13/13 checks passed
+
+  VERDICT: vended credential reaches the executor AND enforces per-tenant S3 isolation: YES
+EXIT=0

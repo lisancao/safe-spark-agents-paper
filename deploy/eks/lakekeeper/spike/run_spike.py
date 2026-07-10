@@ -213,39 +213,56 @@ def spark_session():
     raise RuntimeError(f"could not connect to Spark Connect at {SPARK_REMOTE}: {last}")
 
 
-def executor_ran_tasks():
-    """Prove a SEPARATE executor (not the driver) executed tasks, via the driver UI REST API.
-    Returns (ok, detail, total_non_driver_tasks).
+def _all_executors():
+    """Yield (app_id, executor_dict) for every non-driver executor across all app attempts, using
+    /allexecutors (which RETAINS removed executors + their historical totalTasks; dynamicAllocation
+    recycles them) and falling back to the active /executors view."""
+    st, apps = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications", timeout=8)
+    if st != 200 or not apps:
+        return
+    for app in apps:
+        app_id = app.get("id")
+        if not app_id:
+            continue
+        st, execs = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications/{app_id}/allexecutors", timeout=8)
+        if st != 200 or not isinstance(execs, list):
+            st, execs = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications/{app_id}/executors", timeout=8)
+        if st != 200 or not isinstance(execs, list):
+            continue
+        for e in execs:
+            if e.get("id") != "driver":
+                yield app_id, e
 
-    Robustness (2026-07-09): the Connect server runs with dynamicAllocation ON, so executors
-    are recycled after an idle timeout. We therefore query /allexecutors (which RETAINS removed
-    executors together with their historical totalTasks) rather than the /executors active view,
-    which can be empty by scrape time even though a separate executor genuinely ran the write.
-    We also scan ALL application attempts (there is normally one long-lived Connect app) and take
-    the max non-driver task count, so a stale/empty attempt at index 0 cannot mask the real one."""
+
+def snapshot_tasks():
+    """Map '<app>/<execId>' -> cumulative totalTasks for every non-driver executor. Take this RIGHT
+    BEFORE a write so executor_ran_tasks() can report the per-write DELTA rather than the shared
+    long-lived Connect app's lifetime total (which would double-count earlier tenants/probes)."""
+    snap = {}
     try:
-        st, apps = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications", timeout=8)
-        if st != 200 or not apps:
-            return False, f"applications API -> {st}", 0
-        best_tasks, best_detail = 0, "no non-driver executor recorded"
-        for app in apps:
-            app_id = app.get("id")
-            if not app_id:
-                continue
-            # /allexecutors includes REMOVED executors (with their totalTasks history);
-            # fall back to the active view if this build lacks the endpoint.
-            st, execs = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications/{app_id}/allexecutors", timeout=8)
-            if st != 200 or not isinstance(execs, list):
-                st, execs = http("GET", f"{SPARK_DRIVER_UI}/api/v1/applications/{app_id}/executors", timeout=8)
-            if st != 200 or not isinstance(execs, list):
-                continue
-            non_driver = [e for e in execs if e.get("id") != "driver"]
-            total_tasks = sum(e.get("totalTasks", 0) for e in non_driver)
-            if total_tasks > best_tasks:
-                hosts = ",".join(sorted({e.get("hostPort", "?") for e in non_driver}))
-                best_tasks = total_tasks
-                best_detail = f"{len(non_driver)} executor(s) host(s)={hosts} totalTasks={total_tasks} (app {app_id})"
-        return (best_tasks > 0), best_detail, best_tasks
+        for app_id, e in _all_executors():
+            snap[f"{app_id}/{e.get('id')}"] = e.get("totalTasks", 0)
+    except Exception:
+        pass
+    return snap
+
+
+def executor_ran_tasks(baseline=None):
+    """Prove a SEPARATE executor (not the driver) executed THIS write's tasks, via the driver UI REST
+    API. Given a baseline snapshot taken immediately before the write, count only the DELTA in
+    non-driver totalTasks and the distinct executor pods that ran new tasks -- so the number is
+    per-write, not the cumulative app-lifetime total. Returns (ok, detail, delta_non_driver_tasks)."""
+    baseline = baseline or {}
+    try:
+        delta_tasks, pods = 0, set()
+        for app_id, e in _all_executors():
+            d = e.get("totalTasks", 0) - baseline.get(f"{app_id}/{e.get('id')}", 0)
+            if d > 0:
+                delta_tasks += d
+                pods.add(e.get("hostPort", "?").split(":")[0])
+        if delta_tasks > 0:
+            return True, f"{len(pods)} executor pod(s) ran {delta_tasks} NEW tasks for this write; pod IPs={','.join(sorted(pods))}", delta_tasks
+        return False, "no non-driver executor ran new tasks for this write", 0
     except Exception as e:
         return False, f"driver UI unreachable: {e}", 0
 
@@ -272,6 +289,7 @@ def tenant_positive_write(spark, catalog):
 def run_tenant(spark, label, catalog, warehouse, own_ok_hint, other_seed_key):
     # --- write path (executor uses the vend); multi-partition to FORCE executor-side FileIO ---
     parts = 0
+    task_baseline = snapshot_tasks()   # per-write delta baseline (before this tenant's write)
     try:
         n, parts = tenant_positive_write(spark, catalog)
         record(f"{label}.write",
@@ -281,7 +299,7 @@ def run_tenant(spark, label, catalog, warehouse, own_ok_hint, other_seed_key):
         record(f"{label}.write", f"{label}: multi-partition Iceberg write+read via vended cred", False, str(e))
         return
 
-    ok, detail, ntasks = executor_ran_tasks()
+    ok, detail, ntasks = executor_ran_tasks(task_baseline)
     # Require a SEPARATE executor that ran MORE THAN ONE task -> the shuffle write genuinely fanned
     # out to executor-side FileIO (a driver-only path could not produce parts-many executor tasks).
     multi = ok and ntasks >= max(2, parts)
@@ -362,6 +380,38 @@ def ablation_broad_ambient():
                "BROAD ambient cred SUCCEEDS cross-tenant", False, str(e))
 
 
+def principal_gate_probe(spark):
+    """FRONTIER PROBE -- per-principal authorization. The Connect session is pinned to a SINGLE
+    principal (x-connect-principal / user_id; env PINNED_PRINCIPAL). We test whether the governed
+    catalog refuses to serve the OTHER tenant's warehouse to this pinned principal. Today's
+    fleet-scoped catalog vends by warehouse address, not by principal, so we EXPECT this to SUCCEED,
+    which LOCATES the frontier: binding principal->tenant (agent confinement) is credential custody,
+    delegated to Section 4/Omnigent, and is NOT enforced here. This is an observation, not a pass/
+    fail isolation check, so it is printed outside the X/Y tally and never affects the VERDICT."""
+    pinned = os.environ.get("PINNED_PRINCIPAL", "tenant_a")
+    other_wh, other_cat = ((WAREHOUSE_B, CATALOG_B) if pinned != WAREHOUSE_B else (WAREHOUSE_A, CATALOG_A))
+    got_cred = read_ok = False
+    detail = ""
+    try:
+        cred, _ = load_table_vended(other_wh, NS, TABLE)
+        got_cred = bool(cred.get("s3.session-token"))
+    except Exception as e:
+        detail += f"vend->{type(e).__name__}; "
+    try:
+        spark.table(f"{other_cat}.{NS}.{TABLE}").count()
+        read_ok = True
+    except Exception as e:
+        detail += f"spark-read->{type(e).__name__}"
+    not_gated = got_cred and read_ok
+    print(f"\n[FRONTIER] per-principal authorization probe (session pinned '{pinned}', target tenant '{other_wh}'):", flush=True)
+    if not_gated:
+        print(f"[FRONTIER]   catalog did NOT gate by principal: the '{pinned}'-pinned session was handed tenant\n"
+              f"[FRONTIER]   '{other_wh}''s vended credential AND read its table. Principal->tenant binding is not\n"
+              f"[FRONTIER]   enforced here (catalog vends by warehouse address); agent confinement = Section 4 custody, FRONTIER.", flush=True)
+    else:
+        print(f"[FRONTIER]   catalog GATED the cross-tenant request ({detail}) -- basis for a STRONGER per-principal claim.", flush=True)
+
+
 def main():
     print(f"== Lakekeeper vended-credential -> executor spike ==\n"
           f"   spark   : {SPARK_REMOTE}\n   catalog : {LAKEKEEPER_URL}\n   s3      : {S3_ENDPOINT}\n"
@@ -379,6 +429,7 @@ def main():
     run_tenant(spark, "A", CATALOG_A, WAREHOUSE_A, own_ok_hint=SEED_A_KEY, other_seed_key=SEED_B_KEY)
     run_tenant(spark, "B", CATALOG_B, WAREHOUSE_B, own_ok_hint=SEED_B_KEY, other_seed_key=SEED_A_KEY)
     ablation_broad_ambient()
+    principal_gate_probe(spark)
 
     # Placement verification (secondary; admin creds, not the tested path)
     if ADMIN_KEY and ADMIN_SECRET:

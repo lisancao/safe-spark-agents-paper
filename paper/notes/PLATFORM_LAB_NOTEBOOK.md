@@ -157,17 +157,17 @@ closed. Full log: `paper/notes/proof_2026-07-09_airtight_13of13.log`.
   `dynamicAllocation` ON, so executors recycle after an idle timeout, and run_spike queried the *active*
   `/executors` view (empty by scrape time) against a possibly-stale `apps[0]`. Fix (committed in
   `run_spike.py::executor_ran_tasks`): query **`/allexecutors`** (retains removed executors + their `totalTasks`
-  history) across **all** app attempts, take the max. Result: the 8-partition writes ran on **3 distinct executor
-  pods** — distinct pod IPs `10.40.14.134`, `10.40.19.60`, `10.40.22.221` — with non-driver `totalTasks` 38 (A)
-  and 50 (B). So the write genuinely fanned out to executor-side S3 FileIO on separate pods, each using the
-  tenant-scoped vend. The "distinct executor **pod**" wording is now **demonstrated**, not frontier.
+  history) across **all** app attempts. (First cut summed the *cumulative* `totalTasks` and reported "3 pods,
+  38/50 tasks"; the adversarial audit below caught that as a shared-app-lifetime artifact. Corrected to a
+  per-write **delta**, see the 2026-07-10 note.) The write runs on a **separate executor pod, not the driver**.
 - **`ablation.broad_ambient` (was FAIL → PASS).** The prior `NoSuchKey` was just an unseeded probe key. Seeded
   `tenant_a/probe` + `tenant_b/probe`; the broad `ssa-deploy` (whole-bucket) credential now **succeeds** on
   *both* tenants' prefixes → confirms the base identity CAN cross tenants, so the cross-tenant `AccessDenied` on
   the vended path is caused by the **downscoping vend**, not the base policy. The vend is load-bearing.
 
 **Net result (the frontier claim, stated precisely).** Two evidence channels, kept distinct: (1) the Spark UI
-shows each tenant's write, an 8-partition shuffle, fanning out to **three distinct executor pods**; (2) CloudTrail
+shows each tenant's write, an 8-partition shuffle, running on a **separate executor pod** (12-task per-write
+delta), not the driver; (2) CloudTrail
 shows all cluster-side warehouse FileIO went through the **tenant-scoped vend** (fleet IRSA role: 0 warehouse
 data calls). The **cross-tenant deny** (`AccessDenied` A→B and B→A, read and write) is observed by **replaying
 that same vended credential** against the other prefix, not by a pod being refused in-cluster; the ablation shows
@@ -190,3 +190,22 @@ not the executor's ambient fleet role. Full writeup: `paper/notes/cloudtrail_ven
   events were made under the **vended session**; cross-tenant `GetObject`+`PutObject` = `AccessDenied` both
   directions; own-tenant Get/Put/Head/List = OK; and the fleet role `ssa-spark-irsa-spark` made **0** warehouse
   data calls. Trail + delivery bucket kept up (cost is not a constraint).
+
+### Adversarial audit + hardening (2026-07-10)
+Ran a 32-agent adversarial audit (6 skeptic dimensions, each finding independently verified) against the
+isolation claim + its paper wording. Verdict: **keep the DEMONSTRATED tier; fix 4 real overclaims in the framing
+verbs** (all in the same few sentences). Applied, and where cheap, *closed* rather than reworded:
+1. **(major) credential-scoping, not agent-confinement.** The harness runs one session pinned to `tenant_a` and
+   reuses it for both tenants, so that session freely obtains `tenant_b`'s vended cred. What is demonstrated is
+   per-tenant DATA isolation / credential scoping at storage, not principal-gated confinement; the principal→
+   tenant binding is §4 custody. Split this everywhere in §3. **Closed** with an explicit `principal_gate_probe`:
+   the `tenant_a`-pinned session was handed `tenant_b`'s vended cred and read its table, so the frontier is now
+   empirically located, not just asserted.
+2. **(minor) denial locus.** Every cross-tenant `AccessDenied` is a boto3 replay of the vended cred, not an
+   executor pod refused in-cluster. Reworded.
+3. **(minor) two channels, not one run.** Spark UI (pod fan-out) and CloudTrail (vend-not-IRSA) are different
+   channels/runs; state them separately.
+4. **(minor) per-write vs cumulative task count.** `totalTasks` was a shared-app-lifetime counter; the "3 pods,
+   38/50" figure double-counted earlier tenants/probes. **Closed** with a per-write **delta** in
+   `executor_ran_tasks` (snapshot before/after the write): the honest number is **1 executor pod, 12 tasks per
+   write**. Paper corrected accordingly. Log: `paper/notes/proof_2026-07-10_delta_and_frontier.log`.
