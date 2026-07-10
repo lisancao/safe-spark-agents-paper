@@ -167,11 +167,11 @@ SECTIONS = [
       "<b>~half the code</b> (-49% lines) at ~2.3x tokens, comparable task completion",
       "the raw \"SDP looks less safe\" gap is <b>skill-induced</b>, not paradigm-inherent (timezone defects 7&rarr;0 once taught)",
       "528-run powered study, frozen instrument"]),
-    ("2", "section-2-the-agent-native-development-loop", "The safety boundary", "done", "Demonstrated",
-     "Why a declarative agent can be run fully untrusted, and the dev loop that follows.",
-     ["the agent emits only <b>inert desired-state</b>, never holds a session or a credential",
-      "so it can be treated as <b>fully untrusted</b>, the precondition for a governed platform",
-      "control boundary demonstrated to <b>L3</b>; dev&rarr;prod is a <b>one-URL change</b> (Spark Connect)"]),
+    ("2", "section-2-the-agent-native-development-loop", "The agent-native dev loop", "done", "Demonstrated",
+     "A new inner loop for agents, propose, gate, reconcile, that closes before any data; the control boundary that enables it is what lets the agent run fully untrusted.",
+     ["a new inner loop: <b>propose &rarr; dry-run gate &rarr; reconcile</b>, closing <b>before any data</b>, not the imperative write-run-find-out",
+      "the enabling boundary: the agent emits only <b>inert desired-state</b>, never a session or credential, so it can be run <b>fully untrusted</b>",
+      "demonstrated across hosts to <b>L3</b>; dev&rarr;prod is a <b>one-URL change</b> (Spark Connect)"]),
     ("3", "section-3-the-open-reference-architecture", "The platform, built and demonstrated", "done", "Demonstrated on live EKS",
      "An open governed stack that isolates every tenant from every other, proven layer by layer.",
      ["<b>five per-tenant isolation layers, all demonstrated on a live EKS cluster</b>",
@@ -390,7 +390,7 @@ DOC = f"""{CSS}
          from a measurement to a running system.</p>
       <ol class="arc">
         <li><b>The risk, measured</b> (§1): a controlled study of the same agent writing pipelines imperatively versus in a declarative framework (SDP).</li>
-        <li><b>The safety boundary</b> (§2): why a declarative agent, emitting only an inert plan and never touching data or credentials, can be run <em>fully untrusted</em>.</li>
+        <li><b>The agent-native dev loop</b> (§2): a new inner loop, propose, gate, reconcile, that closes <em>before any data</em>; the control boundary that enables it lets a declarative agent run <em>fully untrusted</em>.</li>
         <li><b>The platform, built and demonstrated</b> (§3): an open governed stack that isolates every tenant from every other, on a live cluster.</li>
         <li><b>Running it at fleet scale</b> (§4): orchestration that holds credentials so the agent never sees one.</li>
       </ol>
