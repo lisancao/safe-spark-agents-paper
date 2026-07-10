@@ -114,6 +114,9 @@ body = body.replace("<p>[[[SVG-ADVERSARY]]]</p>",
 body = body.replace("<p>[[[SVG-ISOLATION]]]</p>",
     figure(load_svg("section3_isolation_chain.svg"),
            "The five-layer per-tenant isolation chain, all demonstrated on live EKS. An agent authenticated as tenant A is routed to its own server, handed only its own credential, run on its own executor pods, authorized only for itself, and prefix-scoped at storage; tenant B travels a fully separate lane, and cannot be reached by any path."))
+body = body.replace("<p>[[[SVG-CUSTODY]]]</p>",
+    figure(load_svg("section3_credential_custody.svg"),
+           "Credential custody, the §3↔§4 line. The credential is vended by the catalog, held and injected by the §4 custodian, and used by the Connect server and executors; it never crosses the §2 trust boundary to the untrusted agent, which only emits an inert spec and receives a pass/fail."))
 body = body.replace("<p>[[[SVG-COST]]]</p>",
     figure(load_svg("cost_tokens_conciseness.svg"),
            "The cost of the declarative paradigm, arm B relative to arm A (= 100%): SDP writes far less code and spends more tokens. Bars show B as a percentage of A; absolute medians beneath."))

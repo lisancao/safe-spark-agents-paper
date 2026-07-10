@@ -171,7 +171,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git 4c33dc7</span><span>·</span>
+    <span class="k">git 2668696</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -1750,6 +1750,47 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 </ol>
 <p><strong>Proven link by link, not yet as one composed request.</strong> Each link runs on live EKS, and the per-tenant servers already compose links 2 through 5, a write through tenant-A's server draws a tenant-scoped vend from the authorization-enabled catalog and runs on tenant-A's executors. Two honest seams remain. The storage-scoping <em>forensic</em> (the CloudTrail vend-not-IRSA discriminator) was captured against the fleet-scoped catalog, while routing, custody, execution, and authorization ran against the authorization-enabled catalog; and a single request traversing all five links, a Spark job over client-cert mTLS through the gateway to authz-catalog-vended, prefix-scoped storage on the tenant's own executors, is the remaining composition step. Neither weakens a per-link claim; both are named so the reader is not sold a composed run that was not captured.</p>
 <p><strong>Credential vending vs custody (the §3↔§4 line).</strong> The catalog <em>vends</em> short-lived, scoped credentials (a catalog function) but does <strong>not</strong> hand them to the agent. Holding and managing the vended credential (custody + the agent interface) is the <strong>orchestration layer's job (§4/Omnigent)</strong>, precisely so the agent never sees a credential and §2's boundary survives at fleet scale. §3 owns the catalog as the <strong>authority</strong> that grants and the <strong>vendor</strong> that issues short-lived credentials; §4 owns <strong>credential custody plus the agent interface</strong>.</p>
+<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Credential custody: the credential's path never touches the agent</title>
+<desc>The agent is untrusted and holds no credential; it only emits an inert spec and receives a structural pass/fail. On the governed side, the catalog vends a short-lived scoped credential, the custodian (Section 4 / Omnigent) holds and injects it per session, and the Connect server and executors use it to reach only this tenant's data. The credential never crosses the trust boundary to the agent.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:13px;font-weight:500}.ts{font-size:11px}
+  .lab{font-size:11px;font-weight:600;fill:#5c6b66;letter-spacing:.03em}
+  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
+  .att rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.att .th{fill:#2C2C2A}.att .ts{fill:#5F5E5A}
+  .cat rect{fill:#E6F1FB;stroke:#185FA5;stroke-width:.75}.cat .th{fill:#0C447C}.cat .ts{fill:#185FA5}
+  .cus rect{fill:#EEEDFE;stroke:#534AB7;stroke-width:.75}.cus .th{fill:#3C3489}.cus .ts{fill:#534AB7}
+  .use rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.use .th{fill:#085041}.use .ts{fill:#0F6E56}
+  .cred{fill:#F7EFDD;stroke:#8a5a0b;stroke-width:.75}.credt{font-size:10px;font-weight:600;fill:#8a5a0b}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<text x="40" y="18" class="lab" fill="#5F5E5A">UNTRUSTED</text>
+<text x="300" y="18" class="lab" fill="#0F6E56">GOVERNED: the credential lives here and never crosses left</text>
+<line x1="272" y1="28" x2="272" y2="288" stroke="#b9433a" stroke-width="1.25" stroke-dasharray="5 4"/>
+<text x="266" y="150" class="lab" fill="#b9433a" text-anchor="middle" transform="rotate(-90 266 150)">§2 trust boundary</text>
+
+<!-- agent (left) -->
+<g class="att"><rect x="40" y="40" width="205" height="52" rx="6"/><text x="142" y="63" class="th" text-anchor="middle">AI agent (untrusted)</text><text x="142" y="80" class="ts" text-anchor="middle">holds no credential</text></g>
+<text x="40" y="128" class="ts" fill="#5F5E5A">Its only exchange with the platform:</text>
+<g class="att"><rect x="40" y="140" width="205" height="34" rx="6"/><text x="142" y="161" class="ts" text-anchor="middle">emits an inert spec + PR  →</text></g>
+<g class="att"><rect x="40" y="182" width="205" height="34" rx="6"/><text x="142" y="203" class="ts" text-anchor="middle">←  receives a pass / fail</text></g>
+
+<!-- governed credential flow (right, vertical) -->
+<g class="cat"><rect x="300" y="40" width="340" height="46" rx="6"/><text x="470" y="61" class="th" text-anchor="middle">Governed catalog (Lakekeeper + OpenFGA)</text><text x="470" y="77" class="ts" text-anchor="middle">authorizes per principal, then vends a short-lived scoped credential</text></g>
+<g class="cus"><rect x="300" y="114" width="340" height="46" rx="6"/><text x="470" y="135" class="th" text-anchor="middle">Custodian · §4 / Omnigent</text><text x="470" y="151" class="ts" text-anchor="middle">holds + rotates the vended credential, injects it per session</text></g>
+<g class="use"><rect x="300" y="188" width="340" height="46" rx="6"/><text x="470" y="209" class="th" text-anchor="middle">Connect server → executors</text><text x="470" y="225" class="ts" text-anchor="middle">use the injected credential to reach only this tenant's data</text></g>
+<g class="use"><rect x="300" y="256" width="340" height="30" rx="6"/><text x="470" y="275" class="th" text-anchor="middle">S3 · this tenant's prefix only</text></g>
+
+<!-- credential tag traveling down the governed flow -->
+<line x1="470" y1="86" x2="470" y2="114" class="arr" marker-end="url(#arrow)"/>
+<line x1="470" y1="160" x2="470" y2="188" class="arr" marker-end="url(#arrow)"/>
+<line x1="470" y1="234" x2="470" y2="256" class="arr" marker-end="url(#arrow)"/>
+<g><rect class="cred" x="486" y="92" width="78" height="17" rx="8"/><text x="525" y="104" class="credt" text-anchor="middle">credential</text></g>
+<g><rect class="cred" x="486" y="166" width="78" height="17" rx="8"/><text x="525" y="178" class="credt" text-anchor="middle">credential</text></g>
+</svg>
+</div><figcaption>Credential custody, the §3↔§4 line. The credential is vended by the catalog, held and injected by the §4 custodian, and used by the Connect server and executors; it never crosses the §2 trust boundary to the untrusted agent, which only emits an inert spec and receives a pass/fail.</figcaption></figure>
 <p><strong>The edge, stated plainly.</strong> §3 now demonstrates the governed, integrable, scalable boundary <em>per tenant</em>, all five isolation links running on live EKS, and draws the one line it does not cross: credential <strong>custody</strong> at fleet scale (delegated to §4/Omnigent) and <strong>scale</strong> itself (many tenants, node autoscaling), which are named, not left undone by accident. The specific open-stack limit, that <strong>OSS HMS/Iceberg cannot express per-user grants</strong>, is itself a finding: it marks where an open stack must hand tenant authorization to a governed catalog, which is exactly what the demonstrated Lakekeeper + OpenFGA layer does.
 - <strong>Tier: all five links DEMONSTRATED on live EKS; only multi-tenant scale is a new-capability FRONTIER (two proof-completeness seams remain, below).</strong> The per-link evidence is in points 1-5 above and the §3.4 table; the figure <code>paper/figures/isolation-architecture.html</code> renders the whole path. Two measurement caveats the per-link proofs carry, stated so they are not glossed: (i) the storage-scoping probe (a per-write delta of 12 tasks measured before/after an 8-partition shuffle under <code>spark.master=k8s</code>) proves only that execution left the driver onto a <strong>dedicated executor pod, not the local process</strong>, on the shared-server run both tenants happened to land on the <em>same</em> pod, so <em>per-tenant pod disjointness</em> is a separate result, established by the multi-server run (link 3, distinct pod IPs); and (ii) the cross-tenant storage denial is observed by <strong>replaying</strong> the tenant-scoped vended credential against the other prefix, not by an executor pod being refused in-cluster, the executor-side channel shows only that all FileIO used the vend (CloudTrail: the fleet IRSA role makes zero data calls). Full build + proof narrative: <code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code>.</p>
 <h2 id="34-evidence-tiering">3.4 Evidence tiering</h2>
