@@ -136,6 +136,45 @@ _repo = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--repo-url="
 if _repo:
     body = body.replace('href="../', f'href="{_repo.rstrip("/")}/blob/main/')
 
+# --- the 1-pager: a highlight card per section, linking into the full text below ---
+SECTIONS = [
+    ("1", "section-1-imperative-vs-sdp", "The risk, measured", "done", "Complete",
+     "A controlled, pre-registered study of the same agent writing Spark pipelines two ways, imperative vs declarative (SDP).",
+     ["<b>79 vs 0</b> structural defects caught at the gate before any data moves (SDP vs bare imperative)",
+      "<b>~34x</b> the compute burned by imperative (<b>~1000x</b> on failed runs): a broken pipeline never starts under SDP",
+      "<b>~half the code</b> (-49% lines) at ~2.3x tokens, comparable task completion",
+      "the raw \"SDP looks less safe\" gap is <b>skill-induced</b>, not paradigm-inherent (timezone defects 7&rarr;0 once taught)",
+      "528-run powered study, frozen instrument"]),
+    ("2", "section-2-the-agent-native-development-loop", "The safety boundary", "done", "Demonstrated",
+     "Why a declarative agent can be run fully untrusted, and the dev loop that follows.",
+     ["the agent emits only <b>inert desired-state</b>, never holds a session or a credential",
+      "so it can be treated as <b>fully untrusted</b>, the precondition for a governed platform",
+      "control boundary demonstrated to <b>L3</b>; dev&rarr;prod is a <b>one-URL change</b> (Spark Connect)"]),
+    ("3", "section-3-the-open-reference-architecture", "The platform, built and demonstrated", "done", "Demonstrated on live EKS",
+     "An open governed stack that isolates every tenant from every other, proven layer by layer.",
+     ["<b>five per-tenant isolation layers, all demonstrated on a live EKS cluster</b>",
+      "an agent as tenant A <b>cannot reach tenant B by any path</b>: routing &middot; token custody &middot; execution &middot; catalog authz &middot; storage",
+      "cross-tenant <b>AccessDenied</b> both directions; fleet role makes <b>0</b> warehouse data calls (CloudTrail); un-granted principal <b>403</b>",
+      "only multi-tenant <b>scale</b> remains frontier"]),
+    ("4", "section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering", "Running it at fleet scale", "stub", "Thesis + core",
+     "The orchestration layer over a fleet of governed agents.",
+     ["holds credentials so <b>the agent never sees one</b>, preserving the boundary at fleet scale",
+      "<b>demonstrated core</b>: the heterogeneous multi-agent pattern this paper was built with",
+      "the quantitative fleet study (cost / quality numbers) is future work"]),
+]
+def scard(n, hid, title, cls, chip, blurb, bullets):
+    lis = "".join(f"<li>{b}</li>" for b in bullets)
+    return (f'<a class="scard {cls}" href="#{hid}">'
+            f'<div class="scard-top"><span class="scard-n">Section {n}</span>'
+            f'<span class="pill {cls}">{html.escape(chip)}</span></div>'
+            f'<h3>{html.escape(title)}</h3><p class="scard-blurb">{blurb}</p>'
+            f'<ul>{lis}</ul><span class="scard-more">Read Section {n} &rarr;</span></a>')
+cards_html = ('<div class="onepager"><h2 class="onepager-h">Sections at a glance</h2>'
+              '<div class="section-cards">'
+              + "".join(scard(*s) for s in SECTIONS)
+              + '</div><p class="onepager-foot">Two reference-spec appendices (S2-A, S3-A) are executable build targets, '
+                'skim unless you are building against them. Full paper below.</p></div>')
+
 CSS = """
 <style>
 :root{
@@ -202,6 +241,26 @@ main{padding:30px 0 90px;min-width:0}
 .pill.scaffold{color:var(--scaffold);background:var(--scaffold-bg)}
 .pill.stub{color:var(--stub);background:var(--stub-bg)}
 .pill.ref{color:var(--ref);background:var(--ref-bg)}
+/* --- the 1-pager: section highlight cards --- */
+.onepager{margin:28px 0 8px}
+.onepager-h{font-size:12px;letter-spacing:.15em;text-transform:uppercase;font-family:var(--sans);color:var(--muted);margin:0 0 14px;font-weight:600}
+.section-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.scard{display:block;background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:16px 18px 15px;
+  border-top:3px solid var(--rule-strong);color:var(--body);transition:border-color .15s,box-shadow .15s,transform .15s}
+.scard:hover{text-decoration:none;border-color:var(--accent);box-shadow:0 8px 24px rgba(15,110,86,.11);transform:translateY(-2px)}
+.scard.done{border-top-color:var(--done)}
+.scard.stub{border-top-color:var(--stub)}
+.scard-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
+.scard-n{font-family:var(--sans);font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.scard h3{font-family:var(--serif);font-size:19px;margin:5px 0 3px;color:var(--ink);line-height:1.18}
+.scard-blurb{font-size:12.5px;color:var(--muted);margin:0 0 9px;line-height:1.45}
+.scard ul{margin:0;padding-left:1.05em;display:flex;flex-direction:column;gap:5px}
+.scard li{font-size:13px;line-height:1.45;color:var(--body)}
+.scard li::marker{color:var(--accent)}
+.scard li b{color:var(--ink)}
+.scard-more{display:inline-block;margin-top:12px;font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--accent)}
+.onepager-foot{font-size:12.5px;color:var(--muted);margin:15px 0 4px}
+@media (max-width:720px){.section-cards{grid-template-columns:1fr}}
 
 main :is(h1,h2,h3,h4){font-family:var(--sans);color:var(--ink);line-height:1.22;
   text-wrap:balance;font-weight:600}
@@ -303,30 +362,14 @@ DOC = f"""{CSS}
          agent writing your pipelines <em>without trusting the agent</em>? This paper answers in four parts, building
          from a measurement to a running system.</p>
       <ol class="arc">
-        <li><b>Section&nbsp;1: the risk, measured.</b> A controlled, pre-registered study (528 runs) of the
-           same agent writing pipelines two ways: free-form imperative code, versus a declarative framework (SDP).
-           The declarative dry-run catches <b>79</b> structural defects before any data moves; imperative catches
-           <b>0</b>.</li>
-        <li><b>Section&nbsp;2: the safety boundary.</b> Why a declarative agent can be treated as <em>fully
-           untrusted</em>: it only ever emits an inert plan, never touching data or credentials, so it can be dropped
-           into a platform that trusts it with nothing.</li>
-        <li><b>Section&nbsp;3: the platform, built and demonstrated.</b> An open, governed stack (Spark Connect
-           + Kubernetes + a governed catalog) that isolates every tenant from every other. Five isolation layers,
-           <em>all demonstrated on a live EKS cluster</em>: an agent authenticated as tenant&nbsp;A cannot reach
-           tenant&nbsp;B by any path, it is routed to its own server, handed only its own credential, run on its
-           own compute, authorized only for itself, and prefix-scoped at storage.</li>
-        <li><b>Section&nbsp;4: running it at fleet scale.</b> The orchestration layer that holds credentials so
-           the agent never sees one. A thesis with a demonstrated core; the quantitative fleet study is future work.</li>
+        <li><b>The risk, measured</b> (§1): a controlled study of the same agent writing pipelines imperatively versus in a declarative framework (SDP).</li>
+        <li><b>The safety boundary</b> (§2): why a declarative agent, emitting only an inert plan and never touching data or credentials, can be run <em>fully untrusted</em>.</li>
+        <li><b>The platform, built and demonstrated</b> (§3): an open governed stack that isolates every tenant from every other, on a live cluster.</li>
+        <li><b>Running it at fleet scale</b> (§4): orchestration that holds credentials so the agent never sees one.</li>
       </ol>
-      <p style="margin-bottom:6px"><b>Maturity</b>, flagged on every section header:
-         <span class="pill done">§1 complete</span>
-         <span class="pill done">§2 demonstrated</span>
-         <span class="pill done">§3 demonstrated on live EKS</span>
-         <span class="pill stub">§4 thesis + core</span>
-         <span class="pill ref">appendices: reference specs</span></p>
-      <p><b>Where to start:</b> §1 for the evidence, §3 for the architecture and the live isolation proof (see its
-         diagram). The two appendices are executable reference targets, skim unless you are building against them.</p>
+      <p><b>Where to start:</b> the cards below give the headline findings and metrics per section and link into the full text; §1 carries the study evidence, §3 the architecture and the live isolation proof. The two reference-spec appendices are executable build targets.</p>
     </div>
+    {cards_html}
     {body}
   </main>
 </div>
