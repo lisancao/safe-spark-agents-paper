@@ -108,6 +108,12 @@ body = body.replace("<p>[[[SVG-SECTION3]]]</p>",
 body = body.replace("<p>[[[SVG-SECTION4]]]</p>",
     figure(load_svg("section4_omnigent_orchestration.svg"),
            "Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody (dotted) is the frontier keystone."))
+body = body.replace("<p>[[[SVG-ADVERSARY]]]</p>",
+    figure(load_svg("section3_adversary_paths.svg"),
+           "The adversary, and the five paths to tenant B. Each attack route is closed by exactly one of the five isolation layers, so all five must hold."))
+body = body.replace("<p>[[[SVG-ISOLATION]]]</p>",
+    figure(load_svg("section3_isolation_chain.svg"),
+           "The five-layer per-tenant isolation chain, all demonstrated on live EKS. An agent authenticated as tenant A is routed to its own server, handed only its own credential, run on its own executor pods, authorized only for itself, and prefix-scoped at storage; tenant B travels a fully separate lane, and cannot be reached by any path."))
 body = body.replace("<p>[[[SVG-COST]]]</p>",
     figure(load_svg("cost_tokens_conciseness.svg"),
            "The cost of the declarative paradigm, arm B relative to arm A (= 100%): SDP writes far less code and spends more tokens. Bars show B as a percentage of A; absolute medians beneath."))

@@ -52,11 +52,11 @@
 <g class="c-teal"><rect x="470" y="290" width="155" height="48" rx="6" stroke-dasharray="5 3"/><text x="547" y="312" class="th" text-anchor="middle">Executor pods</text><text x="547" y="329" class="ts" text-anchor="middle">dynamic 0→10</text></g>
 <line x1="240" y1="314" x2="270" y2="314" class="arr" marker-end="url(#arrow)"/>
 <line x1="440" y1="314" x2="470" y2="314" class="arr" marker-end="url(#arrow)"/>
-<g class="c-teal"><rect x="55" y="355" width="270" height="48" rx="6"/><text x="190" y="377" class="th" text-anchor="middle">Catalog (Iceberg / HMS)</text><text x="190" y="394" class="ts" text-anchor="middle">vends creds → §4</text></g>
+<g class="c-teal"><rect x="55" y="355" width="270" height="48" rx="6"/><text x="190" y="377" class="th" text-anchor="middle">Governed catalog (Lakekeeper)</text><text x="190" y="394" class="ts" text-anchor="middle">per-principal authz + scoped vend</text></g>
 <g class="c-teal"><rect x="345" y="355" width="180" height="48" rx="6"/><text x="435" y="377" class="th" text-anchor="middle">S3 warehouse</text><text x="435" y="394" class="ts" text-anchor="middle">Iceberg tables</text></g>
 <path d="M355 338 V347 H190 V355" fill="none" class="arr" marker-end="url(#arrow)"/>
 <path d="M547 338 V347 H435 V355" fill="none" class="arr" marker-end="url(#arrow)"/>
 
 <!-- Frontier -->
-<g class="c-purple"><rect x="40" y="448" width="600" height="46" rx="8" stroke-dasharray="1.5 3"/><text x="340" y="470" class="th" text-anchor="middle">Tenant governance: per-tenant authz + isolation</text><text x="340" y="487" class="ts" text-anchor="middle">frontier · delegated to a governed catalog + multi-server Connect</text></g>
+<g class="c-teal"><rect x="40" y="448" width="600" height="46" rx="8"/><text x="340" y="470" class="th" text-anchor="middle">Tenant governance: per-tenant isolation, five layers</text><text x="340" y="487" class="ts" text-anchor="middle">demonstrated on live EKS (see the isolation-chain figure) · only multi-tenant scale remains frontier</text></g>
 </svg>

@@ -171,7 +171,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git 9ab55f9</span><span>·</span>
+    <span class="k">git d81cb7a</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -1511,13 +1511,13 @@ not a finished production system (that is Section 3).</p>
 <g class="c-teal"><rect x="470" y="290" width="155" height="48" rx="6" stroke-dasharray="5 3"/><text x="547" y="312" class="th" text-anchor="middle">Executor pods</text><text x="547" y="329" class="ts" text-anchor="middle">dynamic 0→10</text></g>
 <line x1="240" y1="314" x2="270" y2="314" class="arr" marker-end="url(#arrow)"/>
 <line x1="440" y1="314" x2="470" y2="314" class="arr" marker-end="url(#arrow)"/>
-<g class="c-teal"><rect x="55" y="355" width="270" height="48" rx="6"/><text x="190" y="377" class="th" text-anchor="middle">Catalog (Iceberg / HMS)</text><text x="190" y="394" class="ts" text-anchor="middle">vends creds → §4</text></g>
+<g class="c-teal"><rect x="55" y="355" width="270" height="48" rx="6"/><text x="190" y="377" class="th" text-anchor="middle">Governed catalog (Lakekeeper)</text><text x="190" y="394" class="ts" text-anchor="middle">per-principal authz + scoped vend</text></g>
 <g class="c-teal"><rect x="345" y="355" width="180" height="48" rx="6"/><text x="435" y="377" class="th" text-anchor="middle">S3 warehouse</text><text x="435" y="394" class="ts" text-anchor="middle">Iceberg tables</text></g>
 <path d="M355 338 V347 H190 V355" fill="none" class="arr" marker-end="url(#arrow)"/>
 <path d="M547 338 V347 H435 V355" fill="none" class="arr" marker-end="url(#arrow)"/>
 
 <!-- Frontier -->
-<g class="c-purple"><rect x="40" y="448" width="600" height="46" rx="8" stroke-dasharray="1.5 3"/><text x="340" y="470" class="th" text-anchor="middle">Tenant governance: per-tenant authz + isolation</text><text x="340" y="487" class="ts" text-anchor="middle">frontier · delegated to a governed catalog + multi-server Connect</text></g>
+<g class="c-teal"><rect x="40" y="448" width="600" height="46" rx="8"/><text x="340" y="470" class="th" text-anchor="middle">Tenant governance: per-tenant isolation, five layers</text><text x="340" y="487" class="ts" text-anchor="middle">demonstrated on live EKS (see the isolation-chain figure) · only multi-tenant scale remains frontier</text></g>
 </svg>
 </div><figcaption>The open governed reference architecture. Solid = demonstrated · dashed = configured but unrun · dotted = frontier.</figcaption></figure>
 <p>If an agent can be treated as fully untrusted, because it only ever emits inert desired-state (§2), then it can be dropped into a <strong>governed data platform that trusts it with nothing</strong>. This section builds that platform on an open stack, <strong>SDP</strong> for declarative authoring, a <strong>GitOps/CI</strong> layer that tests and reconciles every change, <strong>Spark Connect</strong> as the single identity-pinned front door, and <strong>Kubernetes</strong> for elastic execution, and it closes tenant isolation along five paths, <strong>all demonstrated on a live EKS cluster</strong>. An agent authenticated as tenant A is routed to <em>its own</em> Connect server, handed a credential it never holds, run on <em>its own</em> executor pods, authorized at the catalog only for itself, and prefix-scoped at storage, so it cannot reach tenant B by any path. (The adversary and those five paths are enumerated at the top of §3.3; each layer there closes exactly one.) §3 owns this whole per-tenant <em>mechanism</em>; what it delegates to §4/Omnigent is credential <em>custody</em> at fleet scale, holding and rotating the vended credential so no agent ever sees one.</p>
@@ -1632,8 +1632,114 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <h2 id="33-tenant-governance-the-multi-tenancy-stack-built-and-demonstrated">3.3 Tenant governance: <em>the multi-tenancy stack, built and demonstrated</em></h2>
 <p><strong>Why co-tenancy, and what is at stake.</strong> Why multiplex tenants on shared infrastructure at all, rather than give each an isolated cluster? For the same reason §3.2 shares an elastic executor pool and §3.1 shares one governed catalog: consolidation. One elastic compute pool and one governed catalog serve many teams at a fraction of the cost and operational surface of a cluster per tenant, that efficiency is the whole point of a <em>platform</em>. But consolidation is exactly what puts a hostile or hallucinating tenant-A agent one misconfiguration away from tenant-B's data, reading it or overwriting it. So the platform has to make co-tenancy safe <em>by construction</em>, not by trusting the agent. That is what the five layers below do.</p>
 <p><strong>The adversary, and the five paths.</strong> The threat is §2's: a tenant-A agent that is <em>fully untrusted</em>, it may emit code that executes on the cluster, hallucinate, or actively try to reach tenant B's data. Reaching tenant B decomposes into exactly five distinct paths, and closing the isolation problem means closing all five: the agent could <strong>connect</strong> to tenant B's Connect server, <strong>be handed</strong> tenant B's credential, <strong>execute</strong> in a process co-resident with tenant B, <strong>ask the catalog</strong> for tenant B's tables or credential, or <strong>hit storage</strong> directly with a credential whose reach includes tenant B's bytes. Each path is closed by a different layer, and each layer is independently defeatable, so all five must hold; a skeptical reader can check the enumeration against the layers rather than take "isolated" on faith. Crucially, the later layers cannot backstop a failure of the earlier ones, because a failure of routing or custody produces a <em>legitimately-issued</em> tenant-B identity, not a forgery: if a tenant-A agent reached tenant-B's server (path one) or were handed tenant-B's token (path two), the catalog and storage gates would see a <strong>valid</strong> tenant-B credential and correctly serve it. The early links keep the identity honest; the late links bound what an honest identity may do. That is why the chain is non-redundant.</p>
-<p><strong>The stack at a glance</strong> (see <code>paper/figures/isolation-architecture.html</code>). From the outside in: an <strong>mTLS gateway</strong> routes a request to a server by the <em>authenticated</em> principal on its client certificate (closes <em>connect</em>); a <strong>per-tenant Connect server</strong> injects only that tenant's catalog token, so the agent never holds a credential it could redirect (<em>be handed</em>); the tenant's <strong>own executor pods</strong> run the work, never sharing a JVM (<em>execute</em>); the <strong>governed catalog</strong> (Lakekeeper + OpenFGA) authorizes credential requests per principal (<em>ask the catalog</em>); and the <strong>vended credential</strong> is prefix-scoped at storage (<em>hit storage</em>). An agent authenticated as tenant A is therefore routed to tenant-A's server, handed tenant-A's token, run on tenant-A's executors, authorized only for tenant-A, and prefix-scoped at storage: no path reaches tenant B. The rest of this section walks the five links outside-in, each with the residual threat it uniquely closes and the proof that it runs; all five run on a live EKS cluster today. Scaling past two tenants is the open capability, and two proof-completeness seams remain, named after the walk.</p>
+<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 356" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Section 3.3: the adversary and the five paths to tenant B</title>
+<desc>A fully-untrusted tenant-A agent could reach tenant B's data along exactly five paths: connect to tenant B's server, be handed tenant B's credential, execute in a shared process, ask the catalog for tenant B, or hit storage with a broad credential. Each path is closed by one of the five isolation layers, so all five must hold.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:13px;font-weight:500}.ts{font-size:11px}
+  .lab{font-size:11px;font-weight:600;fill:#5c6b66;letter-spacing:.03em}
+  .att rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.att text{fill:#2C2C2A}
+  .lay rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.lay .th{fill:#085041}.lay .ts{fill:#0F6E56}
+  .xg circle{fill:#F7EFDD;stroke:#8a5a0b;stroke-width:1}.xg path{stroke:#8a5a0b;stroke-width:1.6;stroke-linecap:round}
+</style>
+<text x="40" y="19" class="lab">AN UNTRUSTED TENANT-A AGENT COULD REACH TENANT B FIVE WAYS, EACH IS CLOSED BY ONE LAYER</text>
+<text x="44" y="43" class="lab" fill="#8a5a0b">THE PATH IT WOULD TAKE</text>
+<text x="640" y="43" class="lab" fill="#085041" text-anchor="end">THE LAYER THAT CLOSES IT</text>
+
+<g class="att"><rect x="40" y="52" width="300" height="42" rx="6"/><text x="52" y="78" class="th">① connect straight to tenant B's server</text></g>
+<g class="lay"><rect x="388" y="52" width="252" height="42" rx="6"/><text x="400" y="70" class="ts">closed by</text><text x="400" y="86" class="th">1 · mTLS ingress routing</text></g>
+
+<g class="att"><rect x="40" y="104" width="300" height="42" rx="6"/><text x="52" y="130" class="th">② be handed tenant B's credential</text></g>
+<g class="lay"><rect x="388" y="104" width="252" height="42" rx="6"/><text x="400" y="122" class="ts">closed by</text><text x="400" y="138" class="th">2 · token custody</text></g>
+
+<g class="att"><rect x="40" y="156" width="300" height="42" rx="6"/><text x="52" y="182" class="th">③ execute in a process shared with B</text></g>
+<g class="lay"><rect x="388" y="156" width="252" height="42" rx="6"/><text x="400" y="174" class="ts">closed by</text><text x="400" y="190" class="th">3 · execution isolation</text></g>
+
+<g class="att"><rect x="40" y="208" width="300" height="42" rx="6"/><text x="52" y="234" class="th">④ ask the catalog for tenant B's tables</text></g>
+<g class="lay"><rect x="388" y="208" width="252" height="42" rx="6"/><text x="400" y="226" class="ts">closed by</text><text x="400" y="242" class="th">4 · catalog authorization</text></g>
+
+<g class="att"><rect x="40" y="260" width="300" height="42" rx="6"/><text x="52" y="286" class="th">⑤ reach B's bytes with a broad cred</text></g>
+<g class="lay"><rect x="388" y="260" width="252" height="42" rx="6"/><text x="400" y="278" class="ts">closed by</text><text x="400" y="294" class="th">5 · storage scoping</text></g>
+
+<!-- blocked arrows with an X between each pair -->
+<g>
+  <line x1="340" y1="73"  x2="388" y2="73"  stroke="#c9b48a" stroke-width="1.5"/>
+  <line x1="340" y1="125" x2="388" y2="125" stroke="#c9b48a" stroke-width="1.5"/>
+  <line x1="340" y1="177" x2="388" y2="177" stroke="#c9b48a" stroke-width="1.5"/>
+  <line x1="340" y1="229" x2="388" y2="229" stroke="#c9b48a" stroke-width="1.5"/>
+  <line x1="340" y1="281" x2="388" y2="281" stroke="#c9b48a" stroke-width="1.5"/>
+</g>
+<g class="xg">
+  <g transform="translate(364,73)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+  <g transform="translate(364,125)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+  <g transform="translate(364,177)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+  <g transform="translate(364,229)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+  <g transform="translate(364,281)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+</g>
+<text x="40" y="326" class="ts" fill="#5c6b66">Each layer is independently defeatable, so all five must hold. The early layers keep the identity honest; the late layers bound what an honest identity may do.</text>
+</svg>
+</div><figcaption>The adversary, and the five paths to tenant B. Each attack route is closed by exactly one of the five isolation layers, so all five must hold.</figcaption></figure>
+<p><strong>The stack at a glance</strong> (see the diagram below, and the interactive <code>paper/figures/isolation-architecture.html</code>). From the outside in: an <strong>mTLS gateway</strong> routes a request to a server by the <em>authenticated</em> principal on its client certificate (closes <em>connect</em>); a <strong>per-tenant Connect server</strong> injects only that tenant's catalog token, so the agent never holds a credential it could redirect (<em>be handed</em>); the tenant's <strong>own executor pods</strong> run the work, never sharing a JVM (<em>execute</em>); the <strong>governed catalog</strong> (Lakekeeper + OpenFGA) authorizes credential requests per principal (<em>ask the catalog</em>); and the <strong>vended credential</strong> is prefix-scoped at storage (<em>hit storage</em>). An agent authenticated as tenant A is therefore routed to tenant-A's server, handed tenant-A's token, run on tenant-A's executors, authorized only for tenant-A, and prefix-scoped at storage: no path reaches tenant B. The rest of this section walks the five links outside-in, each with the residual threat it uniquely closes and the proof that it runs; all five run on a live EKS cluster today. Scaling past two tenants is the open capability, and two proof-completeness seams remain, named after the walk.</p>
 <p><strong>Where enforcement ends in the default open stack (the baseline this section then closes, layer by layer, below).</strong> Identity is strong at the door but not downstream. Envoy pins an unspoofable principal from the client cert SAN and the interceptor rejects a mismatched <code>user_id</code> <code>[connect/base/envoy/envoy.yaml; deploy/auth/interceptor/.../PrincipalPinningInterceptor.java]</code>: the platform <em>knows</em> who each session is. But <strong>authorization is fleet-scoped</strong>: a single shared Iceberg catalog and one fleet-wide cloud IAM role (via IRSA, <em>IAM Roles for Service Accounts</em>) with read/write to the entire warehouse <code>[images/spark-connect/conf/spark-defaults.template.conf; terraform/irsa.tf]</code>. Per-principal schema isolation (a <code>sandbox_&lt;principal&gt;</code> naming scheme) exists only <strong>by convention, not enforcement</strong> <code>[RUNBOOK.md]</code>, and the open-source Hive Metastore and Iceberg catalog (OSS HMS/Iceberg) <strong>cannot express per-user grants</strong> at all; the repo states this outright and does not claim it <code>[deploy/auth/README.md]</code>. Execution is shared too: one long-lived driver, shared executors, no per-tenant pool <code>[connect/base/deployment.yaml]</code>.</p>
+<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 486" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Section 3.3: the five-layer per-tenant isolation chain</title>
+<desc>An agent authenticated as tenant A is routed to its own Connect server, handed only its own credential, run on its own executor pods, authorized at the catalog only for itself, and prefix-scoped at storage. Tenant B travels a fully separate lane. Five layers, all demonstrated on live EKS; an agent for tenant A cannot reach tenant B by any path.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:13px;font-weight:500;fill:#16201e}.ts{font-size:11px;fill:#5c6b66}
+  .lab{font-size:11px;font-weight:600;fill:#5c6b66;letter-spacing:.02em}
+  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
+  .deny{font-size:11px;font-weight:600;fill:#8a5a0b}.ok{font-size:11px;font-weight:600;fill:#3B6D11}
+  .a rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.a .th{fill:#085041}.a .ts{fill:#0F6E56}
+  .b rect{fill:#EEEDFE;stroke:#534AB7;stroke-width:.75}.b .th{fill:#3C3489}.b .ts{fill:#534AB7}
+  .gate rect{fill:#E6F1FB;stroke:#185FA5;stroke-width:.9}.gate .th{fill:#0C447C}.gate .ts{fill:#185FA5}
+  .pfx{fill:#ffffff;stroke:#c4d1cc;stroke-width:.75;stroke-dasharray:3 2}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<text x="40" y="18" class="lab">FIVE LAYERS, ALL DEMONSTRATED ON LIVE EKS</text>
+<text x="640" y="18" class="ok" text-anchor="end">an agent for tenant A cannot reach tenant B by any path</text>
+
+<!-- agents -->
+<g class="a"><rect x="48" y="30" width="284" height="42" rx="6"/><text x="190" y="49" class="th" text-anchor="middle">agent · tenant A</text><text x="190" y="64" class="ts" text-anchor="middle">client cert SAN spiffe://…/tenant_a</text></g>
+<g class="b"><rect x="356" y="30" width="284" height="42" rx="6"/><text x="498" y="49" class="th" text-anchor="middle">agent · tenant B</text><text x="498" y="64" class="ts" text-anchor="middle">client cert SAN spiffe://…/tenant_b</text></g>
+<line x1="190" y1="72" x2="190" y2="90" class="arr" marker-end="url(#arrow)"/>
+<line x1="498" y1="72" x2="498" y2="90" class="arr" marker-end="url(#arrow)"/>
+
+<!-- 1 ingress gateway (full) -->
+<text x="48" y="104" class="lab">1 · INGRESS ROUTING</text>
+<g class="gate"><rect x="48" y="110" width="592" height="44" rx="6"/><text x="344" y="129" class="th" text-anchor="middle">mTLS gateway · routes by the cert principal to that tenant's own server</text><text x="344" y="144" class="ts" text-anchor="middle">tenant_a cert → server A · tenant_b cert → server B · un-granted → 403 · no cert → refused</text></g>
+<line x1="190" y1="154" x2="190" y2="176" class="arr" marker-end="url(#arrow)"/>
+<line x1="498" y1="154" x2="498" y2="176" class="arr" marker-end="url(#arrow)"/>
+
+<!-- 2 per-tenant Connect servers (two lanes) -->
+<text x="48" y="190" class="lab">2 · TOKEN CUSTODY <tspan class="ts" font-weight="400">· each server injects only its own tenant's token; the agent never holds one</tspan></text>
+<g class="a"><rect x="48" y="196" width="284" height="42" rx="6"/><text x="190" y="215" class="th" text-anchor="middle">spark-connect-tenant-a</text><text x="190" y="230" class="ts" text-anchor="middle">injects token A</text></g>
+<g class="b"><rect x="356" y="196" width="284" height="42" rx="6"/><text x="498" y="215" class="th" text-anchor="middle">spark-connect-tenant-b</text><text x="498" y="230" class="ts" text-anchor="middle">injects token B</text></g>
+<line x1="190" y1="238" x2="190" y2="258" class="arr" marker-end="url(#arrow)"/>
+<line x1="498" y1="238" x2="498" y2="258" class="arr" marker-end="url(#arrow)"/>
+
+<!-- 3 executors (two lanes) -->
+<text x="48" y="272" class="lab">3 · EXECUTION ISOLATION <tspan class="ts" font-weight="400">· disjoint executor pods; the two tenants never share a JVM</tspan></text>
+<g class="a"><rect x="48" y="278" width="284" height="42" rx="6"/><text x="190" y="297" class="th" text-anchor="middle">tenant_a executor pods</text><text x="190" y="312" class="ts" text-anchor="middle">own driver app</text></g>
+<g class="b"><rect x="356" y="278" width="284" height="42" rx="6"/><text x="498" y="297" class="th" text-anchor="middle">tenant_b executor pods</text><text x="498" y="312" class="ts" text-anchor="middle">separate driver app</text></g>
+<line x1="190" y1="320" x2="190" y2="340" class="arr" marker-end="url(#arrow)"/>
+<line x1="498" y1="320" x2="498" y2="340" class="arr" marker-end="url(#arrow)"/>
+
+<!-- 4 catalog authz (full) -->
+<text x="48" y="354" class="lab">4 · CATALOG AUTHORIZATION</text>
+<g class="gate"><rect x="48" y="360" width="592" height="44" rx="6"/><text x="344" y="379" class="th" text-anchor="middle">Lakekeeper + OpenFGA · grants each identity only its own warehouse</text><text x="344" y="394" class="ts" text-anchor="middle">tenant_a asking for tenant_b's table or vended credential → 404 · own → 200</text></g>
+<line x1="344" y1="404" x2="344" y2="422" class="arr" marker-end="url(#arrow)"/>
+
+<!-- 5 storage (full, prefixes) -->
+<text x="48" y="436" class="lab">5 · STORAGE SCOPING</text>
+<g class="gate"><rect x="48" y="442" width="592" height="40" rx="6"/><text x="150" y="467" class="th" text-anchor="middle">S3 · prefix-scoped vend</text>
+  <rect class="pfx" x="270" y="452" width="170" height="20" rx="4"/><text x="355" y="466" class="ts" text-anchor="middle">s3://…/tenant_a/</text>
+  <rect class="pfx" x="452" y="452" width="170" height="20" rx="4"/><text x="537" y="466" class="ts" text-anchor="middle">s3://…/tenant_b/</text></g>
+<text x="640" y="436" class="deny" text-anchor="end">cross-tenant AccessDenied, both directions</text>
+</svg>
+</div><figcaption>The five-layer per-tenant isolation chain, all demonstrated on live EKS. An agent authenticated as tenant A is routed to its own server, handed only its own credential, run on its own executor pods, authorized only for itself, and prefix-scoped at storage; tenant B travels a fully separate lane, and cannot be reached by any path.</figcaption></figure>
 <p><strong>The five links, outside-in.</strong> Each is demonstrated on live EKS (2026-07-10 unless noted); each names the residual threat it uniquely closes, the attack that would still succeed with that layer removed but the other four intact.</p>
 <ol>
 <li><strong>Ingress routing: DEMONSTRATED.</strong> <em>Residual threat closed: an agent that connects straight to another tenant's server.</em> A gateway Envoy terminates client mTLS, derives the principal from the certificate's URI-SAN (<code>spiffe://safe-spark-agents/&lt;tenant&gt;</code>), and routes on it. A tenant-A certificate reaches <strong>only</strong> <code>spark-connect-tenant-a</code>; tenant-B only its own server; an un-granted principal is denied by the gateway (<strong>HTTP 403</strong> on a plain request; over gRPC the same no-route deny surfaces as an HTTP-200 reply carrying <code>x-routed-to=DENIED</code> and <code>grpc-message: no tenant route</code>); a connection with no client certificate is refused at TLS. There is no route that can send a tenant-A certificate to tenant-B's server, so the <em>authenticated identity</em>, not the client's choice, selects the server. This moves mTLS termination from the single-tenant per-pod sidecar (§3.2.1, whose loopback-only binding the multi-tenant topology supersedes) to a shared gateway. Two server-side checks, distinct, then gate a direct dial that skips the gateway: Spark's built-in <strong>pre-shared-token auth</strong> (the gateway injects a <code>spark-connect-psk</code> bearer, an infrastructure secret the agent never holds; it is shared across tenants by design) and the <strong>principal-pinning interceptor</strong> (rejects a request whose <code>user_id</code> does not match the <code>x-connect-principal</code> the gateway derived from the cert). The per-tenant servers are ClusterIP-only (not externally exposed) but bind <code>0.0.0.0:15002</code>, so those two secrets, not network topology, are what bar a direct in-cluster connection today; a <code>NetworkPolicy</code> restricting ingress to the gateway pod (<code>deploy/eks/lakekeeper/authz/netpol-tenant-servers.yaml</code>) is shipped as the intended defense-in-depth but is <strong>not yet applied</strong> (it needs a policy-enforcing CNI and executor-to-driver allowances). Evidence: <code>paper/notes/proof_2026-07-10_ingress_routing.log</code>.</li>

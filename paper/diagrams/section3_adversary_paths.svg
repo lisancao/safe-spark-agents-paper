@@ -1,0 +1,47 @@
+<svg width="100%" viewBox="0 0 680 356" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Section 3.3: the adversary and the five paths to tenant B</title>
+<desc>A fully-untrusted tenant-A agent could reach tenant B's data along exactly five paths: connect to tenant B's server, be handed tenant B's credential, execute in a shared process, ask the catalog for tenant B, or hit storage with a broad credential. Each path is closed by one of the five isolation layers, so all five must hold.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:13px;font-weight:500}.ts{font-size:11px}
+  .lab{font-size:11px;font-weight:600;fill:#5c6b66;letter-spacing:.03em}
+  .att rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.att text{fill:#2C2C2A}
+  .lay rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.lay .th{fill:#085041}.lay .ts{fill:#0F6E56}
+  .xg circle{fill:#F7EFDD;stroke:#8a5a0b;stroke-width:1}.xg path{stroke:#8a5a0b;stroke-width:1.6;stroke-linecap:round}
+</style>
+<text x="40" y="19" class="lab">AN UNTRUSTED TENANT-A AGENT COULD REACH TENANT B FIVE WAYS, EACH IS CLOSED BY ONE LAYER</text>
+<text x="44" y="43" class="lab" fill="#8a5a0b">THE PATH IT WOULD TAKE</text>
+<text x="640" y="43" class="lab" fill="#085041" text-anchor="end">THE LAYER THAT CLOSES IT</text>
+
+<g class="att"><rect x="40" y="52" width="300" height="42" rx="6"/><text x="52" y="78" class="th">① connect straight to tenant B's server</text></g>
+<g class="lay"><rect x="388" y="52" width="252" height="42" rx="6"/><text x="400" y="70" class="ts">closed by</text><text x="400" y="86" class="th">1 · mTLS ingress routing</text></g>
+
+<g class="att"><rect x="40" y="104" width="300" height="42" rx="6"/><text x="52" y="130" class="th">② be handed tenant B's credential</text></g>
+<g class="lay"><rect x="388" y="104" width="252" height="42" rx="6"/><text x="400" y="122" class="ts">closed by</text><text x="400" y="138" class="th">2 · token custody</text></g>
+
+<g class="att"><rect x="40" y="156" width="300" height="42" rx="6"/><text x="52" y="182" class="th">③ execute in a process shared with B</text></g>
+<g class="lay"><rect x="388" y="156" width="252" height="42" rx="6"/><text x="400" y="174" class="ts">closed by</text><text x="400" y="190" class="th">3 · execution isolation</text></g>
+
+<g class="att"><rect x="40" y="208" width="300" height="42" rx="6"/><text x="52" y="234" class="th">④ ask the catalog for tenant B's tables</text></g>
+<g class="lay"><rect x="388" y="208" width="252" height="42" rx="6"/><text x="400" y="226" class="ts">closed by</text><text x="400" y="242" class="th">4 · catalog authorization</text></g>
+
+<g class="att"><rect x="40" y="260" width="300" height="42" rx="6"/><text x="52" y="286" class="th">⑤ reach B's bytes with a broad cred</text></g>
+<g class="lay"><rect x="388" y="260" width="252" height="42" rx="6"/><text x="400" y="278" class="ts">closed by</text><text x="400" y="294" class="th">5 · storage scoping</text></g>
+
+<!-- blocked arrows with an X between each pair -->
+<g>
+  <line x1="340" y1="73"  x2="388" y2="73"  stroke="#c9b48a" stroke-width="1.5"/>
+  <line x1="340" y1="125" x2="388" y2="125" stroke="#c9b48a" stroke-width="1.5"/>
+  <line x1="340" y1="177" x2="388" y2="177" stroke="#c9b48a" stroke-width="1.5"/>
+  <line x1="340" y1="229" x2="388" y2="229" stroke="#c9b48a" stroke-width="1.5"/>
+  <line x1="340" y1="281" x2="388" y2="281" stroke="#c9b48a" stroke-width="1.5"/>
+</g>
+<g class="xg">
+  <g transform="translate(364,73)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+  <g transform="translate(364,125)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+  <g transform="translate(364,177)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+  <g transform="translate(364,229)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+  <g transform="translate(364,281)"><circle r="9"/><path d="M-4 -4 L4 4 M4 -4 L-4 4" fill="none"/></g>
+</g>
+<text x="40" y="326" class="ts" fill="#5c6b66">Each layer is independently defeatable, so all five must hold. The early layers keep the identity honest; the late layers bound what an honest identity may do.</text>
+</svg>
