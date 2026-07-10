@@ -1,16 +1,17 @@
-== Per-principal ingress routing: client cert SAN decides the tenant server ==
-   (Envoy terminates mTLS, derives principal from the cert URI-SAN, routes on it.)
+== Per-principal ingress routing: client-cert SAN decides the tenant server ==
+   Two probes per identity: a PLAIN HTTPS request (shows the gateway status code) and a gRPC
+   request (shows which tenant server Envoy routed to, via x-routed-to + the server's reply).
 
-cert 'tenant_a':  HTTP 200   x-routed-to=spark-connect-tenant-a
-            server response: Spark Connect request completed without asserting a user_id that matches the verified principal 'tenant_a'
-cert 'tenant_b':  HTTP 200   x-routed-to=spark-connect-tenant-b
-            server response: Spark Connect request completed without asserting a user_id that matches the verified principal 'tenant_b'
-cert 'agent_a':  HTTP 200   x-routed-to=DENIED
-            server response: no tenant route for this principal%0A
+cert 'tenant_a':  plain-HTTPS status=415   gRPC x-routed-to=spark-connect-tenant-a
+            gRPC server reply: Spark Connect request completed without asserting a user_id that matches the verified principal 'tenant_a'
+cert 'tenant_b':  plain-HTTPS status=415   gRPC x-routed-to=spark-connect-tenant-b
+            gRPC server reply: Spark Connect request completed without asserting a user_id that matches the verified principal 'tenant_b'
+cert 'agent_a':  plain-HTTPS status=403   gRPC x-routed-to=DENIED
+            gRPC server reply: no tenant route for this principal%0A
 
-no client cert:  http_code=000 (000 => TLS handshake refused: require_client_certificate)
+no client cert:  plain-HTTPS status=000 (000 => TLS handshake refused: client cert required)
 TLS handshake refused (no client cert)
 
-VERDICT: the authenticated principal (client-cert SAN), not the client's choice, selects the tenant
-server. A tenant_a cert reaches ONLY spark-connect-tenant-a (its interceptor echoes principal
-'tenant_a'); tenant_b -> spark-connect-tenant-b; an un-granted principal -> 403 DENIED; no cert -> refused.
+READING: tenant_a/tenant_b certs route to their own server (x-routed-to). An un-granted principal
+(agent_a) matches NO route: the plain request returns 403 from the gateway; over gRPC the same deny
+surfaces as an HTTP-200 reply carrying x-routed-to=DENIED and grpc-message 'no tenant route'. No cert => TLS refused.

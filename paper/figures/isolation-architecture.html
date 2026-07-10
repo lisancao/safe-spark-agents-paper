@@ -147,11 +147,12 @@
 <div class="wrap">
   <header>
     <div class="eyebrow"><span class="dot"></span> Reference architecture · Spark Declarative Pipelines · §3</div>
-    <h1>Per-tenant isolation, demonstrated end-to-end</h1>
+    <h1>Per-tenant isolation, demonstrated layer by layer</h1>
     <p class="lede">Five gates stand between an agent and another tenant's data. On a live EKS cluster, an agent
-      authenticated as <strong>tenant&nbsp;A</strong> is confined to tenant&nbsp;A at every layer — it cannot
-      address, be handed, or execute against tenant&nbsp;B by any path. Each layer below is not designed-only;
-      it runs, with a captured proof.</p>
+      authenticated as <strong>tenant&nbsp;A</strong> is confined to tenant&nbsp;A at every layer: it cannot
+      connect to, be handed a credential for, execute alongside, ask the catalog for, or reach at storage any
+      of tenant&nbsp;B. Each layer below is not designed-only; it runs, with a captured proof. (Each link is
+      proven independently; a single request traversing all five is the remaining composition step.)</p>
     <div class="chain">
       <b>mTLS cert (SAN=tenant_a)</b><span class="arw">&rarr;</span>gateway routes to A's server<span class="arw">&rarr;</span>server injects A's token<span class="arw">&rarr;</span>catalog authorizes A only<span class="arw">&rarr;</span>vended cred prefix-scoped<span class="arw">&rarr;</span>A's own executors
     </div>
@@ -185,9 +186,10 @@
         <div class="gate">
           <div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg></div>
           <div class="gbody">
-            <div class="gt">Envoy gateway — terminate mTLS, derive principal from the cert, route on it</div>
+            <div class="gt">Envoy gateway: terminate mTLS, derive principal from the cert, route on it</div>
             <div class="gs">A tenant_a cert reaches <span class="allow">only spark-connect-tenant-a</span>; tenant_b reaches only its server.
-              An un-granted principal gets <span class="deny">403 (no route)</span>; a connection with no client cert is <span class="deny">refused at TLS</span>.
+              An un-granted principal gets <span class="deny">403 (no route)</span> on a plain request (over gRPC, a DENIED reply);
+              a connection with no client cert is <span class="deny">refused at TLS</span>.
               There is no route that can send A's cert to B's server.</div>
           </div>
         </div>
@@ -205,9 +207,9 @@
       <div class="stage">
         <div class="lanes">
           <div class="card a"><div class="tt">spark-connect-tenant-a <span class="tag">token: A</span></div>
-            <div class="sub">The agent never holds the token — the server injects it. A session here <b>cannot present</b> tenant_b's credential.</div></div>
+            <div class="sub">The agent never holds the token; the server injects it. When this session reached for tenant_b it was refused: <code>NotAuthorized: Missing Authorization Header</code> (no tenant_b credential to present).</div></div>
           <div class="card b"><div class="tt">spark-connect-tenant-b <span class="tag">token: B</span></div>
-            <div class="sub">Reaching tenant_a returns <code>NotAuthorized: Missing Authorization Header</code>.</div></div>
+            <div class="sub">Symmetric by construction: this server holds only tenant_b's token, so a session here cannot present tenant_a's credential.</div></div>
         </div>
       </div>
     </div>
@@ -263,7 +265,7 @@
         <div class="gate">
           <div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg></div>
           <div class="gbody">
-            <div class="gt">S3 — the final backstop, enforced by the credential itself</div>
+            <div class="gt">S3: the final backstop, enforced by the credential itself</div>
             <div class="gs">Every warehouse read/write runs under the tenant-scoped vended session (CloudTrail: the fleet role makes
               <b>zero</b> data calls). Replaying that credential across the line is <span class="deny">AccessDenied</span>, both directions; an
               ablation shows a whole-bucket credential would cross, so the deny is the downscoping vend.</div>
@@ -288,7 +290,7 @@
         <span class="lg"><span class="sw" style="background:var(--ok)"></span> demonstrated on live EKS</span>
       </div>
     </div>
-    <p class="note"><b>What remains frontier:</b> multi-tenant <b>scale</b> — many tenants and node autoscaling.
+    <p class="note"><b>What remains frontier:</b> multi-tenant <b>scale</b>, many tenants and node autoscaling.
       Two tenants prove the mechanism; scaling it out is the open problem. Everything else on this page is built
       and runs, with a captured proof per layer.</p>
     <div class="meta">Safe Spark Agents · Section 3 reference architecture · Spark 4.1.2 · Lakekeeper v0.13.1 · captured 2026-07-10</div>

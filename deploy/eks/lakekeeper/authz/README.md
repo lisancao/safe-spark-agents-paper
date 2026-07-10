@@ -9,6 +9,20 @@ This is a **fresh, isolated** stack deployed alongside the allow-all Lakekeeper.
 `AUTHZ_BACKEND` in place: warehouses created under `allowall` have no OpenFGA ownership tuples and
 become ungovernable.
 
+## Prerequisites (this stack layers on two others; apply them first)
+1. **The spike deployment** (`../spike/eks`): provides `lakekeeper-postgres` (this authz stack creates a
+   *fresh DB* in it), the `lakekeeper` ServiceAccount bound to the **vending IRSA** role, and the two tenant
+   warehouse storage profiles (`../spike/eks/warehouse-tenant_*.aws.json`) the authz stack reuses.
+2. **The base Connect overlay** (`../../connect`): provides `spark-connect-env`,
+   `spark-connect-executor-podtemplate`, the `spark-connect-psk` Secret, and the `spark` ServiceAccount that
+   the per-tenant Connect servers (multi-server section) reuse.
+3. **A Connect CA + per-tenant client certs** (`../../auth/certs/issue-*.sh`) for the gateway section: a server
+   cert for the gateway (a reachable name, e.g. `localhost`/`spark-connect-mtls`) and one client cert per tenant
+   with URI-SAN `spiffe://safe-spark-agents/<tenant>`.
+
+An EKS cluster with the substrate applied (`../eks/terraform`), IRSA configured, and the spark-connect image in
+ECR are assumed throughout.
+
 ## Components (namespace `spark`)
 - `idp-authz` (nginx) -- static OIDC discovery doc + JWKS; serves hand-minted RS256 JWTs' verification.
 - `openfga` (v1.14) -- the authorization backend (memory store for the demo; use Postgres to persist).
@@ -52,8 +66,11 @@ done
 #   POST $LK/management/v1/permissions/warehouse/<WID>/assignments
 #   {"writes":[{"type":"select","user":"oidc~tenant_a"},{"type":"describe",...},{"type":"modify",...},{"type":"create",...}],"deletes":[]}
 
-# 5. prove it
-./authz_proof.sh            # tenant_a -> own=200, other=404; admin=200/200; no-token=401; grant toggles the deny
+# 5. capture the warehouse IDs the proof script needs, then prove it
+curl -sf $LK/management/v1/warehouse -H "Authorization: Bearer $ADMIN" \
+     -H 'x-project-id: 00000000-0000-0000-0000-000000000000' \
+  | python3 -c "import json,sys;w={x['name']:x['id'] for x in json.load(sys.stdin)['warehouses']};print(f\"WID_A={w['tenant_a']}\nWID_B={w['tenant_b']}\")" > wids.env
+./authz_proof.sh            # reads wids.env; tenant_a -> own=200, other=404; admin=200/200; no-token=401; grant toggles the deny
 ```
 
 ## Expected result

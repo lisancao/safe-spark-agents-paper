@@ -4,7 +4,7 @@
 # spark-connect image. usage: CONNECT_IMAGE=<img> gen_connect_server.py <tenant> <jwt_file> | kubectl apply -f -
 # Emit (as JSON, which kubectl apply accepts) a per-tenant Spark Connect server that INJECTS that
 # tenant's catalog token server-side. usage: gen_connect_server.py <tenant> <jwt_file>  > out.json
-import json, sys
+import json, os, sys
 T = sys.argv[1]
 JWT = open(sys.argv[2]).read().strip()
 NAME = "spark-connect-" + T.replace("_", "-")   # k8s DNS-1123 name (no underscores)
