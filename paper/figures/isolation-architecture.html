@@ -1,0 +1,296 @@
+<title>Per-tenant isolation, demonstrated on live EKS</title>
+<style>
+  :root{
+    --ground:#F5F7F9; --panel:#FFFFFF; --ink:#141922; --muted:#5A6473;
+    --hairline:#DEE3EA; --hairline-2:#EAEEF2;
+    --a:#0E8F8C; --a-soft:#E4F3F2; --a-line:#BFE3E1;
+    --b:#B26A00; --b-soft:#F7ECDB; --b-line:#EBD3AE;
+    --gate:#4B4DE0; --gate-soft:#ECEDFC;
+    --ok:#1F9254; --ok-soft:#E4F1E9; --frontier:#B07D0A; --frontier-soft:#F6EDD6;
+    --shadow:0 1px 2px rgba(20,25,34,.05), 0 6px 20px rgba(20,25,34,.06);
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Menlo","Consolas",monospace;
+    --r:12px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0B0E13; --panel:#12161D; --ink:#E9EEF5; --muted:#95A1B2;
+      --hairline:#232B36; --hairline-2:#1B222C;
+      --a:#33CFC9; --a-soft:#0E2A29; --a-line:#1D4A48;
+      --b:#E0A24A; --b-soft:#2A2012; --b-line:#4A3A1D;
+      --gate:#8385F2; --gate-soft:#191A34;
+      --ok:#43C384; --ok-soft:#0F2A1D; --frontier:#DBAE43; --frontier-soft:#2A2211;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#F5F7F9; --panel:#FFFFFF; --ink:#141922; --muted:#5A6473;
+    --hairline:#DEE3EA; --hairline-2:#EAEEF2;
+    --a:#0E8F8C; --a-soft:#E4F3F2; --a-line:#BFE3E1;
+    --b:#B26A00; --b-soft:#F7ECDB; --b-line:#EBD3AE;
+    --gate:#4B4DE0; --gate-soft:#ECEDFC;
+    --ok:#1F9254; --ok-soft:#E4F1E9; --frontier:#B07D0A; --frontier-soft:#F6EDD6;
+    --shadow:0 1px 2px rgba(20,25,34,.05), 0 6px 20px rgba(20,25,34,.06);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B0E13; --panel:#12161D; --ink:#E9EEF5; --muted:#95A1B2;
+    --hairline:#232B36; --hairline-2:#1B222C;
+    --a:#33CFC9; --a-soft:#0E2A29; --a-line:#1D4A48;
+    --b:#E0A24A; --b-soft:#2A2012; --b-line:#4A3A1D;
+    --gate:#8385F2; --gate-soft:#191A34;
+    --ok:#43C384; --ok-soft:#0F2A1D; --frontier:#DBAE43; --frontier-soft:#2A2211;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+    line-height:1.5;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  .wrap{max-width:1060px;margin:0 auto;padding:clamp(20px,4vw,52px) clamp(16px,4vw,40px) 64px;}
+
+  /* ---- header ---- */
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft);}
+  h1{font-size:clamp(26px,4.4vw,42px);line-height:1.08;letter-spacing:-.02em;font-weight:720;
+    margin:.5em 0 .35em;text-wrap:balance;max-width:20ch;}
+  .lede{font-size:clamp(15px,1.5vw,17px);color:var(--muted);max-width:62ch;margin:0;}
+  .chain{margin:22px 0 0;padding:14px 16px;background:var(--panel);border:1px solid var(--hairline);
+    border-radius:var(--r);font-family:var(--mono);font-size:13px;line-height:1.9;overflow-x:auto;
+    box-shadow:var(--shadow);white-space:nowrap;color:var(--muted);}
+  .chain b{color:var(--ink);font-weight:600;}
+  .chain .arw{color:var(--gate);padding:0 .4em;font-weight:700;}
+
+  /* ---- diagram ---- */
+  .flow{margin-top:34px;display:flex;flex-direction:column;gap:0;}
+  .layer{display:grid;grid-template-columns:200px 1fr;gap:24px;padding:20px 0;
+    border-top:1px solid var(--hairline-2);}
+  .layer:first-child{border-top:0;}
+  .rail{display:flex;flex-direction:column;gap:9px;padding-top:4px;}
+  .rail .lname{font-size:15px;font-weight:680;letter-spacing:-.01em;}
+  .rail .lmech{font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.55;}
+  .rail .ev{font-family:var(--mono);font-size:10.5px;color:var(--muted);opacity:.85;word-break:break-all;}
+  .chip{align-self:flex-start;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;padding:3px 8px;border-radius:999px;display:inline-flex;gap:6px;align-items:center;}
+  .chip.ok{background:var(--ok-soft);color:var(--ok);}
+  .chip.ok::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--ok);}
+  .chip.fr{background:var(--frontier-soft);color:var(--frontier);}
+  .chip.fr::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--frontier);}
+
+  .stage{min-width:0;}
+  /* two-lane rows */
+  .lanes{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .card{border-radius:var(--r);border:1px solid var(--hairline);background:var(--panel);
+    padding:15px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;min-width:0;}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;}
+  .card.a::before{background:var(--a);} .card.b::before{background:var(--b);}
+  .card .tt{font-family:var(--mono);font-size:12.5px;font-weight:600;display:flex;align-items:center;
+    gap:8px;color:var(--ink);word-break:break-word;}
+  .tag{font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:2px 7px;border-radius:6px;font-weight:600;}
+  .card.a .tag{background:var(--a-soft);color:var(--a);} .card.b .tag{background:var(--b-soft);color:var(--b);}
+  .card .sub{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.5;}
+  .card .sub code{font-family:var(--mono);font-size:11.5px;color:var(--ink);background:var(--hairline-2);
+    padding:1px 5px;border-radius:5px;}
+
+  /* full-width gate rows */
+  .gate{border-radius:var(--r);border:1px solid var(--gate);background:var(--gate-soft);
+    padding:15px 16px;box-shadow:var(--shadow);display:flex;gap:14px;align-items:flex-start;}
+  .gate .lock{flex:none;width:30px;height:30px;border-radius:8px;background:var(--gate);color:#fff;
+    display:grid;place-items:center;margin-top:1px;}
+  .gate .lock svg{width:16px;height:16px;}
+  .gate .gbody{min-width:0;}
+  .gate .gt{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--ink);}
+  .gate .gs{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.55;}
+  .gate .gs code{font-family:var(--mono);font-size:11.5px;color:var(--ink);background:var(--panel);
+    padding:1px 5px;border-radius:5px;border:1px solid var(--hairline);}
+  .deny{color:var(--b);font-weight:600;}
+  .allow{color:var(--ok);font-weight:600;}
+
+  /* storage prefixes */
+  .prefixes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+  .pfx{border:1px dashed var(--hairline);border-radius:9px;padding:9px 12px;background:var(--panel);
+    font-family:var(--mono);font-size:11.5px;display:flex;align-items:center;gap:8px;min-width:0;}
+  .pfx .k{width:8px;height:8px;border-radius:2px;flex:none;}
+  .pfx.a .k{background:var(--a);} .pfx.b .k{background:var(--b);}
+  .pfx .p{color:var(--ink);word-break:break-all;}
+
+  .agents{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:2px;}
+  .agent{border-radius:var(--r);border:1px solid var(--hairline);background:var(--panel);padding:12px 15px;
+    box-shadow:var(--shadow);display:flex;align-items:center;gap:11px;}
+  .agent .av{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;color:#fff;font-family:var(--mono);font-weight:700;font-size:12px;}
+  .agent.a .av{background:var(--a);} .agent.b .av{background:var(--b);}
+  .agent .an{font-family:var(--mono);font-size:12.5px;font-weight:600;}
+  .agent .as{font-size:11.5px;color:var(--muted);font-family:var(--mono);}
+
+  /* footer */
+  .foot{margin-top:40px;padding-top:24px;border-top:1px solid var(--hairline);
+    display:grid;grid-template-columns:1fr;gap:18px;}
+  .foot h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-family:var(--mono);
+    color:var(--muted);margin:0 0 4px;font-weight:600;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px 22px;}
+  .lg{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);font-family:var(--mono);}
+  .sw{width:12px;height:12px;border-radius:3px;flex:none;}
+  .note{font-size:13px;color:var(--muted);max-width:70ch;line-height:1.6;}
+  .note b{color:var(--ink);}
+  .meta{font-family:var(--mono);font-size:11px;color:var(--muted);opacity:.8;}
+
+  @media (max-width:660px){
+    .layer{grid-template-columns:1fr;gap:12px;}
+    .rail{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 12px;}
+    .lanes,.agents,.prefixes{grid-template-columns:1fr;}
+    .chain{white-space:normal;}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .card,.gate,.agent{transition:transform .18s ease, box-shadow .18s ease;}
+    .card:hover,.gate:hover{transform:translateY(-1px);}
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow"><span class="dot"></span> Reference architecture · Spark Declarative Pipelines · §3</div>
+    <h1>Per-tenant isolation, demonstrated end-to-end</h1>
+    <p class="lede">Five gates stand between an agent and another tenant's data. On a live EKS cluster, an agent
+      authenticated as <strong>tenant&nbsp;A</strong> is confined to tenant&nbsp;A at every layer — it cannot
+      address, be handed, or execute against tenant&nbsp;B by any path. Each layer below is not designed-only;
+      it runs, with a captured proof.</p>
+    <div class="chain">
+      <b>mTLS cert (SAN=tenant_a)</b><span class="arw">&rarr;</span>gateway routes to A's server<span class="arw">&rarr;</span>server injects A's token<span class="arw">&rarr;</span>catalog authorizes A only<span class="arw">&rarr;</span>vended cred prefix-scoped<span class="arw">&rarr;</span>A's own executors
+    </div>
+  </header>
+
+  <div class="flow">
+
+    <!-- entrance -->
+    <div class="layer">
+      <div class="rail">
+        <div class="lname">Authenticated agents</div>
+        <div class="lmech">two identities, each holding only its own client certificate</div>
+      </div>
+      <div class="stage">
+        <div class="agents">
+          <div class="agent a"><div class="av">A</div><div><div class="an">agent · tenant_a</div><div class="as">spiffe://…/tenant_a</div></div></div>
+          <div class="agent b"><div class="av">B</div><div><div class="an">agent · tenant_b</div><div class="as">spiffe://…/tenant_b</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. ingress -->
+    <div class="layer">
+      <div class="rail">
+        <div class="lname">1 · Ingress routing</div>
+        <div class="lmech">Envoy · mTLS · routes by client-cert URI-SAN</div>
+        <span class="chip ok">Demonstrated</span>
+        <div class="ev">proof_2026-07-10_ingress_routing.log</div>
+      </div>
+      <div class="stage">
+        <div class="gate">
+          <div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg></div>
+          <div class="gbody">
+            <div class="gt">Envoy gateway — terminate mTLS, derive principal from the cert, route on it</div>
+            <div class="gs">A tenant_a cert reaches <span class="allow">only spark-connect-tenant-a</span>; tenant_b reaches only its server.
+              An un-granted principal gets <span class="deny">403 (no route)</span>; a connection with no client cert is <span class="deny">refused at TLS</span>.
+              There is no route that can send A's cert to B's server.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. connect -->
+    <div class="layer">
+      <div class="rail">
+        <div class="lname">2 · Token custody</div>
+        <div class="lmech">one Spark Connect server per tenant · injects that tenant's catalog token server-side</div>
+        <span class="chip ok">Demonstrated</span>
+        <div class="ev">proof_2026-07-10_multiserver.log</div>
+      </div>
+      <div class="stage">
+        <div class="lanes">
+          <div class="card a"><div class="tt">spark-connect-tenant-a <span class="tag">token: A</span></div>
+            <div class="sub">The agent never holds the token — the server injects it. A session here <b>cannot present</b> tenant_b's credential.</div></div>
+          <div class="card b"><div class="tt">spark-connect-tenant-b <span class="tag">token: B</span></div>
+            <div class="sub">Reaching tenant_a returns <code>NotAuthorized: Missing Authorization Header</code>.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. execution -->
+    <div class="layer">
+      <div class="rail">
+        <div class="lname">3 · Execution isolation</div>
+        <div class="lmech">each tenant's driver owns its own executor pods</div>
+        <span class="chip ok">Demonstrated</span>
+        <div class="ev">disjoint pod sets · Spark UI</div>
+      </div>
+      <div class="stage">
+        <div class="lanes">
+          <div class="card a"><div class="tt">tenant_a executor pods</div>
+            <div class="sub">2 pods, distinct IPs, owned by A's driver app.</div></div>
+          <div class="card b"><div class="tt">tenant_b executor pods</div>
+            <div class="sub">Separate driver app + pod. The two tenants' compute <b>never shares a JVM</b>.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. catalog authz -->
+    <div class="layer">
+      <div class="rail">
+        <div class="lname">4 · Catalog authorization</div>
+        <div class="lmech">Lakekeeper + OpenFGA + OIDC · per-principal grants</div>
+        <span class="chip ok">Demonstrated</span>
+        <div class="ev">proof_2026-07-10_perprincipal_authz.log</div>
+      </div>
+      <div class="stage">
+        <div class="gate">
+          <div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg></div>
+          <div class="gbody">
+            <div class="gt">Shared governed catalog that gates per principal</div>
+            <div class="gs">Each identity is granted <span class="allow">only its own warehouse</span>. A tenant_a identity asking for tenant_b's
+              warehouse, table, or vended credential gets <span class="deny">404</span> (existence hidden); admin and tenant_b get <span class="allow">200</span>;
+              no token is <span class="deny">401</span>. Granting a <code>describe</code> relation toggles the 404&harr;200, proving the deny is authorization.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. storage -->
+    <div class="layer">
+      <div class="rail">
+        <div class="lname">5 · Storage scoping</div>
+        <div class="lmech">vended, prefix-scoped STS credentials · keyless (IRSA &rarr; downscoping role)</div>
+        <span class="chip ok">Demonstrated</span>
+        <div class="ev">CloudTrail · fleet IRSA = 0 data calls</div>
+      </div>
+      <div class="stage">
+        <div class="gate">
+          <div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg></div>
+          <div class="gbody">
+            <div class="gt">S3 — the final backstop, enforced by the credential itself</div>
+            <div class="gs">Every warehouse read/write runs under the tenant-scoped vended session (CloudTrail: the fleet role makes
+              <b>zero</b> data calls). Replaying that credential across the line is <span class="deny">AccessDenied</span>, both directions; an
+              ablation shows a whole-bucket credential would cross, so the deny is the downscoping vend.</div>
+            <div class="prefixes">
+              <div class="pfx a"><span class="k"></span><span class="p">s3://…-warehouse/tenant_a/</span></div>
+              <div class="pfx b"><span class="k"></span><span class="p">s3://…-warehouse/tenant_b/</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="foot">
+    <div>
+      <h2>How to read this</h2>
+      <div class="legend">
+        <span class="lg"><span class="sw" style="background:var(--a)"></span> tenant A lane</span>
+        <span class="lg"><span class="sw" style="background:var(--b)"></span> tenant B lane</span>
+        <span class="lg"><span class="sw" style="background:var(--gate)"></span> shared gate (enforces separation)</span>
+        <span class="lg"><span class="sw" style="background:var(--ok)"></span> demonstrated on live EKS</span>
+      </div>
+    </div>
+    <p class="note"><b>What remains frontier:</b> multi-tenant <b>scale</b> — many tenants and node autoscaling.
+      Two tenants prove the mechanism; scaling it out is the open problem. Everything else on this page is built
+      and runs, with a captured proof per layer.</p>
+    <div class="meta">Safe Spark Agents · Section 3 reference architecture · Spark 4.1.2 · Lakekeeper v0.13.1 · captured 2026-07-10</div>
+  </footer>
+</div>
