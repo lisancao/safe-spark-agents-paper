@@ -147,7 +147,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     the open governed platform, and fleet orchestration.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-07</span><span>·</span>
-    <span class="k">git f3d15ed</span><span>·</span>
+    <span class="k">git 894ddf3</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -1475,8 +1475,8 @@ not a finished production system (that is Section 3).</p>
 <g class="c-purple"><rect x="40" y="448" width="600" height="46" rx="8" stroke-dasharray="1.5 3"/><text x="340" y="470" class="th" text-anchor="middle">Tenant governance: per-tenant authz + isolation</text><text x="340" y="487" class="ts" text-anchor="middle">frontier · delegated to a governed catalog + multi-server Connect</text></g>
 </svg>
 </div><figcaption>The open governed reference architecture. Solid = demonstrated · dashed = configured but unrun · dotted = frontier.</figcaption></figure>
-<p><em>This section is a proposal whose lower layers are already demonstrated and whose multi-tenant governance is still design.</em> The GitOps gate and the Connect-on-Kubernetes substrate are built and run here; per-tenant governance is marked honestly as the frontier. What is demonstrated versus proposed is called out pillar by pillar.</p>
-<p>If an agent can be treated as fully untrusted, because it only ever emits inert desired-state, then it can be dropped into a <strong>governed data platform that trusts it with nothing</strong>. This section lays out that reference architecture: <strong>SDP</strong> owns declarative authoring; a <strong>GitOps/CI</strong> layer continuously tests and integrates each change against a real target catalog before a controller reconciles it; <strong>Spark Connect</strong> stays the single identity-pinned front door; and <strong>Kubernetes</strong> provides elastic execution behind it (a client-mode driver plus dynamically-allocated executor pods). What the open stack delivers today is <strong>single-tenant</strong>: an authenticated identity at the door, plus GitOps governance of every change. <strong>Multi-tenancy</strong>, per-tenant catalog authorization <em>and</em> execution isolation, is the explicitly-named frontier, delegated to a governed catalog and future multi-server orchestration rather than reinvented here.</p>
+<p><em>This section's substrate, GitOps gate, and, as of 2026-07-09, its per-tenant </em><em>data isolation</em><em> are demonstrated on a live EKS cluster; per-tenant </em><em>execution</em><em> isolation (multi-server) remains the frontier.</em> The GitOps gate, the Connect-on-Kubernetes substrate, and a governed catalog vending per-tenant scoped credentials are built and run here. What is demonstrated versus still-frontier is called out pillar by pillar.</p>
+<p>If an agent can be treated as fully untrusted, because it only ever emits inert desired-state, then it can be dropped into a <strong>governed data platform that trusts it with nothing</strong>. This section lays out that reference architecture: <strong>SDP</strong> owns declarative authoring; a <strong>GitOps/CI</strong> layer continuously tests and integrates each change against a real target catalog before a controller reconciles it; <strong>Spark Connect</strong> stays the single identity-pinned front door; and <strong>Kubernetes</strong> provides elastic execution behind it (a client-mode driver plus dynamically-allocated executor pods). What the open stack now delivers is <strong>per-tenant data isolation</strong>: an authenticated identity at the door, GitOps governance of every change, and a governed catalog (Lakekeeper) that vends per-tenant, prefix-scoped credentials so an agent confined to tenant A is denied at storage on tenant B's data (demonstrated on live EKS, both directions). The remaining frontier is per-tenant <strong>execution</strong> isolation, which needs multi-server Connect orchestration, plus the fleet credential-custody layer (§4).</p>
 <p>It builds on Section 2's boundary and does not relitigate the paradigm result (Section 1) or re-argue Connect; Connect stays the governed front door and Kubernetes is the horsepower behind it.</p>
 <h2 id="30-the-separation-of-concerns-the-boundary-this-section-draws">3.0 The separation of concerns (the boundary this section draws)</h2>
 <p>Each layer owns one thing and <strong>delegates the rest</strong>; this is the section's organizing principle:</p>
@@ -1571,21 +1571,21 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <p><strong>Elasticity.</strong> Dynamic allocation is enabled (<code>minExecutors=0</code>, <code>initialExecutors=0</code>, <code>maxExecutors=10</code>, shuffle tracking; executors <code>2</code> cores / <code>2g</code>) <code>[connect/base/deployment.yaml]</code>; the Terraform executor pool defaults <code>m6i.2xlarge</code>, min=0/max=10/desired=2 <code>[terraform/variables.tf]</code>. This is a configured elasticity <em>envelope</em>, not a reproduced 0→10→0 autoscaling cycle: Karpenter is explicitly deferred <code>[terraform/README.md]</code>.</p>
 <p><strong>One shared driver.</strong> The Deployment is a singleton (<code>replicas:1</code>, <code>Recreate</code>) because Connect sessions are server-local and can't be spread behind one address without breaking session affinity <code>[connect/base/deployment.yaml]</code>; the live cluster runs "one long-lived Spark Connect server application shared by every run" <code>[DEVIATIONS.md]</code>, and the harness caches that single application id <code>[harness/backends/live.py]</code>. The same image (Spark 4.1.2, Iceberg 1.11.0, S3A/AWS SDK, PostgreSQL JDBC, principal-pinning interceptor jar) serves both driver and executors via role-dispatch in the entrypoint <code>[images/spark-connect/Dockerfile:18-35,65-118; images/spark-connect/entrypoint.sh]</code>.</p>
 <h3 id="322-what-actually-ran">3.2.2 What actually ran</h3>
-<p>The topology above was stood up on a <strong>real EKS cluster</strong>, and one thing was measured directly: through the driver's Spark-UI REST API, a <code>spark.range(80_000_000).sum()</code> ran on the cluster's <strong>executor pods, not in the local process</strong>, and registered real Spark stages (executor-seconds 1.246, cpu-seconds 0.878). This is a small probe. It confirms execution genuinely left the client and ran on the cluster; it is <em>not</em> a large multi-executor parallelism benchmark, and the paper does not claim one. One honest caveat, and it is about reproducibility, not about whether it ran: the cluster was provisioned <strong>by hand</strong>, because the committed Terraform substrate is <em>configured but not applied</em>, so the deploy is not yet a one-command reproduction. The full deploy-and-connect runbook (image build → <code>kustomize</code> apply → mTLS client) lives in the repository.</p>
+<p>The topology above was stood up on a <strong>real EKS cluster</strong>, and one thing was measured directly: through the driver's Spark-UI REST API, a <code>spark.range(80_000_000).sum()</code> ran on the cluster's <strong>executor pods, not in the local process</strong>, and registered real Spark stages (executor-seconds 1.246, cpu-seconds 0.878). This is a small probe. It confirms execution genuinely left the client and ran on the cluster; it is <em>not</em> a large multi-executor parallelism benchmark, and the paper does not claim one. Reproducibility (updated 2026-07-09): the substrate is now <strong>terraform-applied and CI/OIDC-gated</strong>: a fresh cluster stands up via a reviewer-approved GitHub Actions apply against S3-backed state, with <strong>no long-lived AWS keys</strong> (GitHub OIDC assumes a scoped role). The full deploy-and-connect runbook and the end-to-end build narrative live in the repository (<code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code>).</p>
 <h3 id="323-honest-scoping">3.2.3 Honest scoping</h3>
 <ul>
 <li><strong>DEMONSTRATED:</strong> the topology was stood up on EKS; one shared long-lived Connect driver; execution ran on cluster executor pods, not locally (the <code>spark.range</code> probe registered real Spark stages) <code>[DEVIATIONS.md]</code>.</li>
 <li><strong>CONFIGURED-BUT-UNREPRODUCED:</strong> elastic <strong>0→10 executor</strong> scale-up/down (dynamic allocation is enabled, but no captured 0→N→0 cycle); <strong>no Cluster Autoscaler/Karpenter committed</strong>, so node-level autoscaling is unshown <code>[connect/base/deployment.yaml; terraform/README.md]</code>.</li>
-<li><strong>DESIGN-ONLY:</strong> multiple / per-tenant Connect servers, today a <strong>singleton</strong> (<code>replicas:1</code>, session affinity) <code>[connect/base/deployment.yaml]</code>; Terraform not applied per its README <code>[terraform/README.md]</code>.</li>
+<li><strong>DESIGN-ONLY:</strong> multiple / per-tenant Connect servers, today a <strong>singleton</strong> (<code>replicas:1</code>, session affinity) <code>[connect/base/deployment.yaml]</code>. <em>(The Terraform substrate is now applied + CI-gated as of 2026-07-09; only the multi-server topology remains design-only.)</em></li>
 </ul>
 <h2 id="33-tenant-governance-the-named-multi-tenancy-frontier">3.3 Tenant governance: <em>the named multi-tenancy frontier</em></h2>
 <p><strong>Where enforcement ends today.</strong> Identity is strong at the door but not downstream. Envoy pins an unspoofable principal from the client cert SAN and the interceptor rejects a mismatched <code>user_id</code> <code>[connect/base/envoy/envoy.yaml; deploy/auth/interceptor/.../PrincipalPinningInterceptor.java]</code>: the platform <em>knows</em> who each session is. But <strong>authorization is fleet-scoped</strong>: a single shared Iceberg catalog and one fleet-wide cloud IAM role (via IRSA, <em>IAM Roles for Service Accounts</em>) with read/write to the entire warehouse <code>[images/spark-connect/conf/spark-defaults.template.conf; terraform/irsa.tf]</code>. Per-principal schema isolation (a <code>sandbox_&lt;principal&gt;</code> naming scheme) exists only <strong>by convention, not enforcement</strong> <code>[RUNBOOK.md]</code>, and the open-source Hive Metastore and Iceberg catalog (OSS HMS/Iceberg) <strong>cannot express per-user grants</strong> at all; the repo states this outright and does not claim it <code>[deploy/auth/README.md]</code>. Execution is shared too: one long-lived driver, shared executors, no per-tenant pool <code>[connect/base/deployment.yaml]</code>.</p>
-<p><strong>Two frontiers, one idea: multi-tenancy.</strong>
-1. <strong>Catalog authorization is a <em>catalog</em> function: delegate it.</strong> Per-tenant grants/isolation belong in a governed catalog (Unity-Catalog-class), not reinvented in SDP or CI. The open stack's honest boundary: it gives you authenticated identity + GitOps governance; per-tenant <em>authorization</em> is where you bring a real catalog.
+<p><strong>Multi-tenancy: one half now demonstrated, one still frontier.</strong>
+1. <strong>Catalog authorization — DEMONSTRATED (Lakekeeper).</strong> Per-tenant grants + credential vending belong in a governed catalog, not reinvented in SDP or CI. We brought one (<strong>Lakekeeper</strong>, vendor-neutral) and demonstrated it on live EKS: per-tenant, prefix-scoped vended credentials enforce cross-tenant <code>AccessDenied</code> at storage, both directions, <strong>keylessly</strong> (IRSA assumes a downscoping STS role, external-id-pinned). The executor pod carries the broad fleet role yet is denied cross-tenant <em>because it uses the scoped vend</em>; that denial, with a full-bucket role present, is the load-bearing result. OSS HMS/Iceberg still can't express this (below); the governed Iceberg-REST catalog is what makes it enforceable.
 2. <strong>Per-tenant execution isolation needs multi-server Connect: future.</strong> Because Connect sessions are server-local, true isolation means multiple Connect servers (per team/tenant) behind the governed ingress, orchestrated by k8s, not the singleton today.</p>
 <p><strong>Credential vending vs custody (the §3↔§4 line).</strong> The catalog <em>vends</em> short-lived, scoped credentials (a catalog function) but does <strong>not</strong> hand them to the agent. Holding and managing the vended credential (custody + the agent interface) is the <strong>orchestration layer's job (§4/Omnigent)</strong>, precisely so the agent never sees a credential and §2's boundary survives at fleet scale. §3 owns the catalog as the <strong>authority</strong> that grants and the <strong>vendor</strong> that issues short-lived credentials; §4 owns <strong>credential custody plus the agent interface</strong>.</p>
 <p><strong>The edge, stated plainly.</strong> §3 demonstrates the single-tenant governed, integrable, scalable boundary and draws the multi-tenancy line exactly, delegating across it. Multi-tenant authorization is scoped to the catalog layer by design, not left undone by accident. And the specific limit, that <strong>OSS HMS/Iceberg cannot express per-user grants</strong>, is itself a finding: it marks the edge of what an open stack can enforce on its own, and where a governed catalog has to take over.
-- <strong>Tier:</strong> <strong>FRONTIER / DESIGN-ONLY</strong> throughout: <strong>no reproduction section, because nothing here is demonstrated to reproduce.</strong> The demonstrated piece is only <em>identity authentication at the ingress</em>; <em>authorization</em> and <em>execution isolation</em> are delegated/future.</p>
+- <strong>Tier:</strong> <strong>DEMONSTRATED (per-tenant data isolation) + FRONTIER (per-tenant execution isolation).</strong> On a live EKS cluster (2026-07-09) a governed catalog (<strong>Lakekeeper</strong>) vends per-tenant, prefix-scoped credentials, and an agent scoped to tenant A is <strong>denied at S3</strong> on tenant B's data, read <em>and</em> write, and symmetrically B→A (<code>AccessDenied</code> both directions), while each tenant reads/writes its own. So per-tenant <strong>authorization</strong> is no longer "future": it is demonstrated end-to-end through Spark Connect + the vended-credential path to the compute. What remains frontier: the <em>airtight distributed wording</em> (proving it on a distinct executor <strong>pod</strong>; the small write currently runs driver-side, though the driver carries the full fleet role and still uses the scoped vend), and per-tenant <strong>execution</strong> isolation (multiple Connect servers). Full build + proof narrative: <code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code>.</p>
 <h2 id="34-evidence-tiering">3.4 Evidence tiering</h2>
 <div class="tablewrap"><table>
 <thead>
@@ -1611,9 +1611,9 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 </tr>
 <tr>
 <td>Tenant governance</td>
-<td>identity pinned at ingress</td>
+<td>identity pinned at ingress; <strong>per-tenant storage isolation</strong> on EKS (Lakekeeper vended creds; cross-tenant <code>AccessDenied</code> both directions)</td>
 <td>(none)</td>
-<td>catalog authz; per-tenant execution isolation; multi-server Connect</td>
+<td>distinct-executor-pod wording; per-tenant execution isolation; multi-server Connect</td>
 </tr>
 </tbody>
 </table></div>
@@ -1928,8 +1928,8 @@ that is the definition of drift here.</strong></p>
 <tr>
 <td>L0 substrate</td>
 <td>(none)</td>
-<td><strong>BUILT, ran 2026-06-24</strong> (cluster <code>ssa-spark-eks</code>); current state not tracked</td>
-<td><code>DEVIATIONS.md:184-227</code>; TF README says "not applied"</td>
+<td><strong>APPLIED via terraform + CI (2026-07-09)</strong>, S3-backed state (the earlier hand-built June cluster was torn down + rebuilt clean)</td>
+<td><code>deploy/eks/terraform</code>; <code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code></td>
 </tr>
 <tr>
 <td>L1 native mTLS/PSK</td>
@@ -2005,17 +2005,17 @@ remaining work; L1 needs native-mTLS de-risking; L6 needs capturing as a clean a
 <tr>
 <td><strong>P0 substrate</strong></td>
 <td>EKS + Connect + Envoy + catalog + S3 exist</td>
-<td>built; ran once 2026-06-24</td>
+<td><strong>DEMONSTRATED: terraform-applied + CI/OIDC-gated, live (2026-07-09)</strong></td>
 </tr>
 <tr>
 <td><strong>P1 governed ingress</strong></td>
 <td>mTLS + principal pinning, no bypass</td>
-<td>built; reached via socat tunnel (native client mTLS unproven)</td>
+<td><strong>DEPLOYED + ENFORCING on EKS</strong> (Envoy mTLS + interceptor pin principal+PSK+user_id); native pyspark client-cert path still unproven</td>
 </tr>
 <tr>
 <td><strong>P2 elastic execution</strong></td>
 <td>driver + dynamically-allocated executor pods</td>
-<td>small-scale distributed exec DEMONSTRATED; elastic 0→10 unproven</td>
+<td><strong>DEPLOYED on EKS</strong>; executor pods spin up; elastic 0→N→0 cycle uncaptured</td>
 </tr>
 <tr>
 <td><strong>P3 GitOps boundary</strong></td>
@@ -2030,7 +2030,7 @@ remaining work; L1 needs native-mTLS de-risking; L6 needs capturing as a clean a
 <tr>
 <td><strong>P5 tenant isolation</strong></td>
 <td>per-tenant authz + per-tenant execution</td>
-<td>FRONTIER</td>
+<td><strong>authz DEMONSTRATED</strong> (Lakekeeper vended creds; cross-tenant <code>AccessDenied</code> both directions on EKS); per-tenant execution isolation = FRONTIER</td>
 </tr>
 <tr>
 <td><strong>P6 multi-tenant scale</strong></td>
@@ -2039,7 +2039,7 @@ remaining work; L1 needs native-mTLS de-risking; L6 needs capturing as a clean a
 </tr>
 </tbody>
 </table></div>
-<p><strong>Highest honestly-claimable today ≈ P3/P4 locally, P2 small-scale on EKS.</strong> P5/P6 are the frontier.</p>
+<p><strong>Highest honestly-claimable today ≈ P5 authorization (per-tenant storage isolation, demonstrated on EKS 2026-07-09).</strong> The airtight distributed-executor-pod wording, per-tenant <em>execution</em> isolation (P5b), and multi-tenant scale (P6) remain the frontier.</p>
 <h4 id="r-reverse-engineering-map-reference-as-built-salvage-gap">R: Reverse-engineering map (reference → as-built → SALVAGE / GAP)</h4>
 <div class="tablewrap"><table>
 <thead>
