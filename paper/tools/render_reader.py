@@ -117,6 +117,9 @@ body = body.replace("<p>[[[SVG-ISOLATION]]]</p>",
 body = body.replace("<p>[[[SVG-CUSTODY]]]</p>",
     figure(load_svg("section3_credential_custody.svg"),
            "Credential custody, the §3↔§4 line. The credential is vended by the catalog, held and injected by the §4 custodian, and used by the Connect server and executors; it never crosses the §2 trust boundary to the untrusted agent, which only emits an inert spec and receives a pass/fail."))
+body = body.replace("<p>[[[SVG-COMPOSITION]]]</p>",
+    figure(load_svg("section1_defect_composition.svg"),
+           "The honest counter-signal, decomposed. Silent semantic defects shipped, per class, arm A vs arm B. The whole A−B gap is D7 (+7) and D8 (+6); the largest class, D6 dedup, is tied (a wash, not SDP-specific). D7 timezone is the sharp, skill-attributable driver, imperative ships zero and closes SDP to zero once the skill teaches the day-bucket idiom (§SM1)."))
 body = body.replace("<p>[[[SVG-WHERE]]]</p>",
     figure(load_svg("section1_where_defects_caught.svg"),
            "The load-bearing result. Structural defects (D1/D4/D5) meet a boundary, before any data is processed. Bare imperative has no structural gate, so zero are caught early; four surface later at runtime, after compute is spent. SDP's framework dry-run catches 79 at that boundary before any executor starts; 30 more surface at runtime. Neither arm ships a structural defect."))

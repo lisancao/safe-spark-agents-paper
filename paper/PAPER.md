@@ -164,6 +164,8 @@ The B-worse residue is **not uniform**: it decomposes by semantic class (shipped
 
 The whole A−B gap is **D7 (+7) and D8 (+6)**; D6, the largest class, is tied. D7 is the sharp one: imperative ships **zero** timezone defects, SDP ships 7 (mostly `p8_currency_normalize`), and it is exactly the skill-attributable driver that closes to 0 once B is taught the idiom. `[src: results.powered.AB.n12.final.jsonl · per_defect_detection]`
 
+[[[SVG-COMPOSITION]]]
+
 ### 4.2 Structural-defect catching at the gate (gate-validity audit complete)
 **Clean A-vs-B (528 cells).** Where structural defects (D1/D4/D5) are caught (defect-level, across ALL iterations; anti-bypass: a gate-caught-then-fixed error still counts):
 
