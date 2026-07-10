@@ -174,7 +174,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git f86167d</span><span>·</span>
+    <span class="k">git 8ad6596</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -1925,6 +1925,62 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 </div><figcaption>Credential custody, the §3↔§4 line. The credential is vended by the catalog, held and injected by the §4 custodian, and used by the Connect server and executors; it never crosses the §2 trust boundary to the untrusted agent, which only emits an inert spec and receives a pass/fail.</figcaption></figure>
 <p><strong>The edge, stated plainly.</strong> §3 now demonstrates the governed, integrable, scalable boundary <em>per tenant</em>, all five isolation links running on live EKS, and draws the one line it does not cross: credential <strong>custody</strong> at fleet scale (delegated to §4/Omnigent) and <strong>scale</strong> itself (many tenants, node autoscaling), which are named, not left undone by accident. The specific open-stack limit, that <strong>OSS HMS/Iceberg cannot express per-user grants</strong>, is itself a finding: it marks where an open stack must hand tenant authorization to a governed catalog, which is exactly what the demonstrated Lakekeeper + OpenFGA layer does.
 - <strong>Tier: all five links DEMONSTRATED on live EKS; only multi-tenant scale is a new-capability FRONTIER (two proof-completeness seams remain, below).</strong> The per-link evidence is in points 1-5 above and the §3.4 table; the figure <code>paper/figures/isolation-architecture.html</code> renders the whole path. Two measurement caveats the per-link proofs carry, stated so they are not glossed: (i) the storage-scoping probe (a per-write delta of 12 tasks measured before/after an 8-partition shuffle under <code>spark.master=k8s</code>) proves only that execution left the driver onto a <strong>dedicated executor pod, not the local process</strong>, on the shared-server run both tenants happened to land on the <em>same</em> pod, so <em>per-tenant pod disjointness</em> is a separate result, established by the multi-server run (link 3, distinct pod IPs); and (ii) the cross-tenant storage denial is observed by <strong>replaying</strong> the tenant-scoped vended credential against the other prefix, not by an executor pod being refused in-cluster, the executor-side channel shows only that all FileIO used the vend (CloudTrail: the fleet IRSA role makes zero data calls). Full build + proof narrative: <code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code>.</p>
+<h3 id="catalog-binding-lakekeeper-and-unity-catalog-oss-as-co-equal-governed-catalogs">Catalog binding: Lakekeeper and Unity Catalog OSS as co-equal governed catalogs</h3>
+<p><em>The governed catalog is a swappable component, not a Lakekeeper dependency. (Author disclosure: a co-author works on open-source Unity Catalog at Databricks; this evaluation names UC OSS's gaps as scrupulously as its strengths, and every UC claim is verified against v0.5.0 source or reproduced live.)</em></p>
+<p>The five isolation layers split by whether the <strong>catalog</strong> owns them. <strong>L1 ingress routing, L2 token custody, and L3 execution isolation are catalog-independent</strong>: they live at the Connect ingress, the per-tenant Connect servers (each injects <em>that tenant's</em> catalog token), and the executor pods, and carry a Unity Catalog token exactly as they carry a Lakekeeper token. <strong>L4 per-principal authorization and L5 prefix-scoped credential vending are the catalog's job</strong>, and both catalogs enforce them.</p>
+<p><strong>Both catalogs, verified.</strong> Each authenticates a per-tenant identity, enforces a per-principal grant on every operation <em>including the credential-vend path</em>, and vends short-lived cloud credentials downscoped to the tenant's own prefix with external-id pinning, so a cross-tenant request is refused at the catalog and a replayed credential is refused at storage.</p>
+<ul>
+<li><strong>Lakekeeper + OpenFGA (Iceberg-REST),</strong> the primary binding demonstrated above: per-principal authz via OpenFGA (Zanzibar, relationship-based); cross-tenant catalog request <code>404</code>; vend refused for an un-granted tenant; STS creds downscoped and external-id-pinned. One vendor-neutral Rust binary, natively Iceberg-REST.</li>
+<li><strong>Unity Catalog OSS 0.5.0 (native plugin),</strong> verified against v0.5.0 source and reproduced live: per-principal authz via JCasbin (RBAC over catalog/schema/table securables); the vend endpoint gated by the same grants (<code>@AuthorizeExpression(VEND_TABLE_CREDENTIAL)</code>: <code>READ</code>→<code>SELECT</code>, <code>READ_WRITE</code>→<code>SELECT</code>+<code>MODIFY</code>); the vend mints 1-hour STS <code>AssumeRole</code> creds downscoped by an inline session policy to the exact prefix, with <code>sts:ExternalId</code> pinning. On live AWS (<code>paper/notes/proof_2026-07-10_uc_vending.log</code>, <strong>6/6 checks</strong>): tenant A vends real downscoped <code>ASIA*</code> creds for its own prefix; the same principal is refused <code>PERMISSION_DENIED</code> for tenant B's location (both directions); and tenant A's vended credential replayed against tenant B's prefix yields S3 <code>AccessDenied</code>.</li>
+</ul>
+<p><strong>Where Unity Catalog OSS is genuinely weaker (and it is).</strong> The per-principal L4/L5 result holds only via UC's <strong>native plugin path</strong>, with authorization enabled and each tenant presenting its own non-owner token. Residual gaps, stamped to v0.5.0:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Kind</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Iceberg-REST path cannot express per-principal L4</td>
+<td><strong>hard</strong></td>
+<td>UC's Iceberg-REST endpoint authorizes every route at metastore-<code>OWNER</code> (all-or-nothing) and is read-only / UniForm-only; per-principal grants work only on the UC-native plugin. Lakekeeper does per-principal authz natively over Iceberg-REST.</td>
+</tr>
+<tr>
+<td>Authorization off by default</td>
+<td>posture</td>
+<td>ships <code>server.authorization=disable</code> (an allow-all authorizer that leaves vending open); isolation is opt-in, not default.</td>
+</tr>
+<tr>
+<td>No row-level security / column masking / ABAC</td>
+<td><strong>hard</strong></td>
+<td>coarse object-level RBAC only; RLS and masks are Databricks-managed-UC features.</td>
+</tr>
+<tr>
+<td>RBAC, not relationship-based</td>
+<td>design</td>
+<td>JCasbin ACL/RBAC with hierarchical inheritance vs OpenFGA (Zanzibar); the OSS authorizer is single and non-thread-safe under concurrent policy reload.</td>
+</tr>
+<tr>
+<td>Identity mapping</td>
+<td>setup</td>
+<td>maps the OIDC <code>email</code> claim to a <strong>pre-provisioned</strong> UC user (no default JIT; group grants unverified), so many-tenant onboarding is per-user grant work.</td>
+</tr>
+<tr>
+<td>Authz maturity</td>
+<td>maturity</td>
+<td>standing UC 0.5.0 up per-principal required patching two authz bugs (multi-frame request-body parsing; missing authorization expression on <code>GET /permissions</code>).</td>
+</tr>
+<tr>
+<td>Operational weight</td>
+<td>ops</td>
+<td>UC server + Postgres + OIDC token-exchange + JCasbin vs Lakekeeper's single Rust binary.</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Takeaway.</strong> Per-principal authorization and prefix-scoped vending, the two things §3's isolation rests on, are achievable on both an Iceberg-REST-native catalog (Lakekeeper + OpenFGA) and Unity Catalog OSS 0.5.0 (native plugin + JCasbin). We demonstrate the full isolation proof on Lakekeeper and reproduce the catalog-owned L4/L5 links on UC OSS, and we name where UC OSS is weaker (Iceberg-REST per-principal authz, default posture, fine-grained governance) so the choice is an informed one.</p>
 <h2 id="34-evidence-tiering">3.4 Evidence tiering</h2>
 <div class="tablewrap"><table>
 <thead>
