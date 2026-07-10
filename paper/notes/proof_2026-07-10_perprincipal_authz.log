@@ -25,3 +25,11 @@
 VERDICT: the catalog authorizes credential requests per PRINCIPAL. A tenant_a-pinned identity
 is DENIED at the catalog for tenant_b (read, write, config-resolution, and the vend path all sit
 behind the same warehouse-authz gate), while admin and tenant_b get 200. Grants toggle it.
+
+-- D. Cross-tenant VEND deny (loadTable WITH X-Iceberg-Access-Delegation: vended-credentials) --
+   Directly probing the credential-vending path (not inferring it from the warehouse gate), against a
+   real table (tenant_b's sales/orders, created via tenant_b's own Connect server):
+     tenant_b (owner) -> HTTP 200, VENDED CREDS RETURNED (storage-credentials present in the loadTable response)
+     tenant_a (cross) -> HTTP 404 NoSuchTableException (table hidden for a zero-relation principal; NO creds vended)
+   So the catalog refuses to vend tenant_b's credential to a tenant_a identity. This is the exact operation
+   the fleet-scoped (allow-all) catalog performed across principals; the OpenFGA-gated catalog denies it.

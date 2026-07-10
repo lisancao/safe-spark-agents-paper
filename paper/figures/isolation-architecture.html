@@ -246,8 +246,9 @@
           <div class="gbody">
             <div class="gt">Shared governed catalog that gates per principal</div>
             <div class="gs">Each identity is granted <span class="allow">only its own warehouse</span>. A tenant_a identity asking for tenant_b's
-              warehouse, table, or vended credential gets <span class="deny">404</span> (existence hidden); admin and tenant_b get <span class="allow">200</span>;
-              no token is <span class="deny">401</span>. Granting a <code>describe</code> relation toggles the 404&harr;200, proving the deny is authorization.</div>
+              warehouse or table gets <span class="deny">404</span> (existence hidden); admin and tenant_b get <span class="allow">200</span>;
+              no token is <span class="deny">401</span>. Probed directly at the vend: tenant_b's own loadTable (with delegation) returns
+              <span class="allow">200 + credentials</span>, tenant_a gets <span class="deny">404</span>, no credential. Granting a <code>describe</code> relation toggles 404&harr;200, proving the deny is authorization.</div>
           </div>
         </div>
       </div>
@@ -290,7 +291,9 @@
         <span class="lg"><span class="sw" style="background:var(--ok)"></span> demonstrated on live EKS</span>
       </div>
     </div>
-    <p class="note"><b>What remains frontier:</b> multi-tenant <b>scale</b>, many tenants and node autoscaling.
+    <p class="note"><b>What remains:</b> the unbuilt capability is multi-tenant <b>scale</b>, many tenants and node
+      autoscaling. Two proof-completeness seams also remain: a single request composing all five links, and
+      unifying the storage-scoping forensic onto the authorization-enabled catalog.
       Two tenants prove the mechanism; scaling it out is the open problem. Everything else on this page is built
       and runs, with a captured proof per layer.</p>
     <div class="meta">Safe Spark Agents · Section 3 reference architecture · Spark 4.1.2 · Lakekeeper v0.13.1 · captured 2026-07-10</div>

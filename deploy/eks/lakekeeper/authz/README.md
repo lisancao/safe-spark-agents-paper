@@ -16,11 +16,11 @@ become ungovernable.
 2. **The base Connect overlay** (`../../connect`): provides `spark-connect-env`,
    `spark-connect-executor-podtemplate`, the `spark-connect-psk` Secret, and the `spark` ServiceAccount that
    the per-tenant Connect servers (multi-server section) reuse.
-3. **A Connect CA + per-tenant client certs** (`../../auth/certs/issue-*.sh`) for the gateway section: a server
+3. **A Connect CA + per-tenant client certs** (`../../../auth/certs/issue-*.sh`) for the gateway section: a server
    cert for the gateway (a reachable name, e.g. `localhost`/`spark-connect-mtls`) and one client cert per tenant
    with URI-SAN `spiffe://safe-spark-agents/<tenant>`.
 
-An EKS cluster with the substrate applied (`../eks/terraform`), IRSA configured, and the spark-connect image in
+An EKS cluster with the substrate applied (`../../terraform`), IRSA configured, and the spark-connect image in
 ECR are assumed throughout.
 
 ## Components (namespace `spark`)
@@ -84,6 +84,18 @@ no token        401          401
 `404` = existence hidden for a zero-relation principal (grant a `describe` to see a clean `200`, i.e.
 the deny is authorization, not nonexistence). Full evidence: `paper/notes/proof_2026-07-10_perprincipal_authz.log`.
 
+**Direct vend-deny probe** (the load-bearing check: does the catalog refuse to *vend* tenant_b's credential to
+tenant_a?). With a real table in tenant_b (create one via its Connect server, multi-server section), call
+`loadTable` with the delegation header, once as each identity:
+```bash
+DELEG='X-Iceberg-Access-Delegation: vended-credentials'; source wids.env
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $(cat jwt_tenant_b.txt)" -H "$DELEG" \
+  "$LK/catalog/v1/$WID_B/namespaces/sales/tables/orders"   # tenant_b (owner) -> 200 + storage-credentials
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $(cat jwt_tenant_a.txt)" -H "$DELEG" \
+  "$LK/catalog/v1/$WID_B/namespaces/sales/tables/orders"   # tenant_a (cross) -> 404, no credentials vended
+```
+Recorded as section D of the proof log.
+
 ## Multi-server Connect (token custody + per-tenant execution isolation)
 
 Beyond catalog authorization, stand up ONE Spark Connect server per tenant, each injecting only that
@@ -106,8 +118,8 @@ python3 gen_connect_server.py tenant_b jwt_tenant_b.txt | kubectl apply -f -
 - **Execution isolation** -- tenant_a's executor pods (distinct IPs, own driver app) are disjoint from
   tenant_b's; the two tenants' compute never shares a JVM. Pods carry label `tenant=<t>`.
 
-**Remaining seam:** per-principal ingress routing (bind each authenticated principal to its own server at
-the Envoy mTLS gateway) -- a per-principal upstream config on the demonstrated cert-SAN pinning (P1).
+The final seam, binding each authenticated principal to its own server so a client cannot connect to another
+tenant's, is closed by the gateway section below (`proof_2026-07-10_ingress_routing.log`).
 
 ## Per-principal ingress routing (gateway Envoy)
 

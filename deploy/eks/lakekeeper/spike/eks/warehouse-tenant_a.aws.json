@@ -3,7 +3,8 @@
   "delete-profile": { "type": "soft", "expiration-seconds": 3600 },
   "storage-credential": {
     "type": "s3",
-    "credential-type": "aws-system-identity"
+    "credential-type": "aws-system-identity",
+    "external-id": "REPLACE-external-id"
   },
   "storage-profile": {
     "type": "s3",
@@ -11,6 +12,7 @@
     "region": "us-east-1",
     "key-prefix": "tenant_a",
     "sts-enabled": true,
-    "sts-role-arn": "arn:aws:iam::REPLACE-ACCOUNT:role/REPLACE-name-prefix-lakekeeper-vending"
+    "flavor": "aws",
+    "assume-role-arn": "arn:aws:iam::REPLACE-ACCOUNT:role/REPLACE-name-prefix-lakekeeper-vending"
   }
 }
