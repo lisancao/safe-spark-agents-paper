@@ -59,7 +59,16 @@ kubectl reaches the private API. Cluster stays private; admin flows through the 
 `ssa-spark-lakekeeper-vending`, which downscopes per-warehouse). **Lakekeeper + Postgres RUNNING** in ns `spark`.
 **Snag (never-run on EKS):** the Lakekeeper pod's `runAsNonRoot: true` clashed with the root Lakekeeper image
 (`Init:CreateContainerConfigError`) → fixed by pinning `runAsUser: 1000` (static Rust binary, runs fine).
-**Remaining:** deploy the Connect-on-k8s + Envoy mTLS overlay (needs generated CA/certs/PSK + envsubst on
-`${ECR_REGISTRY}/${AWS_ACCOUNT_ID}/${WAREHOUSE_BUCKET}/${RDS_ENDPOINT}`) → provision the 2 tenant warehouses →
-run the isolation test → capture the **CloudTrail "vend-not-IRSA"** discriminator + the **R7 ablation**
-(vending off → cross-tenant succeeds). Design + acceptance: `SECTION3_isolation_experiment.md`.
+**Connect + Envoy mTLS deployed + RUNNING (2/2).** Steps that worked: issued CA + server cert (SANs =
+`spark-connect-mtls[.spark.svc...]`, matching the in-cluster service the test dials) + per-tenant client certs
+via `deploy/auth/certs/issue-all.sh`; created the two out-of-band secrets `spark-connect-psk` +
+`spark-connect-envoy-certs`; rendered the overlay with `kubectl kustomize | envsubst` (scoped to the 4 vars) and
+applied. **Snags fixed:** a third out-of-band secret `spark-iceberg-jdbc` (keys `ICEBERG_JDBC_USER/PASSWORD`,
+the RDS metastore creds) is required and not in kustomize — created it from the terraform-managed Secrets Manager
+entry `ssa-spark/metastore/connection` (via `--from-file`, password never on argv). After that + a rollout
+restart the pod came up 2/2. **Net: the governed platform (P1 mTLS ingress + P2 Connect-on-k8s + P5 Lakekeeper)
+is LIVE on EKS.**
+**Remaining for the proof:** apply the `lk_a`/`lk_b` REST-catalog patch (vended-credentials) to the connect
+deployment → run the warehouse-provision job (2 tenants) → run the isolation test → capture the **CloudTrail
+"vend-not-IRSA"** discriminator + the **R7 ablation** (vending off → cross-tenant succeeds). Design + acceptance:
+`SECTION3_isolation_experiment.md`.
