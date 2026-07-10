@@ -73,6 +73,12 @@ resource "aws_iam_role_policy" "lakekeeper_assume_vending" {
 # Its own policy is broad (whole bucket). Lakekeeper narrows each vend to one
 # key-prefix via an AssumeRole session policy — so the ISSUED credential is
 # tenant-scoped even though this role is not.
+variable "lakekeeper_external_id" {
+  description = "Shared secret (external-id) between Lakekeeper's storage-credential and the vending role trust policy (confused-deputy protection). Treat as a password; set via TF_VAR, never commit."
+  type        = string
+  sensitive   = true
+}
+
 data "aws_iam_policy_document" "vending_trust" {
   statement {
     effect  = "Allow"
@@ -80,6 +86,11 @@ data "aws_iam_policy_document" "vending_trust" {
     principals {
       type        = "AWS"
       identifiers = [aws_iam_role.lakekeeper_catalog.arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "sts:ExternalId"
+      values   = [var.lakekeeper_external_id]
     }
   }
 }

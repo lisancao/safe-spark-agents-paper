@@ -85,6 +85,31 @@ Running the provision job surfaced two real Lakekeeper behaviors (its Spark/AWS 
    and/or the vending role's trust policy must add a matching `sts:ExternalId` condition) needs the Lakekeeper
    v0.13.1 storage-credential schema. **This is the current blocking point for provisioning.**
 
+### RESOLVED: the external-id fix (source-confirmed) + tenants provisioned
+Root cause (confirmed against Lakekeeper `crates/lakekeeper/src/service/storage/s3.rs`): `external-id` belongs
+**inside the `storage-credential` object**, not `storage-profile` (where it was silently ignored). The working
+warehouse config: `storage-credential: {type:s3, credential-type:aws-system-identity, external-id:<secret>}` +
+`storage-profile: {..., flavor:aws, assume-role-arn:<vending-role>, sts-enabled:true}`; and the vending role's
+trust policy needs a matching `sts:ExternalId` StringEquals condition (Principal = the catalog pod's IRSA role;
+`sts:TagSession` NOT needed — Lakekeeper downscopes via an inline session policy on the key-prefix). Applied
+(external-id kept as a TF-var secret, never committed) → **both tenant_a + tenant_b warehouses provisioned,
+HTTP 201, status active.**
+
+### UC-OSS verdict (answered Lisa's "would UC work better?")
+No — swapping would be a *downgrade + replatform*, not an escape: UC-OSS avoids external-id only because it uses
+static long-lived AWS keys (no IRSA, no confused-deputy protection — losing the keyless posture that IS our
+security story); **Spark Connect is undocumented/unsupported in UC-OSS**; per-tenant prefix isolation needs a
+data-model remap; days-to-weeks of rework. Lakekeeper stays load-bearing; UC-OSS stays the non-load-bearing
+second binding. (Full analysis + sources in the session research.)
+
+### Final remaining step: run the isolation test (one wiring detail)
+The platform + catalog are fully up and provisioned. Last piece: connect the test client to Connect. Note:
+**pyspark's standard Spark-Connect client can't present an mTLS *client* cert** via the connection string, so the
+test either (a) uses the platform's client-cert-presenting pattern (`connect/client.py`) to go through Envoy, or
+(b) bypasses Envoy for the *storage* proof via `kubectl port-forward` to the loopback `15002` (the mTLS ingress
+is a separately-demonstrated P1 piece; the load-bearing storage-isolation result doesn't require it). Then
+run_spike.py runs the R1–R3 + R7 ablation; capture CloudTrail (vend-not-IRSA).
+
 ### State at pause (2026-07-09)
 **Platform is LIVE on EKS:** Lakekeeper+Postgres, Spark Connect + Envoy mTLS (2/2), vending roles, `lk_a`/`lk_b`
 catalogs. **Blocked:** warehouse provisioning, on the Lakekeeper `external-id` schema (finding #2). All infra +
