@@ -1,0 +1,58 @@
+# Fresh Lakekeeper v0.13.1 with authn (OIDC) + authz (OpenFGA). Own DB `catalog_authz`.
+# Fill REPLACE-PG-ENCRYPTION-KEY (any fresh 32 bytes; SAME in the Job and the Deployment).
+# Create the DB first:  kubectl -n spark exec deploy/lakekeeper-postgres -- psql -U postgres -c 'CREATE DATABASE catalog_authz'
+apiVersion: batch/v1
+kind: Job
+metadata: { name: lakekeeper-authz-migrate, namespace: spark }
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: quay.io/lakekeeper/catalog:v0.13.1
+          command: ["/home/nonroot/lakekeeper", "migrate"]
+          env:
+            - { name: LAKEKEEPER__PG_ENCRYPTION_KEY,     value: "REPLACE-PG-ENCRYPTION-KEY" }
+            - { name: LAKEKEEPER__PG_DATABASE_URL_READ,  value: "postgresql://postgres:postgres@lakekeeper-postgres:5432/catalog_authz" }
+            - { name: LAKEKEEPER__PG_DATABASE_URL_WRITE, value: "postgresql://postgres:postgres@lakekeeper-postgres:5432/catalog_authz" }
+            - { name: LAKEKEEPER__AUTHZ_BACKEND,         value: "openfga" }
+            - { name: LAKEKEEPER__OPENFGA__ENDPOINT,     value: "http://openfga:8081" }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: lakekeeper-authz, namespace: spark, labels: { app: lakekeeper-authz } }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: lakekeeper-authz } }
+  template:
+    metadata: { labels: { app: lakekeeper-authz } }
+    spec:
+      serviceAccountName: lakekeeper                 # reuses the vending IRSA (aws-system-identity)
+      securityContext: { runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000, runAsNonRoot: true }
+      containers:
+        - name: lakekeeper
+          image: quay.io/lakekeeper/catalog:v0.13.1
+          args: ["serve"]
+          ports: [{ containerPort: 8181, name: http }]
+          env:
+            - { name: LAKEKEEPER__PG_ENCRYPTION_KEY,      value: "REPLACE-PG-ENCRYPTION-KEY" }
+            - { name: LAKEKEEPER__PG_DATABASE_URL_READ,   value: "postgresql://postgres:postgres@lakekeeper-postgres:5432/catalog_authz" }
+            - { name: LAKEKEEPER__PG_DATABASE_URL_WRITE,  value: "postgresql://postgres:postgres@lakekeeper-postgres:5432/catalog_authz" }
+            - { name: LAKEKEEPER__AUTHZ_BACKEND,          value: "openfga" }
+            - { name: LAKEKEEPER__OPENFGA__ENDPOINT,      value: "http://openfga:8081" }
+            - { name: LAKEKEEPER__OPENID_PROVIDER_URI,    value: "http://idp-authz.spark.svc.cluster.local" }
+            - { name: LAKEKEEPER__OPENID_AUDIENCE,        value: "lakekeeper" }
+            - { name: LAKEKEEPER__OPENID_SUBJECT_CLAIM,   value: "sub" }
+            - { name: LAKEKEEPER__ENABLE_DEFAULT_PROJECT, value: "true" }
+            - { name: LAKEKEEPER__ENABLE_AWS_SYSTEM_CREDENTIALS, value: "true" }
+          readinessProbe: { httpGet: { path: /health, port: 8181 }, initialDelaySeconds: 5, periodSeconds: 5, failureThreshold: 6 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: lakekeeper-authz, namespace: spark }
+spec:
+  selector: { app: lakekeeper-authz }
+  ports: [{ port: 8181, targetPort: 8181 }]

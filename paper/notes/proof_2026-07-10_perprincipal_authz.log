@@ -1,0 +1,27 @@
+== Per-principal authorization proof: Lakekeeper v0.13.1 + OpenFGA + OIDC ==
+   catalog: lakekeeper-authz (spark ns, EKS); principals via OIDC JWT (sub -> oidc~<sub>)
+   grants: oidc~tenant_a -> warehouse tenant_a ONLY; oidc~tenant_b -> warehouse tenant_b ONLY
+
+-- A. Warehouse resolution (GET /catalog/v1/config?warehouse=), HTTP codes --
+   identity             wh=tenant_a wh=tenant_b
+   admin (owner)        200        200       
+   tenant_a token       200        404       
+   tenant_b token       404        200       
+   no token             401        401       
+
+-- B. Catalog data-plane (GET /catalog/v1/{warehouse-id}/namespaces), HTTP codes --
+   identity             WID_A      WID_B     
+   tenant_a token       200        404       
+   tenant_b token       404        200       
+
+-- C. Write (POST namespace) + the deny is AUTHZ (grant toggles it) --
+   tenant_b create namespace in own warehouse:        200  (expect 200/409)
+   tenant_a create namespace in tenant_b's warehouse: 404  (expect 404, denied)
+   grant tenant_a describe on WID_B:                  204  (204)
+   tenant_a config on WID_B WITH describe (visible):  200  (200 -> the 404 was authz, not nonexistence)
+   revoke tenant_a describe on WID_B:                 204  (204)
+   tenant_a config on WID_B after revoke:             404  (back to 404)
+
+VERDICT: the catalog authorizes credential requests per PRINCIPAL. A tenant_a-pinned identity
+is DENIED at the catalog for tenant_b (read, write, config-resolution, and the vend path all sit
+behind the same warehouse-authz gate), while admin and tenant_b get 200. Grants toggle it.

@@ -209,3 +209,29 @@ verbs** (all in the same few sentences). Applied, and where cheap, *closed* rath
    38/50" figure double-counted earlier tenants/probes. **Closed** with a per-write **delta** in
    `executor_ran_tasks` (snapshot before/after the write): the honest number is **1 executor pod, 12 tasks per
    write**. Paper corrected accordingly. Log: `paper/notes/proof_2026-07-10_delta_and_frontier.log`.
+
+### Per-principal catalog authorization CLOSED (2026-07-10) -- the audit's strongest finding
+The major audit finding (the catalog scopes a *credential* but does not gate *which principal* may request
+*which* tenant) is now closed at the catalog. Built a fresh, isolated authz stack in the `spark` namespace
+alongside the allow-all one (do NOT flip authz in place: allow-all warehouses have no OpenFGA ownership tuples):
+- **mock IdP** (`idp-authz`, nginx) serving a static OIDC discovery doc + JWKS; hand-minted RS256 JWTs for
+  `admin`/`tenant_a`/`tenant_b` (sub -> Lakekeeper principal `oidc~<sub>`). No Keycloak/dex needed: Spark/curl
+  send a static bearer, so the IdP only needs to publish discovery + JWKS for signature verification.
+- **OpenFGA** (`openfga`, v1.14, memory store) as the authorization backend.
+- **Lakekeeper v0.13.1** fresh instance (`lakekeeper-authz`, own DB `catalog_authz`, SA `lakekeeper` for the
+  vending IRSA): `migrate` auto-installs the OpenFGA store + model **v4.7**; serve with
+  `AUTHZ_BACKEND=openfga` + `OPENID_PROVIDER_URI/AUDIENCE/SUBJECT_CLAIM=sub`. Boot confirmed OIDC discovery +
+  OpenFGA authorizer active.
+- Bootstrap (admin JWT, `is-operator`) -> provision `oidc~tenant_a/b` -> create both warehouses (reused the real
+  S3 storage-profile + vending role + external-id) -> **grant each tenant `select/describe/modify/create` on
+  ONLY its own warehouse** via `POST /management/v1/permissions/warehouse/{wid}/assignments`.
+
+**Result (`proof_2026-07-10_perprincipal_authz.log`):** a `tenant_a` JWT is **denied at the catalog** for
+`tenant_b` across warehouse resolution (`config`), namespace list/create, and the credential-vending path
+(**404**, existence hidden for a zero-relation principal), while `admin` and `tenant_b` get **200** and no-token
+is **401**; symmetric for `tenant_b`. The deny is proven to be *authorization* (not nonexistence) by toggling:
+granting `tenant_a` a `describe` relation on `tenant_b` flips **404 -> 200**, revoking flips back. So per-principal
+authorization AT THE CATALOG is demonstrated. **Still frontier:** binding the per-tenant identity token to each
+Spark Connect session (so an agent can't present another tenant's token) = §4 custody; per-tenant execution
+isolation. Manifests + runbook: `deploy/eks/lakekeeper/authz/`; secrets (JWTs, keys, external-id) in scratchpad,
+never committed.
