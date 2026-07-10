@@ -99,7 +99,7 @@ Every SP is dispatched to an implement sub-agent as a **self-contained card** (f
 | SP2.2 | **GAP**: native client mTLS still via socat | App S2-A R3 / L1 |
 | SP2.3 | **DONE (2026-07-06)**: Arm B SDP completes+grades green remote | `study/repro/h3_eks/`; App S2-A L3 |
 | SP2.4 | **GAP**: reconciler co-located on agent host | App S2-A L5 / R2 |
-| SP3.1 | PARTIAL: cluster built + ran once; Terraform not applied-as-tracked-artifact | App S3-A P0 |
+| SP3.1 | **DONE (2026-07-09)**: `ssa-spark-eks` k8s 1.31 live via terraform, 118 resources, S3-backed state (June collision recovered by clean-slate) | `deploy/eks/terraform` + S3 state |
 | SP3.2 | PARTIAL: small-scale exec on EKS; elastic 0→N→0 unproven | App S3-A P2 |
 | SP3.3 | **GAP**: GitOps gate/reconcile still runner-local, not EKS | App S3-A P3/P4 |
 | SP3.4 | **NEXT FRONTIER** (scope-approved): governed catalog + isolation proof | needs catalog choice |
