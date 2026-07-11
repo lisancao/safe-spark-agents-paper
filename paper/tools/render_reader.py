@@ -28,7 +28,7 @@ MATURITY = [
     ("SECTION 1", "Complete", "powered study · results bound", "done"),
     ("SECTION 2", "Demonstrated", "the agent-native dev loop", "done"),
     ("SECTION 3", "Demonstrated", "5-layer per-tenant isolation, live on EKS", "done"),
-    ("SECTION 4", "Thesis + core", "pattern demonstrated · fleet study out of scope", "stub"),
+    ("SECTION 4", "Thesis + core", "custody keystone demonstrated · fleet numbers separate", "stub"),
     ("Appendix S2-A", "Reference spec", "executable target (SSOT)", "ref"),
     ("Appendix S3-A", "Reference spec", "executable target (SSOT)", "ref"),
 ]
@@ -183,9 +183,9 @@ SECTIONS = [
       "only multi-tenant <b>scale</b> remains frontier"]),
     ("4", "section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering", "Running it at fleet scale", "stub", "Thesis + core",
      "The orchestration layer over a fleet of governed agents.",
-     ["holds credentials so <b>the agent never sees one</b>, preserving the boundary at fleet scale",
-      "<b>demonstrated core</b>: the heterogeneous multi-agent pattern this paper was built with",
-      "the quantitative fleet study (cost / quality numbers) is future work"]),
+     ["<b>credential custody, demonstrated</b> (S4.3): one custodian holds + rotates every credential, a credential-free fleet, §3 isolation preserved",
+      "<b>the pattern this paper was built with</b>: heterogeneous agents, adversarial cross-review, one shared governed skill set",
+      "the quantitative fleet study (cost / quality numbers) is a separate experiment (S4.7)"]),
 ]
 def scard(n, hid, title, cls, chip, blurb, bullets):
     lis = "".join(f"<li>{b}</li>" for b in bullets)

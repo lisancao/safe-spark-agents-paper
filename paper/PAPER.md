@@ -825,10 +825,18 @@ One governed, versioned skill library (`pyspark-sdp`, safety, conventions) injec
 ## S4.5 Demonstrated core vs frontier
 - **DEMONSTRATED (mechanism exists, runs):** (i) **credential custody**, a custodian holds and rotates per-tenant credentials for a fleet of credential-free agents over the §3 catalog, isolation preserved (S4.3); and (ii) **heterogeneous orchestration** (mixed-model routing + cross-vendor review + skill injection), the pattern **this paper was built with** (an orchestrator + claude_code / codex / pi sub-agents).
 - **FRONTIER:** P6 scale-out (many tenants + node autoscaling), rotation under live long-running jobs, and a learned fleet memory.
-- **OUT OF SCOPE (separate experiment):** the quantitative fleet study: cost-per-correct-pipeline, cross-vendor catch-rate, advisor-model / fleet-architecture numbers. Not part of §1's run; not retrofitted.
+- **OUT OF SCOPE (separate experiment):** the quantitative fleet study: cost-per-correct-pipeline, cross-vendor catch-rate, advisor-model / fleet-architecture numbers. Not part of §1's run; not retrofitted (design in S4.7).
+
+**The demonstrated core, concretely.** This paper was built by the orchestration it describes. An orchestrator fanned specialized sub-agents out over the work, independent reader personas, catalog researchers, and design panels, had adversarial verifiers try to *refute* each finding before it was accepted, and synthesized only the survivors, all sharing one governed skill and context set. Heterogeneous models and vendors filled distinct roles (a Claude orchestrator with `claude_code` / `codex` / `pi` sub-agents, cross-vendor review to catch correlated blind spots), and the SP4.1 custodian above holds their credentials so each stays credential-free. The *mechanism* runs and produced this document; the *numbers* (catch-rate, cost-per-correct) are S4.7's separate study.
 
 ## S4.6 Dependency
 §4's governance pillar rests on §3's per-tenant isolation, now demonstrated (P5); what §4 adds is credential *custody* across a fleet, now demonstrated too (S4.3), leaving P6 scale-out as the frontier. Until the fleet study lands, §4 stands as the architectural thesis plus a demonstrated core, the custody keystone and the heterogeneous orchestration pattern, not a numbers claim.
+
+## S4.7 The fleet study (SP4.2): the numbers, a separate experiment
+The quantitative claims behind S4.1 and S4.2 are a *separate*, pre-registered experiment, not part of this paper's run and not retrofitted. Its design, for completeness:
+- **Cost:** heterogeneous model routing lowers **cost-per-correct-pipeline** (§1's H5.3 lifted to the fleet) against a single-strong-model fleet at equal completion. Arms: routed vs single-model; metric: dollars per correct pipeline over a task fleet.
+- **Quality:** a different-vendor reviewer catches defects a same-vendor reviewer misses (correlated blind spots). Metric: cross-vendor vs same-vendor **defect catch-rate** on a seeded-defect corpus.
+- **Method:** §1's instrument (frozen corpus, blind grading, provenance) extended to a fleet of orchestrated agents, powered as §1 was. It lands in its own design doc and paper; no claim in *this* paper depends on it.
 
 
 ---
