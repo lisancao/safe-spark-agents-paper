@@ -38,6 +38,26 @@ torn down after the run.
   ALL L5 CHECKS PASSED (UC OSS 0.5.0 per-tenant downscoped + external-id-pinned + authz-gated vending)
 
 =========================================================================================
+PART C. Full end-to-end THROUGH SPARK on live AWS (the whole stack on UC alone). Spark 4.0.1 +
+unitycatalog-spark_4.0_2.13:0.5.0 + delta-spark 4.0.1 + hadoop-aws 3.4.1. Two external Delta tables
+seeded to S3 under per-tenant prefixes (tenant_a/events, tenant_b/events), registered in UC as EXTERNAL
+DELTA tables under the per-tenant external locations; tenant_a granted SELECT on ta_events only, tenant_b
+on tb_events only. A Spark job carrying each tenant's UC token (as a per-tenant Connect server would inject
+it server-side) reads via the UC Spark connector: UC loadTable authz -> downscoped credential vend ->
+executor reads the tenant's Delta files in S3.
+
+  token=tenant_a:  read unity.t.ta_events -> 2 rows [ALLOWED]      read unity.t.tb_events -> 403 PERMISSION_DENIED
+  token=tenant_b:  read unity.t.ta_events -> 403 PERMISSION_DENIED  read unity.t.tb_events -> 2 rows [ALLOWED]
+
+A Spark query authenticated per-tenant reaches ONLY that tenant's data (authz grant + downscoped vend +
+executor S3 read) and is denied the other tenant's at the catalog, both directions, end to end on UC OSS
+alone. Scope: L1 (Envoy mTLS ingress routing) and per-tenant k8s executor-POD separation (part of L3) are
+catalog-independent and were demonstrated on the Lakekeeper stack; here executors are local threads, so the
+DATA read is isolated by the vend while pod-level separation is the same k8s layer. The catalog-integrated
+path, token custody (L2, at config), per-principal authz (L4), and downscoped vend + storage scoping (L5),
+is proven end to end through Spark on UC.
+
+=========================================================================================
 Verified in v0.5.0 source: vending gated by @AuthorizeExpression(VEND_TABLE_CREDENTIAL)
 (READ->SELECT, READ_WRITE->SELECT+MODIFY); AwsPolicyGenerator builds the inline session policy scoped
 to the exact prefix; AwsCredentialVendor passes AssumeRoleRequest.externalId(). Honest residual gaps
@@ -45,4 +65,5 @@ to the exact prefix; AwsCredentialVendor passes AssumeRoleRequest.externalId(). 
 read-only/UniForm-only), only the UC-native plugin; authz is off by default; no RLS/column masking in OSS;
 JCasbin is single/non-thread-safe under concurrent policy reload; standing up per-principal auth required
 patching two 0.5.0 authz bugs (multi-frame body parsing; missing GET /permissions authz expression).
-Scripts: scratchpad/proof_uc_l4.sh (Part A), scratchpad/proof_uc_L5_aws.sh (Part B).
+Scripts: scratchpad/proof_uc_l4.sh (Part A), scratchpad/proof_uc_L5_aws.sh (Part B),
+scratchpad/uc_e2e_provision.sh + seed_delta.py + uc_isolation.py (Part C).
