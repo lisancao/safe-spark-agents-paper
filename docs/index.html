@@ -174,7 +174,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git 97608ee</span><span>·</span>
+    <span class="k">git db05859</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -2135,8 +2135,8 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <line x1="235" y1="374" x2="255" y2="374" class="arr" marker-end="url(#arrow)"/>
 <line x1="425" y1="374" x2="445" y2="374" class="arr" marker-end="url(#arrow)"/>
 </svg>
-</div><figcaption>Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody (dotted) is the frontier keystone.</figcaption></figure>
-<p><em>This section is a thesis with a demonstrated core, not a measured result</em>: the quantitative fleet study (cost and quality numbers) is a separate experiment, out of scope for this paper's run.</p>
+</div><figcaption>Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody is the keystone, now demonstrated (S4.3).</figcaption></figure>
+<p><em>This section is a thesis with a demonstrated core (the credential-custody keystone is built and proven, S4.3), not a measured result</em>: the quantitative fleet study (cost and quality numbers) is a separate experiment, out of scope for this paper's run.</p>
 <p>Section 3's platform governs <em>one</em> agent. <strong>Omnigent</strong> is the layer above it that governs a <em>fleet</em>: it aims to make many agents doing data engineering cheaper, higher-quality, governed, and collectively knowledgeable, properties that raw parallelism (N independent sessions) cannot provide. It sits atop Section 3's platform and holds <strong>credential custody</strong>, so each agent stays credential-free: the control boundary of Section 2, preserved at fleet scale.</p>
 <p><strong>Why not just run N sessions in parallel?</strong> Four composing axes, each tracing back to the spine.</p>
 <h2 id="s41-cost-heterogeneous-model-routing">S4.1 Cost: heterogeneous model routing</h2>
@@ -2144,17 +2144,79 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <h2 id="s42-quality-cross-vendor-review">S4.2 Quality: cross-vendor review</h2>
 <p>A different-vendor reviewer (e.g. Codex reviewing a Claude-authored PR) catches defects that <strong>correlated-blind-spot</strong> same-vendor review structurally misses. Testable catch-rate hypothesis. <em>(Separate experiment.)</em></p>
 <h2 id="s43-governance-credential-custody-the-keystone">S4.3 Governance: credential custody (the keystone)</h2>
-<p>The catalog (§3) vends short-lived scoped credentials; <strong>Omnigent holds custody and mediates the agent↔catalog interface; the agent never sees a credential.</strong> This is what preserves §2's "agent holds no creds" boundary at fleet scale: N raw sessions leak it per-session; one custodian governs it once. <strong>Frontier:</strong> the catalog-custody integration is §3's P5/P6.</p>
+<p>The catalog (§3) vends short-lived scoped credentials; <strong>Omnigent holds custody and mediates the agent↔catalog interface; the agent never sees a credential.</strong> This is what preserves §2's "agent holds no creds" boundary at fleet scale: N raw sessions leak it per-session; one custodian governs it once. <strong>DEMONSTRATED (2026-07-10).</strong> A custodian process holds every per-tenant credential and exposes agents only a spec-in, pass-or-fail interface: on each job it mints a fresh short-lived (300s) per-tenant token, runs the work with it over the §3 catalog binding, and returns only the result. In one run, a single custodian governed both tenants, minted and rotated three short-lived credentials, and the agents held none; an agent submitting a cross-tenant read was refused (<code>PERMISSION_DENIED</code>), so §3's per-tenant isolation holds under fleet custody. The keystone is no longer frontier. Evidence: <code>paper/notes/proof_2026-07-10_sp41_custody.log</code>. What remains frontier is P6 scale-out (many tenants, node autoscaling) and rotation under live long-running jobs.</p>
+<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 330" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Section 4 (S4.3): the Omnigent credential custodian at fleet scale</title>
+<desc>A fleet of untrusted, credential-free agents submits inert specs to one Omnigent custodian and receives only pass or fail. The custodian holds and rotates every per-tenant credential, minting a fresh short-lived token per job and running the work over the Section 3 governed catalog and per-tenant storage. Credentials never cross the trust boundary back to the agents, and Section 3's per-tenant isolation is preserved under custody.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:12.5px;font-weight:500}.ts{font-size:10.5px}
+  .lab{font-size:11px;font-weight:600;fill:#5c6b66;letter-spacing:.03em}
+  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
+  .att rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.att .th{fill:#2C2C2A}.att .ts{fill:#5F5E5A}
+  .cus rect{fill:#EEEDFE;stroke:#534AB7;stroke-width:.9}.cus .th{fill:#3C3489}.cus .ts{fill:#534AB7}
+  .cat rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.cat .th{fill:#085041}.cat .ts{fill:#0F6E56}
+  .cred{fill:#F7EFDD;stroke:#8a5a0b;stroke-width:.75}.credt{font-size:9.5px;font-weight:600;fill:#8a5a0b}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<text x="40" y="18" class="lab" fill="#5F5E5A">UNTRUSTED FLEET · no credential</text>
+<text x="300" y="18" class="lab" fill="#3C3489">OMNIGENT CUSTODIAN: holds + rotates every credential</text>
+
+<!-- trust boundary (the §2 boundary, at fleet scale) -->
+<line x1="238" y1="30" x2="238" y2="205" stroke="#b9433a" stroke-width="1.25" stroke-dasharray="5 4"/>
+<text x="232" y="118" class="lab" fill="#b9433a" text-anchor="middle" transform="rotate(-90 232 118)">§2 boundary</text>
+
+<!-- fleet of agents -->
+<g class="att"><rect x="40" y="40" width="180" height="34" rx="6"/><text x="130" y="55" class="th" text-anchor="middle">agent A1 · tenant A</text><text x="130" y="69" class="ts" text-anchor="middle">emits spec + PR</text></g>
+<g class="att"><rect x="40" y="84" width="180" height="34" rx="6"/><text x="130" y="99" class="th" text-anchor="middle">agent B1 · tenant B</text><text x="130" y="113" class="ts" text-anchor="middle">emits spec + PR</text></g>
+<g class="att"><rect x="40" y="128" width="180" height="34" rx="6"/><text x="130" y="143" class="th" text-anchor="middle">agent A2 · tenant A</text><text x="130" y="157" class="ts" text-anchor="middle">emits spec + PR</text></g>
+<text x="130" y="182" class="ts" fill="#5F5E5A" text-anchor="middle">each receives only a pass / fail</text>
+
+<!-- agents -> custodian -->
+<line x1="220" y1="101" x2="300" y2="120" class="arr" marker-end="url(#arrow)"/>
+<text x="246" y="104" class="ts" fill="#5c6b66">spec →</text>
+<line x1="300" y1="150" x2="220" y2="150" class="arr" marker-end="url(#arrow)"/>
+<text x="244" y="145" class="ts" fill="#5c6b66">← pass/fail</text>
+
+<!-- custodian -->
+<g class="cus"><rect x="300" y="60" width="180" height="120" rx="8"/>
+  <text x="390" y="80" class="th" text-anchor="middle">Custodian</text>
+  <text x="390" y="96" class="ts" text-anchor="middle">mints a fresh short-lived</text>
+  <text x="390" y="109" class="ts" text-anchor="middle">token per job (rotation)</text>
+  <rect x="316" y="120" width="148" height="48" rx="5" fill="#ffffff" stroke="#534AB7" stroke-width=".5" stroke-dasharray="3 2"/>
+  <text x="390" y="134" class="ts" text-anchor="middle" fill="#3C3489">vault (never handed back):</text>
+  <text x="390" y="149" class="credt" text-anchor="middle">credA#3  credB#2  credA#1 …</text>
+  <text x="390" y="162" class="ts" text-anchor="middle" fill="#534AB7">held only here</text>
+</g>
+
+<!-- custodian -> catalog -->
+<line x1="480" y1="120" x2="560" y2="120" class="arr" marker-end="url(#arrow)"/>
+<g><rect class="cred" x="492" y="99" width="72" height="16" rx="8"/><text x="528" y="111" class="credt" text-anchor="middle">credential</text></g>
+<text x="500" y="140" class="ts" fill="#5c6b66">mint + vend</text>
+<text x="500" y="152" class="ts" fill="#5c6b66">per tenant</text>
+
+<!-- catalog + storage -->
+<g class="cat"><rect x="560" y="60" width="110" height="52" rx="6"/><text x="615" y="82" class="th" text-anchor="middle">§3 catalog</text><text x="615" y="97" class="ts" text-anchor="middle">per-principal authz</text></g>
+<g class="cat"><rect x="560" y="126" width="110" height="52" rx="6"/><text x="615" y="148" class="th" text-anchor="middle">per-tenant</text><text x="615" y="163" class="ts" text-anchor="middle">storage (scoped)</text></g>
+<line x1="615" y1="112" x2="615" y2="126" class="arr" marker-end="url(#arrow)"/>
+
+<text x="40" y="228" class="th" fill="#3C3489">One custodian, N credential-free agents.</text>
+<text x="40" y="246" class="ts" fill="#5c6b66">Demonstrated on the §3 catalog: 1 custodian governed 2 tenants, minted + rotated 3 short-lived credentials, agents held 0;</text>
+<text x="40" y="260" class="ts" fill="#5c6b66">an agent's cross-tenant read was refused (PERMISSION_DENIED), so §3's per-tenant isolation holds under custody.</text>
+<text x="40" y="278" class="ts" fill="#8a5a0b">Frontier: P6 scale-out (many tenants + node autoscaling) and rotation under live long-running jobs.</text>
+</svg>
+</div><figcaption>The credential custodian at fleet scale (S4.3), demonstrated. A fleet of credential-free agents submits inert specs and receives only pass or fail; one custodian holds and rotates every per-tenant credential, minting a fresh short-lived token per job and running the work over the §3 catalog. Credentials never cross back to the agents, and §3's per-tenant isolation holds under custody (a cross-tenant read is refused).</figcaption></figure>
 <h2 id="s44-knowledge-shared-skill-library">S4.4 Knowledge: shared skill library</h2>
 <p>One governed, versioned skill library (<code>pyspark-sdp</code>, safety, conventions) injected fleet-wide → correctness propagation, consistency, single-point updates, a guaranteed knowledge floor. <strong>Evidence-backed by §1:</strong> <code>pyspark-sdp</code> is <em>load-bearing</em>: without it agents hallucinate Databricks DLT and hit zero-completion, so fleet-wide skill sharing makes fleet competence a property of the orchestrator, not luck per session. Skills are <strong>governed artifacts</strong> (access-controlled, mandatable per tenant), which <em>reclaims</em> the safety skill as a shareable governed asset, distinct from its scrapped §1 experimental role. <em>(Static shared skills = demonstrated mechanism; a learned/emergent fleet memory = speculative, not claimed.)</em></p>
 <h2 id="s45-demonstrated-core-vs-frontier">S4.5 Demonstrated core vs frontier</h2>
 <ul>
-<li><strong>DEMONSTRATED (mechanism exists, runs):</strong> heterogeneous orchestration + mixed-model routing + cross-vendor PR review + skill injection, the pattern <strong>this paper was built with</strong> (an orchestrator + claude_code / codex / pi sub-agents).</li>
-<li><strong>FRONTIER:</strong> binding orchestration to the governed catalog / credential-custody plane (§3 demonstrates the per-tenant isolation mechanism, P5; what remains is fleet-scale custody + P6 scale-out); a learned fleet memory.</li>
+<li><strong>DEMONSTRATED (mechanism exists, runs):</strong> (i) <strong>credential custody</strong>, a custodian holds and rotates per-tenant credentials for a fleet of credential-free agents over the §3 catalog, isolation preserved (S4.3); and (ii) <strong>heterogeneous orchestration</strong> (mixed-model routing + cross-vendor review + skill injection), the pattern <strong>this paper was built with</strong> (an orchestrator + claude_code / codex / pi sub-agents).</li>
+<li><strong>FRONTIER:</strong> P6 scale-out (many tenants + node autoscaling), rotation under live long-running jobs, and a learned fleet memory.</li>
 <li><strong>OUT OF SCOPE (separate experiment):</strong> the quantitative fleet study: cost-per-correct-pipeline, cross-vendor catch-rate, advisor-model / fleet-architecture numbers. Not part of §1's run; not retrofitted.</li>
 </ul>
 <h2 id="s46-dependency">S4.6 Dependency</h2>
-<p>§4's governance pillar rests on §3's per-tenant isolation, now demonstrated (P5); what §4 adds is credential <em>custody</em> across a fleet plus P6 scale-out. Until the fleet study lands, §4 stands as the architectural thesis + the demonstrated orchestration core, not a numbers claim.</p>
+<p>§4's governance pillar rests on §3's per-tenant isolation, now demonstrated (P5); what §4 adds is credential <em>custody</em> across a fleet, now demonstrated too (S4.3), leaving P6 scale-out as the frontier. Until the fleet study lands, §4 stands as the architectural thesis plus a demonstrated core, the custody keystone and the heterogeneous orchestration pattern, not a numbers claim.</p>
 <hr />
 <h2 id="appendix-s2-a-reference-architecture-the-control-boundary" class="section-appendix">Appendix S2-A, Reference Architecture: The Control Boundary <span class="badge ref" title="executable target (SSOT)">Reference spec</span></h2>
 <p><em>Executable spec for implementing agents. This is the SSOT target Section 2 is measured against; build work in <code>SECTION2_eks_connect_demo_checklist.md</code>.</em>

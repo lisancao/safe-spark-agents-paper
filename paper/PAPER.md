@@ -802,7 +802,7 @@ The governed, scalable, integrable substrate is the precondition for the agent *
 # SECTION 4, Omnigent: Governed Multi-Agent Orchestration for Data Engineering
 ### An orchestration layer for a fleet of governed agents
 
-*This section is a thesis with a demonstrated core, not a measured result*: the quantitative fleet study (cost and quality numbers) is a separate experiment, out of scope for this paper's run.
+*This section is a thesis with a demonstrated core (the credential-custody keystone is built and proven, S4.3), not a measured result*: the quantitative fleet study (cost and quality numbers) is a separate experiment, out of scope for this paper's run.
 
 Section 3's platform governs *one* agent. **Omnigent** is the layer above it that governs a *fleet*: it aims to make many agents doing data engineering cheaper, higher-quality, governed, and collectively knowledgeable, properties that raw parallelism (N independent sessions) cannot provide. It sits atop Section 3's platform and holds **credential custody**, so each agent stays credential-free: the control boundary of Section 2, preserved at fleet scale.
 
@@ -815,18 +815,20 @@ Match the model to the task: a cheap/small model for a trivial fix, a strong mod
 A different-vendor reviewer (e.g. Codex reviewing a Claude-authored PR) catches defects that **correlated-blind-spot** same-vendor review structurally misses. Testable catch-rate hypothesis. *(Separate experiment.)*
 
 ## S4.3 Governance: credential custody (the keystone)
-The catalog (§3) vends short-lived scoped credentials; **Omnigent holds custody and mediates the agent↔catalog interface; the agent never sees a credential.** This is what preserves §2's "agent holds no creds" boundary at fleet scale: N raw sessions leak it per-session; one custodian governs it once. **Frontier:** the catalog-custody integration is §3's P5/P6.
+The catalog (§3) vends short-lived scoped credentials; **Omnigent holds custody and mediates the agent↔catalog interface; the agent never sees a credential.** This is what preserves §2's "agent holds no creds" boundary at fleet scale: N raw sessions leak it per-session; one custodian governs it once. **DEMONSTRATED (2026-07-10).** A custodian process holds every per-tenant credential and exposes agents only a spec-in, pass-or-fail interface: on each job it mints a fresh short-lived (300s) per-tenant token, runs the work with it over the §3 catalog binding, and returns only the result. In one run, a single custodian governed both tenants, minted and rotated three short-lived credentials, and the agents held none; an agent submitting a cross-tenant read was refused (`PERMISSION_DENIED`), so §3's per-tenant isolation holds under fleet custody. The keystone is no longer frontier. Evidence: `paper/notes/proof_2026-07-10_sp41_custody.log`. What remains frontier is P6 scale-out (many tenants, node autoscaling) and rotation under live long-running jobs.
+
+[[[SVG-CUSTODIAN]]]
 
 ## S4.4 Knowledge: shared skill library
 One governed, versioned skill library (`pyspark-sdp`, safety, conventions) injected fleet-wide → correctness propagation, consistency, single-point updates, a guaranteed knowledge floor. **Evidence-backed by §1:** `pyspark-sdp` is *load-bearing*: without it agents hallucinate Databricks DLT and hit zero-completion, so fleet-wide skill sharing makes fleet competence a property of the orchestrator, not luck per session. Skills are **governed artifacts** (access-controlled, mandatable per tenant), which *reclaims* the safety skill as a shareable governed asset, distinct from its scrapped §1 experimental role. *(Static shared skills = demonstrated mechanism; a learned/emergent fleet memory = speculative, not claimed.)*
 
 ## S4.5 Demonstrated core vs frontier
-- **DEMONSTRATED (mechanism exists, runs):** heterogeneous orchestration + mixed-model routing + cross-vendor PR review + skill injection, the pattern **this paper was built with** (an orchestrator + claude_code / codex / pi sub-agents).
-- **FRONTIER:** binding orchestration to the governed catalog / credential-custody plane (§3 demonstrates the per-tenant isolation mechanism, P5; what remains is fleet-scale custody + P6 scale-out); a learned fleet memory.
+- **DEMONSTRATED (mechanism exists, runs):** (i) **credential custody**, a custodian holds and rotates per-tenant credentials for a fleet of credential-free agents over the §3 catalog, isolation preserved (S4.3); and (ii) **heterogeneous orchestration** (mixed-model routing + cross-vendor review + skill injection), the pattern **this paper was built with** (an orchestrator + claude_code / codex / pi sub-agents).
+- **FRONTIER:** P6 scale-out (many tenants + node autoscaling), rotation under live long-running jobs, and a learned fleet memory.
 - **OUT OF SCOPE (separate experiment):** the quantitative fleet study: cost-per-correct-pipeline, cross-vendor catch-rate, advisor-model / fleet-architecture numbers. Not part of §1's run; not retrofitted.
 
 ## S4.6 Dependency
-§4's governance pillar rests on §3's per-tenant isolation, now demonstrated (P5); what §4 adds is credential *custody* across a fleet plus P6 scale-out. Until the fleet study lands, §4 stands as the architectural thesis + the demonstrated orchestration core, not a numbers claim.
+§4's governance pillar rests on §3's per-tenant isolation, now demonstrated (P5); what §4 adds is credential *custody* across a fleet, now demonstrated too (S4.3), leaving P6 scale-out as the frontier. Until the fleet study lands, §4 stands as the architectural thesis plus a demonstrated core, the custody keystone and the heterogeneous orchestration pattern, not a numbers claim.
 
 
 ---

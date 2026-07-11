@@ -108,7 +108,10 @@ body = body.replace("<p>[[[SVG-SECTION3]]]</p>",
            "The open governed reference architecture: three trust zones, untrusted agent authoring, a governed control plane, and the EKS data plane, joined by a GitOps loop, with Spark Connect as the single identity-pinned door and per-tenant isolation demonstrated on live EKS. Solid = demonstrated · dashed = configured but unrun · dotted = frontier."))
 body = body.replace("<p>[[[SVG-SECTION4]]]</p>",
     figure(load_svg("section4_omnigent_orchestration.svg"),
-           "Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody (dotted) is the frontier keystone."))
+           "Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody is the keystone, now demonstrated (S4.3)."))
+body = body.replace("<p>[[[SVG-CUSTODIAN]]]</p>",
+    figure(load_svg("section4_custodian.svg"),
+           "The credential custodian at fleet scale (S4.3), demonstrated. A fleet of credential-free agents submits inert specs and receives only pass or fail; one custodian holds and rotates every per-tenant credential, minting a fresh short-lived token per job and running the work over the §3 catalog. Credentials never cross back to the agents, and §3's per-tenant isolation holds under custody (a cross-tenant read is refused)."))
 body = body.replace("<p>[[[SVG-ADVERSARY]]]</p>",
     figure(load_svg("section3_adversary_paths.svg"),
            "The adversary, and the five paths to tenant B. Each attack route is closed by exactly one of the five isolation layers, so all five must hold."))

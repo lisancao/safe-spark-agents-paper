@@ -1,0 +1,31 @@
+SP4.1 credential custody (Omnigent keystone, S4.3): ONE custodian governs a FLEET of
+credential-free agents. Proof, 2026-07-10.
+
+Stack: the §3 UC OSS catalog binding (UC 0.5.0 + per-tenant external locations + grants on real S3,
+account redacted). A "custodian" process (scratchpad/custodian.py) holds the credential-minting key and
+mediates the agent to catalog interface: an agent submits only a spec (which tenant, which table) and
+receives only pass/fail; the credential never crosses to the agent. Per job the custodian mints a FRESH
+short-lived (ttl 300s) per-tenant token, runs the Spark job with it (UC-native connector, downscoped vend,
+executor read), and returns the result. Tokens are held in the custodian's vault, never returned.
+
+Run:
+  agentA1 -> read unity.t.ta_events as tenant_a  : custodian mints cred #1 (sha256:4e85f8d6, ttl 300s) -> ALLOWED, 2 rows
+  agentA1 -> read unity.t.tb_events as tenant_a  : custodian mints cred #2 (sha256:33b8794f, ttl 300s) -> DENIED (PERMISSION_DENIED)
+  agentB1 -> read unity.t.tb_events as tenant_b  : custodian mints cred #3 (sha256:3ee3c538, ttl 300s) -> ALLOWED, 2 rows
+  SUMMARY: 1 custodian, 2 tenants, 3 short-lived credentials minted + rotated; agents held 0.
+
+What this demonstrates (moves S4.3 from FRONTIER to DEMONSTRATED):
+  1. CUSTODY. Agents submit a spec and receive pass/fail; every credential is held only by the custodian
+     (in its vault, never handed back). This preserves §2's "agent holds no credential" boundary at fleet scale.
+  2. ONE custodian, FLEET. A single custodian governs credentials for both tenants, the property raw
+     parallelism (N independent sessions, each holding its own credential) cannot provide.
+  3. ISOLATION HELD UNDER CUSTODY. agentA1 reaching tenant_b is refused (DENIED): §3's per-tenant isolation
+     holds when one custodian mediates many tenants, so custody does not weaken the boundary.
+  4. ROTATION. Three distinct short-lived credentials (fresh sha per job, ttl 300s), not a single long-lived
+     credential at rest; a compromised credential expires and a leaked-at-rest model is avoided.
+
+Scope (honest): the isolation mechanism is §3's (proven end to end on UC). This run demonstrates the
+CUSTODY LAYER on top of it: the custodian holding + rotating + mediating credentials for a fleet. Executors
+are local Spark threads here (the k8s per-tenant executor-pod separation is the catalog-independent §3 layer).
+The quantitative fleet study (cost-per-correct-pipeline, cross-vendor catch-rate) is SP4.2, a separate
+experiment, not claimed here. Scripts: scratchpad/custodian.py + uc_read_one.py.
