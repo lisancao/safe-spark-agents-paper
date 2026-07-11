@@ -174,7 +174,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git 457d32e</span><span>·</span>
+    <span class="k">git 97608ee</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -385,7 +385,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <p><strong>The <code>pyspark-sdp</code> skill.</strong> The base model is fluent in imperative PySpark but not in SDP's newer API, so arm B is given a minimal <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/main/study/skills/pyspark-sdp/SKILL.md"><code>pyspark-sdp</code> skill</a>: a <strong>164-line API reference</strong> that teaches <em>only</em> the mechanics (how to declare views, wire dependencies, and write a valid spec) and, in its own words, "says nothing about what your pipeline should compute." It is the fair analog of imperative being native to the base model (arm A needs no skill), not a safety aid: an earlier <code>spark-safety</code> skill was scrapped after it moved the silent-defect rate by 0.000. Because the skill is this minimal and task-agnostic, the results are a property of the <strong>paradigm, not of a heavy skill doing the work</strong>; the one small idiom this skill happens not to teach (bucketing a UTC calendar day) is exactly what the residual silent-defect gap in §1.4.1 traces to.</p>
 <p><strong>Substrate.</strong> The safety, token, and conciseness results are substrate-independent and run on a local backend. The data-processing-compute question (H3) requires both paradigms on one uniform cluster and is measured separately on Spark Connect / EKS (§SM6.5, §1.4.3). All runs use a single model, <code>claude-opus-4-8</code>, with identical decoding across arms (§SM7.4).</p>
 <h2 id="what-we-measure-and-why">What we measure, and why</h2>
-<p>The study is framed as <em>safety and cost together</em>, because a paradigm that is safer but finishes the job less often, or at prohibitive expense, is not automatically the better tool. We therefore measure five families of outcome, pre-registered as a hypothesis tree (§SM6.2) and reported in §4:</p>
+<p>The study is framed as <em>safety and cost together</em>, because a paradigm that is safer but finishes the job less often, or at prohibitive expense, is not automatically the better tool. We therefore measure five families of outcome, pre-registered as a hypothesis tree (§SM6.2) and reported in §1.4:</p>
 <ul>
 <li><strong>H1: Safety (the headline).</strong> Does SDP change <em>where</em> failures are caught? We measure structural-defect catching at the gate (H1.1), the failure-mode distribution (H1.2), and, as a control, the silent semantic residue no gate can catch (H1.3). Safety here is not "fewer bugs written" but "faults caught earlier, before data is touched."</li>
 <li><strong>H2: Token cost.</strong> How many LLM tokens does each paradigm burn to reach a correct pipeline? SDP is expected to iterate more against its gate (H2.2), an honest counter-signal we measure rather than assume away.</li>
