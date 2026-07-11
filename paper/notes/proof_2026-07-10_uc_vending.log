@@ -57,6 +57,15 @@ DATA read is isolated by the vend while pod-level separation is the same k8s lay
 path, token custody (L2, at config), per-principal authz (L4), and downscoped vend + storage scoping (L5),
 is proven end to end through Spark on UC.
 
+Addendum (OIDC front door, tokens UC actually issued). The Part C run above used internal-issuer JWTs
+signed with UC's own key (the mechanism UC's integration tests use). Re-run with tokens obtained through
+UC's real OAuth2 token-exchange: a mock OIDC IdP (static JWKS, served on a shared docker network) issues an
+external JWT per tenant; UC validates it against server.allowed-issuers + server.audiences, fetches the IdP's
+JWKS via OIDC discovery, and mints its own access token; that UC-issued token drives the same Spark isolation.
+Result identical, both directions: tenant_a reads only ta_events (tb_events 403), tenant_b reads only tb_events
+(ta_events 403). So the per-tenant isolation holds with tokens UC itself issued through its OIDC front door,
+not just self-signed internal ones. Scripts: scratchpad/idp_gen.py + exchange.py.
+
 =========================================================================================
 Verified in v0.5.0 source: vending gated by @AuthorizeExpression(VEND_TABLE_CREDENTIAL)
 (READ->SELECT, READ_WRITE->SELECT+MODIFY); AwsPolicyGenerator builds the inline session policy scoped
