@@ -2,12 +2,7 @@
 >
 > **The question.** AI coding agents now write real data pipelines. The failure that matters is not a crash, it is a job that runs green and *silently ships wrong data*. So: can you get an agent's productivity on your production pipelines **without trusting the agent**?
 >
-> **The answer, in four parts.**
->
-> 1. **The risk, measured (§1).** A controlled 528-run study of the same agent writing pipelines two ways, free-form imperative code versus a declarative framework (Spark Declarative Pipelines, SDP): the declarative dry-run catches **79** structural defects before any data moves, imperative catches **0**, and since a broken pipeline is rejected before any executor starts, imperative burns roughly **34× the compute** (about **1000×** on failed runs).
-> 2. **The agent-native dev loop (§2).** A new inner loop, propose, gate, reconcile, that closes *before any data*; the control boundary that enables it lets a declarative agent, emitting only an inert plan and never touching data or credentials, run *fully untrusted*.
-> 3. **The platform, built and demonstrated (§3).** An open governed stack (Spark Connect + Kubernetes + a governed catalog) whose **five per-tenant isolation layers all run on a live EKS cluster**: an agent authenticated as tenant A cannot reach tenant B by any path.
-> 4. **Running it at fleet scale (§4).** An orchestration layer that holds credentials so the agent never sees one, a thesis with a demonstrated core.
+> **The answer, in four parts.** **(1) The risk, measured.** A controlled 528-run study of the same agent writing pipelines two ways, free-form imperative code versus a declarative framework (Spark Declarative Pipelines, SDP): the declarative dry-run catches **79** structural defects before any data moves, imperative catches **0**, and because a broken pipeline is rejected before any executor starts, imperative burns roughly **34× the compute** (about **1000×** on failed runs). **(2) The agent-native dev loop.** A new inner loop, propose, gate, reconcile, that closes *before any data*; the control boundary that enables it lets a declarative agent, emitting only an inert plan and never touching data or credentials, run *fully untrusted*. **(3) The platform, built and demonstrated.** An open governed stack (Spark Connect + Kubernetes + a governed catalog) whose **five per-tenant isolation layers all run on a live EKS cluster**: an agent authenticated as tenant A cannot reach tenant B by any path. **(4) Running it at fleet scale.** An orchestration layer that holds credentials so the agent never sees one, a thesis with a demonstrated core.
 >
 > Each section flags its own maturity in the header. §1 and §3 carry the load-bearing evidence.
 
@@ -24,11 +19,12 @@ An agent's exposure to this failure depends on more than the model. It depends o
 
 This section asks whether that intuition holds, and what it costs. We run a controlled experiment that holds the model, task corpus, seeds, prompt, and decoding fixed and varies **only the paradigm**, across two arms: **A**, bare imperative PySpark (no gate, no skills), and **B**, SDP with its built-in structural dry-run and a paradigm-appropriate API skill. One asymmetry between the arms is deliberate: the dry-run gate is not something we add to arm B; it *comes with* the declarative paradigm, and imperative PySpark has no equivalent. So we do not bolt an artificial gate onto arm A either. Whether SDP's built-in gate is a fair difference or the whole point is a question we return to once the design and results are on the table (§2, §4.2).
 
-Our contributions (the numbers are in the abstract above; here is where to find each):
-1. **A controlled, pre-registered study** isolating the authoring paradigm on a frozen instrument over 528 cells, with every reported number tied to raw data (§4, §SM6).
-2. **The structural-safety result** (§4.2) alongside an **honest silent-defect counter-signal** shown to be skill-induced, not paradigm-inherent, under a controlled skill-swap (§4.1).
-3. **A cost characterization** across code size, tokens, and cluster compute (§4.3).
-4. **A mechanistic root cause** tying a measured defect to a framework gap, with concrete remediations for framework and skill owners (§SM1).
+Our contributions are:
+1. **A controlled, pre-registered study** isolating authoring paradigm, run on a frozen instrument over 528 cells (22 tasks × 12 seeds × 2 arms; N = 264 per arm, statistically powered), with every reported number tied to raw data (§4, §SM6).
+2. **A structural-safety result:** SDP's dry-run intercepts **79** structural defects before any data is processed, against **0** for imperative, which surfaces the same faults at runtime, a safety margin the declarative paradigm provides by construction (§4.2).
+3. **An honest silent-defect result:** a raw residue that appears to make SDP *less* safe is shown, under a controlled skill-swap, to be **skill-induced, not paradigm-inherent**: its main driver, timezone/day-bucket errors, collapses **7 → 0** once the SDP skill teaches a UTC idiom (§4.1).
+4. **A cost characterization:** SDP writes roughly **half the code** (−49% lines, −44% AST) at about **2.3× the tokens**, with comparable task completion (§4.3).
+5. **A mechanistic root cause** linking a measured defect to a framework gap (SDP offers no declarative way to pin the session timezone) with concrete remediations for framework and skill owners (§SM1).
 
 The rest of this section reads straight through: a short **reader's map** (below) decodes the running codes; **Background** introduces SDP and the silent-defect landscape; then the **design**, the **results**, the **threats to validity**, and the **conclusions**. The formal operational definitions (**§SM3**), the pre-registered run protocol (**§SM6**), and the full materials and system (**§SM7**) are collected in the **Supplemental Materials** at the end, so the study reproduces end to end without interrupting the read. The conclusion hands off to the control-boundary argument of **Section 2**.
 
