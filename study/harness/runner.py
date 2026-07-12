@@ -45,7 +45,22 @@ from harness.schema import ResultRow, validate_row  # noqa: E402
 from harness import harness_faults as hf  # noqa: E402  -- retry/quarantine/breaker policy
 
 HARNESS_VERSION = "1.0.0"
-REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+def _find_repo_root():
+    # The data generators (infra/) and .git live at the repo root. The original layout
+    # put harness/ three levels deep; when the study dir is relocated (e.g. into the paper
+    # repo, two levels deep) a fixed ../../.. points above the repo. Walk up to the dir
+    # that actually holds infra/ or .git so input-gen paths and provenance resolve either way.
+    env = os.environ.get("STUDY_REPO_ROOT")
+    if env:
+        return os.path.abspath(env)
+    here = os.path.dirname(os.path.abspath(__file__))
+    d = here
+    for _ in range(6):
+        d = os.path.dirname(d)
+        if os.path.isdir(os.path.join(d, "infra")) or os.path.isdir(os.path.join(d, ".git")):
+            return d
+    return os.path.normpath(os.path.join(here, "..", ".."))
+REPO_ROOT = _find_repo_root()
 
 # HARD per-cell wall-clock cap (seconds). A single (task, arm, seed) cell that exceeds
 # this is ABANDONED -- the in-process imperative JVM is force-killed, a bounded
