@@ -24,7 +24,23 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STUDY = os.path.dirname(HERE)
-REPO = os.path.normpath(os.path.join(STUDY, "..", ".."))
+
+
+def _find_repo_root():
+    # Mirrors harness/runner.py: study/ sits two levels deep in the paper repo,
+    # three in the original layout. Walk up to the dir holding infra/ or .git.
+    env = os.environ.get("STUDY_REPO_ROOT")
+    if env:
+        return os.path.abspath(env)
+    d = HERE
+    for _ in range(6):
+        d = os.path.dirname(d)
+        if os.path.isdir(os.path.join(d, "infra")) or os.path.isdir(os.path.join(d, ".git")):
+            return d
+    return os.path.normpath(os.path.join(STUDY, "..", ".."))
+
+
+REPO = _find_repo_root()
 sys.path.insert(0, STUDY)
 
 from harness import oracles  # noqa: E402

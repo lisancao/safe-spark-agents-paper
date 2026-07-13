@@ -28,7 +28,7 @@ MATURITY = [
     ("SECTION 1", "Complete", "powered study · results bound", "done"),
     ("SECTION 2", "Demonstrated", "the agent-native dev loop", "done"),
     ("SECTION 3", "Demonstrated", "5-layer per-tenant isolation, live on EKS", "done"),
-    ("SECTION 4", "Thesis + core", "custody keystone demonstrated · fleet numbers separate", "stub"),
+    ("SECTION 4", "Thesis + core", "custody keystone + governed fleet demonstrated on the platform · numbers separate", "stub"),
     ("Appendix S2-A", "Reference spec", "executable target (SSOT)", "ref"),
     ("Appendix S3-A", "Reference spec", "executable target (SSOT)", "ref"),
 ]
@@ -112,6 +112,9 @@ body = body.replace("<p>[[[SVG-SECTION4]]]</p>",
 body = body.replace("<p>[[[SVG-CUSTODIAN]]]</p>",
     figure(load_svg("section4_custodian.svg"),
            "The credential custodian at fleet scale (S4.3), demonstrated. A fleet of credential-free agents submits inert specs and receives only pass or fail; one custodian holds and rotates every per-tenant credential, minting a fresh short-lived token per job and running the work over the §3 catalog. Credentials never cross back to the agents, and §3's per-tenant isolation holds under custody (a cross-tenant read is refused)."))
+body = body.replace("<p>[[[SVG-CAPSTONE-FLEET]]]</p>",
+    figure(load_svg("section4_capstone_fleet.svg"),
+           "The demonstrated core on the platform's own domain (S4.5). Omnigent's Polly decomposes one brief into per-customer medallions, routes authoring across three vendors by difficulty, has a different vendor review, and submits each through the custodian, which runs it over that customer's own live tenant and enforces its contextual data policy. On failure the fleet repairs and converges (the §2 dev loop at fleet scale); every cross-tenant read is denied, so §3 isolation holds. A demonstration that the mechanism runs, wired natively in the orchestration layer; the numbers are S4.7's separate study."))
 body = body.replace("<p>[[[SVG-ADVERSARY]]]</p>",
     figure(load_svg("section3_adversary_paths.svg"),
            "The adversary, and the five paths to tenant B. Each attack route is closed by exactly one of the five isolation layers, so all five must hold."))
@@ -184,6 +187,7 @@ SECTIONS = [
     ("4", "section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering", "Running it at fleet scale", "stub", "Thesis + core",
      "The orchestration layer over a fleet of governed agents.",
      ["<b>credential custody, demonstrated</b> (S4.3): one custodian holds + rotates every credential, a credential-free fleet, §3 isolation preserved",
+      "<b>governed fleet, demonstrated on the platform</b> (S4.5): Polly built medallions for three isolated customers over their own live tenants, cross-vendor routed + reviewed, credential-free via the custodian, repaired to pass under each customer's contextual policy, every cross-tenant read denied",
       "<b>the pattern this paper was built with</b>: heterogeneous agents, adversarial cross-review, one shared governed skill set",
       "the quantitative fleet study (cost / quality numbers) is a separate experiment (S4.7)"]),
 ]
@@ -418,5 +422,12 @@ paths = [a for a in sys.argv[1:] if not a.startswith("--")]
 OUTP = Path(paths[0]).expanduser() if paths else OUT
 OUTP.parent.mkdir(parents=True, exist_ok=True)
 OUTP.write_text(DOC, encoding="utf-8")
+# Publish to the GitHub Pages source (docs/index.html) on a default build, so the live site
+# cannot silently drift from the build (it did once, hence this). Skip when a custom path is given.
+if not paths:
+    DOCS = ROOT.parent / "docs" / "index.html"   # repo-root /docs, the GitHub Pages source
+    DOCS.parent.mkdir(parents=True, exist_ok=True)
+    DOCS.write_text(DOC, encoding="utf-8")
+    print(f"published {DOCS} (Pages source)")
 print(f"wrote {OUTP}  ({len(DOC):,} bytes, {len(toc_items)} toc entries"
       f"{', standalone' if '--standalone' in sys.argv else ''})")

@@ -35,6 +35,9 @@ itself less safe on semantic ones, provided it is paired with a paradigm-matched
 | [`reproduce/`](reproduce/) | reproduction index + environment setup + link to the raw-run archive |
 | [`config/`](config/) | `aws.env.example`: copy to `config/aws.env` (gitignored) and fill in your own AWS values |
 | [`study/`](study/) | the experiment: harness, arms, skills, prompts, generators, locks, results |
+| [`defect_battery/`](defect_battery/) | the single-source grading oracle (`quantify*.py`) + the E3 defect variants the blind grader imports |
+| [`demos/`](demos/) | five runnable demos showing the paper's application from a developer's chair |
+| [`scripts/`](scripts/) | `start/stop-connect-server.sh`: the local Spark Connect launcher `deploy/connect-server/` documents |
 | [`deploy/`](deploy/), [`connect/`](connect/), [`infra/`](infra/) | the governed Connect-on-Kubernetes reference architecture |
 
 ## Configuration & safety

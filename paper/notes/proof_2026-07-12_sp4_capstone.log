@@ -1,0 +1,114 @@
+SP4 CAPSTONE PROOF (2026-07-12): Polly builds a governed medallion fleet for 3 customers
+=========================================================================================
+Anchor: S4.5 demonstrated core (ii), heterogeneous orchestration, made data-engineering-native.
+Substrate: the live Section 3 EKS chain (3 per-tenant Spark Connect servers + Lakekeeper-authz +
+OpenFGA + OIDC IdP), account redacted. Every model call routed through Omnigent (omnigent.llms).
+This is a DEMONSTRATION that the mechanism runs; it is NOT a powered numbers claim (that is SP4.2,
+a separate paper). Correctness is graded by the custodian/blind-grader proxy, not Section 1 oracles.
+
+STAGE 1 (deterministic wrapper): Polly decomposes; a bounded wrapper drives the cross-vendor fleet +
+custodian + policy + review + repair loop. Stage 2 (native Omnigent, autonomous) is the next SP.
+
+PART A  Polly decomposition (real headless `omnigent polly`)
+------------------------------------------------------------
+One brief ("build bronze/silver/gold medallions for 3 customers with different data needs and
+governance policies") decomposed into a per-customer subtask DAG:
+  retail    [Low  / standard]        : bronze_orders -> orders_quarantine + silver_orders -> gold_daily_revenue
+  saas      [High / pii_restricted]  : bronze_cdc -> silver_current_state -> gold_segment_counts
+  payments  [Med  / financial_grade] : bronze_payments + bronze_fx -> payments_quarantine + silver_payments_fx -> gold_usd_settlement
+
+PART B  Cost: heterogeneous model routing (S4.1)
+------------------------------------------------
+Each customer's authoring was routed to a different vendor by Polly's complexity bin:
+  retail   -> ollama/qwen3-coder:30b   (local, $0.00 author)
+  saas     -> anthropic/claude-opus-4-8 (frontier)
+  payments -> openrouter/deepseek/deepseek-chat ($0.0002 author)
+Three distinct vendors for three difficulty bins. Routed total cost (incl. repair) = $0.3510.
+
+PART C  Quality: cross-vendor review (S4.2)
+-------------------------------------------
+A different-vendor reviewer (openrouter/openai/gpt-5) reviewed each fleet-authored pipeline and
+flagged real silent defects the authors missed, e.g.:
+  retail (qwen)     : implicit non-ANSI casts; dedup on a STRING timestamp gives wrong order; future rows dropped not quarantined.
+  saas (opus)       : latest-state tie is nondeterministic at equal seq; unsalted SHA-256 of a low-cardinality region is reversible/linkable; silver still exposes cleartext region.
+  payments (deepseek): quarantine keys on currency only (known currency with a missing fx-date row is dropped, not quarantined); no payment_id dedup; UTC-day/session-tz settlement bug.
+The cross-vendor reviewer surfaced defects a same-vendor pass would share (correlated blind spots).
+
+PART D + E  Custody + the dev-loop at fleet scale (S4.3 + Section 2)
+-------------------------------------------------------------------
+The custodian holds the Connect PSK and the customer->tenant routing; sub-agents get only
+submit(customer, code) -> pass/fail and never see a credential. On rejection, the custodian's
+concrete error is fed back and the fleet REPAIRS (escalating to a strong model). All three converged:
+
+  retail    : author qwen -> FAIL (plain cast on '$30.00' throws under ANSI) -> repair opus -> PASS
+  saas      : author opus -> FAIL -> repair opus -> PASS
+  payments  : author deepseek -> FAIL -> repair opus -> PASS
+
+Final materialized tables (over each customer's OWN tenant, credential-free to the agent):
+  retail   (tenant_a): bronze_orders=12, orders_quarantine=2, silver_orders=7, gold_daily_revenue=4
+  saas     (tenant_b): bronze_cdc=8, silver_current_state=2, gold_segment_counts=2
+  payments (tenant_c): bronze_payments=6, bronze_fx=5, payments_quarantine=1, silver_payments_fx=5, gold_usd_settlement=3
+
+PART F  Contextual policy (per-customer governance, enforced at submit)
+----------------------------------------------------------------------
+  retail   standard        : corrupt rows quarantined not dropped        -> PASS
+  saas     pii_restricted  : gold exposes no cleartext 'region' column    -> PASS (region tokenized)
+  payments financial_grade : value conservation raw==silver+quarantine    -> PASS (6 == 5 + 1)
+On the FIRST (pre-repair) pass, payments financial_grade FAILED (silent row drop), i.e. the
+governance correctly rejected a non-conserving pipeline before the repair fixed it.
+
+PART G  Isolation preserved under the fleet (Section 3)
+-------------------------------------------------------
+Each tenant's session cannot address another customer's medallion namespace (its lk catalog binds
+only its own warehouse):
+  tenant_a -> saas_med   : DENIED (NoSuchNamespaceException)
+  tenant_b -> pay_med    : DENIED (NoSuchNamespaceException)
+  tenant_c -> retail_med : DENIED (NoSuchNamespaceException)
+
+SUMMARY
+-------
+Polly decomposed one brief into a 3-customer medallion DAG; a cross-vendor fleet (3 vendors, routed
+by complexity) authored it; a different-vendor reviewer caught real silent defects; the custodian ran
+each pipeline over its own live tenant with the agents credential-free; the dev-loop repaired every
+pipeline to pass under its contextual policy; and cross-tenant isolation held throughout. All seven
+S4.5 acceptance criteria captured. Routed cost $0.3510.
+
+HONEST LIMITS
+-------------
+- Demonstration, not a powered result. No cost-per-correct or catch-rate claim (SP4.2, separate paper).
+- Correctness graded by the custodian/blind-grader proxy, not Section 1's Spark oracle suite.
+- Stage 1 (this proof, Parts A to G) is a deterministic wrapper (Polly decomposes; the wrapper
+  executes). Stage 2 (Part H below) runs the same capstone natively and autonomously in Omnigent.
+
+PART H  NATIVE AUTONOMOUS RUN (Stage 2, 2026-07-12)
+---------------------------------------------------
+The same capstone was then run AUTONOMOUSLY and NATIVELY: `omnigent run deploy/omnigent/sdp-capstone`.
+Polly (the Omnigent orchestrator) drove the whole loop itself, every governance concern a native
+Omnigent primitive: the custodian is a native MCP server (holds all credentials in its own process),
+cost is bounded by the native cost_budget policy, and cross-vendor routing is Polly's own sub-agent
+roster (claude_code / codex / pi).
+
+What Polly did unattended:
+- Seeded all three customers via the custodian MCP; loaded the shared pyspark-sdp skill.
+- Built a cross-vendor routing plan by complexity: retail (Low) to pi on a cheap gateway model
+  (qwen3-coder-flash); saas (High) to claude_code (opus); payments (Med) to an OpenAI model.
+- Adapted live: when the codex harness failed to start, it rerouted the OpenAI-vendor role to pi
+  running OpenAI models (gpt-5.x), preserving cross-vendor diversity.
+- Cross-vendor review (S4.2): saas (Anthropic-authored) reviewed by an OpenAI model; retail
+  (Qwen-authored) and payments (OpenAI-authored) reviewed by claude_code (Anthropic).
+- Governed submit + dev loop (S4.3 + Section 2): every pipeline went through the custodian MCP.
+  saas passed first submit (pii_restricted, region masked). retail failed on a real schema error
+  (the raw timestamp column is event_ts), was repaired by a stronger vendor, and passed on attempt 2
+  (standard policy, value conserved: 12 raw -> 8 silver + 4 quarantine). payments passed after a
+  cross-vendor review correction (financial_grade, value conserved).
+
+Ground truth verified on the live tenants after the run (each medallion on its OWN tenant):
+  retail   (tenant_a): gold_daily_revenue materialized, 4 rows.
+  saas     (tenant_b): gold_segment_counts materialized, 2 rows, region masked (no cleartext column).
+  payments (tenant_c): gold_usd_settlement materialized, 3 rows, value conserved.
+
+So the demonstrated core runs NATIVELY and AUTONOMOUSLY: a single Omnigent agent, given one brief and
+one governed tool, decomposed the work, routed a real cross-vendor fleet (Anthropic + Qwen + OpenAI),
+kept every agent credential-free, enforced each customer's contextual policy, repaired to convergence,
+and built all three medallions over three isolated live tenants. Reproducible agent:
+deploy/omnigent/sdp-capstone/.

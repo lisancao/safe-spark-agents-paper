@@ -107,7 +107,9 @@ def test_clean_interpreter_loads_no_pyspark_or_anthropic():
         "assert arm.arm_id == 'B', arm.arm_id\n"
         "assert arm.paradigm == 'sdp'\n"
         "assert arm.dry_run_gate is True\n"
-        "assert arm.safety_skill is True\n"
+        # spark-safety was scrapped in the locked design (arms/B.json: safety_skill=false);
+        # the boundary under test is the dry-run gate + SDP paradigm, not that skill.
+        "assert arm.safety_skill is False\n"
         "assert 'pyspark' not in sys.modules, 'pyspark leaked into the agent path'\n"
         "assert 'anthropic' not in sys.modules, 'anthropic client built too eagerly'\n"
         "print('OK')\n"

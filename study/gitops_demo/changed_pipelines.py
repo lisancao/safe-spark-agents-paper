@@ -22,12 +22,26 @@ import subprocess
 import sys
 from typing import List, Optional, Sequence
 
-# The specs live at <repo-root>/experiments/safe_agent_study/gitops_demo/
-# pipeline-definitions/<slug>/spark-pipeline.yml. Discovery MUST use this full
-# repo-relative path so the git diff / scan match where sdp_artifact.py writes and
-# where the workflow `paths:` filter triggers -- a bare 'pipeline-definitions' from
-# the repo root finds NOTHING, and the gate would silently pass on every PR.
-GITOPS_SUBDIR = "experiments/safe_agent_study/gitops_demo"
+# The specs live at <repo-root>/<gitops_demo>/pipeline-definitions/<slug>/
+# spark-pipeline.yml. Discovery MUST use the full repo-relative path so the git
+# diff / scan match where sdp_artifact.py writes and where the workflow `paths:`
+# filter triggers -- a bare 'pipeline-definitions' from the repo root finds
+# NOTHING, and the gate would silently pass on every PR. The paper repo mounts
+# this dir at study/gitops_demo; the original working tree at
+# experiments/safe_agent_study/gitops_demo. Derive it from this file's own
+# location relative to the git root so both layouts (and the CI checkout) work.
+def _gitops_subdir() -> str:
+    here = os.path.dirname(os.path.abspath(__file__))
+    d = here
+    for _ in range(6):
+        parent = os.path.dirname(d)
+        if os.path.exists(os.path.join(parent, ".git")):
+            return os.path.relpath(here, parent).replace(os.sep, "/")
+        d = parent
+    return "study/gitops_demo"
+
+
+GITOPS_SUBDIR = _gitops_subdir()
 PIPELINE_DEFINITIONS_DIRNAME = "pipeline-definitions"
 DEFINITIONS_RELPATH = f"{GITOPS_SUBDIR}/{PIPELINE_DEFINITIONS_DIRNAME}"
 SPEC_FILENAME = "spark-pipeline.yml"

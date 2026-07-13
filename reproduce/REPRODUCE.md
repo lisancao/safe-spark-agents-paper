@@ -28,12 +28,18 @@ own runbook + integration log under [`../study/repro/h3_eks/`](../study/repro/h3
 `ANTHROPIC_API_KEY` and a reachable Spark Connect endpoint (local or the reference EKS cluster).
 
 ## 3. The raw run archive (full transcripts + generated data)
-For *exact* replay and inspection  (every agent transcript, every generated input, every materialized
-output and grade) download the raw archive from the GitHub **Release** and extract it into `study/`:
+The **raw sweep data and per-run agent transcripts are committed in-repo** at
+[`../study/raw/`](../study/raw/) (`sasa_raw_data_20260628.tar.gz` plus the unpacked `raw_20260628/`:
+`all_results.jsonl`, `by_sweep/`, `transcripts.tar.gz`, `MANIFEST.md`), so no download is needed to
+inspect the raw rows or transcripts; see `study/raw/README.md`.
+
+For the *full* replay archive (additionally every generated input, every materialized output, and
+every grade) download the larger archive from the GitHub **Release** and extract it into `study/`:
 
 ```bash
-# from the Releases tab (asset: ssa-repro-archive-<version>.tar.gz):
-tar xzf ssa-repro-archive-<version>.tar.gz -C study/
+# GitHub Release: https://github.com/lisancao/safe-spark-agents-paper/releases/tag/v1-repro
+gh release download v1-repro --repo lisancao/safe-spark-agents-paper --pattern 'ssa-repro-archive.tar.gz'
+tar xzf ssa-repro-archive.tar.gz -C study/
 ```
 
 The archive ships as a release asset (not committed) to keep the repo cloneable; its `MANIFEST.txt` lists

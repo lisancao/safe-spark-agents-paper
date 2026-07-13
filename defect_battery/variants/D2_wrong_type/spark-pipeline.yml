@@ -1,0 +1,7 @@
+name: D2_wrong_type
+catalog: spark_catalog
+database: default
+storage: file://__REPO__/experiments/defect_battery/variants/D2_wrong_type/pipeline-storage
+libraries:
+  - glob:
+      include: transformations/**

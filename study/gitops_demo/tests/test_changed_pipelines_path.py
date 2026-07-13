@@ -1,12 +1,14 @@
 """Path-resolution tests for `changed_pipelines.py` (the gate-fires-on-nothing bug).
 
 The specs live at the FULL repo-relative path
-`experiments/safe_agent_study/gitops_demo/pipeline-definitions/<slug>/spark-pipeline.yml`
-(matching sdp_artifact.py's output and the workflow `paths:` filter). A regression
-where discovery used a bare `pipeline-definitions` from the repo root would find
-NOTHING and the gate would silently pass on every PR. These tests build a real temp
-git repo with a spec committed at the canonical subpath and assert both the diff and
-the scan actually find it.
+`<gitops_demo>/pipeline-definitions/<slug>/spark-pipeline.yml`, matching
+sdp_artifact.py's output and the workflow `paths:` filter; `<gitops_demo>` is
+`study/gitops_demo` in the paper repo and `experiments/safe_agent_study/gitops_demo`
+in the original working tree, derived at import time by changed_pipelines itself.
+A regression where discovery used a bare `pipeline-definitions` from the repo root
+would find NOTHING and the gate would silently pass on every PR. These tests build
+a real temp git repo with a spec committed at the canonical subpath and assert both
+the diff and the scan actually find it.
 """
 import os
 import subprocess
@@ -19,7 +21,7 @@ sys.path.insert(0, GITOPS_DEMO)
 import changed_pipelines as cp  # noqa: E402
 
 SPEC_RELPATH = os.path.join(
-    "experiments", "safe_agent_study", "gitops_demo",
+    *cp.GITOPS_SUBDIR.split("/"),
     "pipeline-definitions", "myslug", "spark-pipeline.yml",
 )
 SPEC_TEXT = (
@@ -87,7 +89,21 @@ def test_resolve_falls_back_to_scan_on_bad_ref(tmp_path):
 
 
 def test_definitions_relpath_matches_workflow_paths_filter():
-    # guards the constant against drift from the workflow `paths:` / sdp_artifact.py
-    assert cp.DEFINITIONS_RELPATH == (
-        "experiments/safe_agent_study/gitops_demo/pipeline-definitions"
+    # guards the derived path against drift from the workflow `paths:` filter:
+    # if the gate workflow watches a different subtree than discovery scans,
+    # the gate silently passes on every PR.
+    d = HERE
+    root = None
+    for _ in range(8):
+        d = os.path.dirname(d)
+        if os.path.exists(os.path.join(d, ".git")):
+            root = d
+            break
+    assert root, "no git root above the test dir"
+    wf = os.path.join(root, ".github", "workflows", "gitops-sdp-dry-run.yml")
+    assert os.path.exists(wf), wf
+    with open(wf) as f:
+        text = f.read()
+    assert f"{cp.DEFINITIONS_RELPATH}/**" in text, (
+        f"workflow paths: filter does not watch {cp.DEFINITIONS_RELPATH!r}"
     )
