@@ -12,56 +12,61 @@ Break SP4.2 into three cards, in order, each its own PR + opposite-vendor review
 
 ---
 
-## SP4.2a: The fleet-study harness (author -> materialize -> REAL-oracle grade -> cost + catch-rate)
+## SP4.2a: Make the §1 arm-B loop grade a model-routed cell (the cost-arm instrument)
 
-**Why this exists.** §4 S4.1 needs **cost-per-correct-pipeline** (routed vs single-strong) and S4.2 needs a
-**cross-vendor defect catch-rate**. Both require §1's *gold-standard* grading (design: "reuses the §1
-instrument rather than a proxy"). This card builds the instrument that emits both, with real grading.
+**Why this exists.** §4 S4.1 needs **cost-per-correct-pipeline** (routed vs single-strong). The design LOCKS
+this as **§1's arm-B loop with `base_model_id` varied only**, so the cost numbers are literally "§1's
+instrument lifted to a fleet" and stay §1-comparable. This card makes that real here: §1's harness grading
+one model-routed arm-B cell, with the real dry-run gate (a §1 headline mechanism) running.
 
-**What you need to know.** The §1 authoring harness (`runner.py --backend local`) is UNRELIABLE here (smoke:
-authored `pipeline.py` written, 0 graded rows, silent at materialize/record). Validated pivot (design doc,
-2026-07-13): author via Omnigent (reliable, cross-vendor), materialize over local Spark Connect (:15002) with
-the §4-capstone dp-executor, and grade with the REAL §1 oracles **standalone**:
-`output_oracles.build_output_profile(read_table=spark.table, spark, input_path, defects_in_scope, contract)`
--> `oracles.grade_run(TaskOracleSpec(task, defects_in_scope), RunOutcome(completed, analysis_log, runtime_log,
-output))`. Runner recipe: `runner.py` ~456-544. RunOutcome is arm-BLIND (rule: grader never sees the arm).
+**What you need to know.** §1's authoring harness (`runner.py --backend local`) did not grade a cell in a
+first smoke here (authored `pipeline.py` written, 0 ResultRows, silent at materialize/record). That is the
+thing to FIX, not a reason to swap the instrument. Cross-vendor is NOT in the cost arm; it is the quality
+arm's review (step 4). Grading is §1's blind oracle (`output_oracles.build_output_profile` ->
+`oracles.grade_run`, runner recipe ~456-544; RunOutcome is arm-BLIND). Omnigent-authoring is a documented
+FALLBACK (design doc, Instrument status), used only if the harness is genuinely unfixable, with a
+comparability caveat.
 
-**Current state.** Approach validated + documented; branch `sp4.2-approach` pushed. Local Connect up on :15002.
-Reusable + present: generators `infra/gen_*.py` (per task+seed; inputs already at `study/.work/_data/gen_*_seedN.ndjson`),
-corpus `study/TASKS.lock.json` (23 tasks + bins + `defects_in_scope`), seeds `study/SEEDS.lock.json` (12),
-oracles `study/harness/{oracles,output_oracles}.py`, the capstone dp-executor + `omnigent.llms` routing. Nothing built.
+**Current state.** §1 harness present + relocation-fixed; smoke authored but did not record a row. Local
+Connect up on :15002. `arms/B.json` (base_model_id=claude-opus-4-8), generators `infra/gen_*.py` (inputs at
+`study/.work/_data/gen_*_seedN.ndjson`), corpus `study/TASKS.lock.json`, 12 seeds, oracles present.
 
 **Steps.**
-1. Input: for (task, seed), ensure `infra/gen_<substrate>.py` has produced the seed's input ndjson (reuse the runner's `_generate_one`).
-2. Author: route the model by policy (cost arm) via `omnigent.llms`; emit SDP `pipeline.py` (capstone author prompt + `pyspark-sdp` primer). Capture usage tokens.
-3. Materialize: exec the authored `@dp` datasets over local Connect into `spark_catalog.default.<name>`; capture the dry-run text as `analysis_log` and execute text as `runtime_log`; time the executor (executor-seconds).
-4. Grade (REAL oracle): `build_output_profile(...)` on the contract table -> `grade_run(TaskOracleSpec(task, task.defects_in_scope), RunOutcome(...))` -> {completed, silent_defect, defect_classes, per_defect_detection}. correct = completed AND not silent_defect.
-5. Cost: `cost = tokens priced per model + executor-seconds x rate`; emit a ResultRow-shaped record.
-6. Review (quality arm): a cross-vendor and a same-vendor reviewer flag suspected in-scope silent defects; catch-rate = flagged-and-actually-present / actually-present (present = the oracle's residual set).
+1. Diagnose the silent stage: run one arm-B cell and trace why no ResultRow is recorded (materialize/record
+   path, `runner.py` ~232-308 and ~456-544); fix the reliability bug, OR identify the config that produced the
+   §1 528-run powered study and run in it.
+2. Cost-arm manifests: clone `arms/B.json` to `B_haiku` / `B_sonnet`, varying `base_model_id` ONLY (haiku Low,
+   sonnet Med, opus High). "routed" = each task run with its bin's manifest; "single" = B (opus) on all. Confirm
+   the config's `base_model_id`-match check (runner ~1145) passes for each.
+3. Run one cell per new manifest END-TO-END (propose -> real structural dry-run gate -> execute -> blind oracle
+   grade); confirm a graded ResultRow with cost fields.
+4. Quality-arm review pass (cross-vendor, via Omnigent): a different-vendor and a same-vendor reviewer flag
+   suspected in-scope silent defects over the §1-authored pipelines; catch-rate = flagged-and-present / present
+   (present = the oracle's residual set).
 
 **Commands.**
 ```
-export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))   # local Spark needs it
-# harness (to be built) drives: gen -> author(omnigent) -> materialize(:15002) -> build_output_profile -> grade_run
-python3 study/analysis/sp4_2/harness.py --task p5_mart --seed 42 --route single   # one cell
+export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
+python3 study/harness/runner.py --backend local --only-arms B --only-tasks p5_mart --max-seeds 1 --out /tmp/one.jsonl
+# diagnose the 0-rows; add B_haiku/B_sonnet manifests; re-run routed + single.
 ```
 
-**Expected output.** One graded record per cell: `{task, seed, arm(routed|single), model, completed,
-correct, silent_defect, defect_classes, input_tokens, output_tokens, executor_seconds, usd}` plus, for the
-quality arm, `{task, seed, reviewer_kind(cross|same), reviewer_model, flagged, present, true_caught}`.
+**Expected output.** A graded §1 ResultRow per cell: `{task, seed, arm, base_model_id, exit_class,
+reached_correct, silent_defect, defect_classes, dry_run_intercepts, input_tokens, output_tokens,
+executor_seconds, usd}` plus a review record per (task, seed, reviewer_kind).
 
-**Definition of done (binary).** The harness grades ONE cell end-to-end with the REAL §1 oracle
-(`grade_run` output matches the field shape a §1 `ResultRow` carries), reproducibly, over local Spark Connect,
-with cost fields populated. Verified by grading a known cell (e.g. the existing p5_mart pipeline, which carries
-a real D1: reads `id`/`ts`, data has `customer_id`/`event_time`) and confirming the oracle flags D1.
+**Definition of done (binary).** §1's REAL arm-B loop (propose -> structural dry-run gate -> execute -> blind
+grade) grades one model-routed cell here and writes a ResultRow, reproducibly, with cost fields populated.
 
-**Guardrails.** REAL §1 oracles only (no proxy grader). RunOutcome stays arm-blind. No main-paper edit; output
-lands only in SP4.2 materials. Low spend (a few author calls). Reuse §1 generators + corpus unchanged (do not
-re-freeze the corpus).
+**Guardrails.** Cost arm = arm B's loop, vary `base_model_id` ONLY: do not change the loop, the dry-run gate,
+or the grader (that would break §1-comparability, the whole point). Real §1 dry-run gate + blind oracle.
+Cross-vendor confined to the quality-arm review. No main-paper edit; output only in SP4.2 materials. The
+Omnigent-authoring fallback is allowed ONLY if the §1 harness is genuinely unfixable, and only with the
+comparability caveat recorded on every number.
 
-**If it goes wrong.** If the dp-executor cannot materialize a given pipeline over local Connect, fall back to the
-real `spark-pipelines run` CLI for that cell (same materialization §1 uses) and grade the same tables. If the
-oracle needs the exact input path convention, mirror the runner's `AGENT_INPUT` staging (runner.py ~318-415).
+**If it goes wrong.** If the silent-record bug is not fixable in reasonable effort AND the §1-powered-run
+config cannot be reproduced here, invoke the LABELED fallback (design doc, Instrument status): Omnigent author
++ capstone dp-executor materialize, same §1 oracles, with the comparability caveat attached to every number.
 
 ---
 
