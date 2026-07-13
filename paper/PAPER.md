@@ -135,7 +135,7 @@ Independent variable: **paradigm** (SDP vs imperative), tested as **two arms** (
 **Headline contrast = A vs B.** This is deliberately a *paradigm-package* contrast, not a single-variable manipulation: the declarative paradigm brings its structural dry-run **by construction** (framing F1, §1.4.2), imperative has no equivalent, and injecting one would contaminate it (F2, rejected). So the gate is **part of the treatment, not a held-constant covariate**; that asymmetry *is* the finding. The earlier A2 (imperative+gate+skill) and B1 (SDP, no skill) arms are retired to `arms/supplementary/`; the `spark-safety` skill was scrapped everywhere (it moved silent-defect by 0.000 in pilot and was the largest reviewer confound). `[arms: study/arms/{A,B}.json]`
 
 ## 1.4 Results
-**The headline first, so it is not missed: SDP's structural dry-run catches 79 structural defects before any data is processed; bare imperative catches 0** (§1.4.2). That is the load-bearing result of the study. The rest of this section fills in three connected stories around it: a **silent semantic residue** (§1.4.2's sibling, §1.4.1) where a *raw* gap appears to favor imperative but proves *skill-induced*, not paradigm-inherent, once a controlled skill-swap closes it; the **root-cause attribution** of that gap (§SM1); and **cost** (§1.4.3), code size, tokens, and compute. Read together: declarative structure buys an early, real safety margin on structural faults, and is not, by itself, less safe on semantic ones.
+**The headline first, so it is not missed: SDP's structural dry-run catches 79 structural defects before any data is processed; bare imperative catches 0** (§1.4.2). That is the load-bearing result of the study. The rest of this section fills in four connected stories around it: a **silent semantic residue** (§1.4.2's sibling, §1.4.1) where a *raw* gap appears to favor imperative but proves *skill-induced*, not paradigm-inherent, once a controlled skill-swap closes it; the **root-cause attribution** of that gap (§SM1); **cost** (§1.4.3), code size, tokens, and compute; and **what each paradigm hallucinates** (§1.4.4), where the same gate catches a whole class of hallucination cheaply. Read together: declarative structure buys an early, real safety margin on structural faults, and is not, by itself, less safe on semantic ones.
 
 *All numbers below come from one run: the **powered A-vs-B run** of 528 cells (264 (task,seed) pairs × arms A/B), on the frozen instrument, with 0 instrument-fault rows. It is statistically powered (N = 264 ≥ 260 required), and inference uses a mixed-effects logistic model with Holm correction and bootstrap CIs. The full inference spec, the exact recompute command, and provenance are in **§SM6**.*
 
@@ -223,6 +223,28 @@ Nine of arm A's cells hit the iteration cap (each one running, processing data, 
 > **At production scale, netted: SDP comes out roughly `$2,000`/month cheaper** at ~1,000 pipelines/week, about `$5,000`/month of compute it never burns against about `$3,000`/month of extra tokens; for small pipelines the token premium dominates and the sign flips. *(A projection from the measured mechanism, not a measured result.)* The derivation: a real pipeline over ~100 GB whose failed attempt burns ~10 minutes across a 20-executor cluster wastes ≈ **`$0.60` per failed attempt**; an imperative agent that fails ~2× before it converges wastes ≈ `$1.20` per pipeline, so ~1,000 pipelines/week is the ≈ **`$5,000`/month** of compute SDP never spends. Against that, SDP's ~15k extra tokens per pipeline (§1.4.3) cost ≈ `$0.73` at representative Opus-class rates (~`$15`/`$75` per million input/output tokens), ≈ **`$3,000`/month** at the same scale. All recomputable from the token deltas above.
 
 [[[SVG-COST]]]
+
+### 1.4.4 What each paradigm hallucinates: two profiles, caught in two places
+Beyond *whether* an agent fails, *what* it invents differs sharply by paradigm, and the difference maps onto where §1.4.2's gate can act. A **hallucination** here means the agent inventing something that does not exist, or writing code for the wrong paradigm; the silent-defect classes of §1.4.1 are the separate correctness axis and are excluded. *(A qualitative characterization over the exploratory sweeps, not a powered magnitude; runs affected.)*
+
+| hallucination | imperative (A) | SDP (B) |
+|---|---:|---:|
+| invents an I/O path (nonexistent input/output location) | **51** | 0 |
+| imperative session control (`spark.conf.set`) inside a declarative pipeline | 0 | **76** |
+| invented / undeclared table or view | 1 | **40** |
+| eager action (`.collect()`) inside a declarative query function | 0 | **27** |
+| invented column name | 3 | **21** |
+| invented / unsupported API | **4** | 0 |
+
+**Imperative invents where the data lives.** Its dominant hallucination is a nonexistent I/O path (a hard-coded `.../gen_messy_orders_seed1337.ndjson`, a `.load(input_path)` that never resolves). Nothing structural can know a path is wrong until storage is touched, so it surfaces only at runtime (**96%** of imperative error-iterations) and the agent loops re-guessing, a direct source of the wasted compute in §1.4.3.
+
+**SDP confuses the paradigm, and the gate catches it.** Its hallucinations are imperative habits leaking into the declarative frame: `spark.conf.set(...)` inside a pipeline (76 runs; 80 of 96 occurrences rejected at the dry-run gate and then removed, so ~0 survive in final SDP programs), and eager `.collect()` / `.count()` inside a query function (27 runs); plus invented undeclared tables (40, e.g. `.read.table("orders_parsed")`) and columns (21). The *same* `spark.conf.set` line is legitimate in the imperative arm (63 final programs keep it, no error): the identical keystroke is a gate-caught hallucination in one paradigm and correct in the other. **39%** of the SDP arm's error-iterations are caught at the cheap dry-run gate, versus **3%** of imperative's.
+
+Neither shipped arm hallucinated Databricks DLT (`import dlt`, `@dlt.table`): **0 in both**. Imperative has no framework to confuse; the SDP arm's governed `pyspark-sdp` skill keeps it on the OSS API. *(The no-skill counterfactual is a separate ablation, not measured here.)*
+
+So §1.4.2's gate does more than catch structural defects: it catches a whole *class of hallucination* (paradigm-confusion) cheaply, before compute, while imperative's dominant hallucination is un-gateable and bites only at runtime. `[src: study/raw/raw_20260628/all_results.jsonl · per_iteration error_class × arm × stage · recompute: study/analysis/hallucination_taxonomy.py]`
+
+[[[SVG-HALLUCINATION]]]
 
 ## 1.5 Threats to validity
 - **Imperative-gate asymmetry.** Arm A is *bare* imperative with no structural gate, so the clean structural contrast (79-vs-0) carries no gate-rigor confound: the asymmetry is intrinsic to the paradigms, not an artifact of the harness (§1.4.2). (SDP's separate "identical residue" expectation is revised by the data; see §1.4.1.)
