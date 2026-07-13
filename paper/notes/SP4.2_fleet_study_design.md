@@ -42,14 +42,32 @@ the §1 oracle (the ground-truth defect set per task).
 - **Power:** sized like §1 (N = 12 seeds per cell target; N* from the same calibration), per arm and paired
   by (task, seed). Deferred to the separate paper.
 
-## Instrument status (this repo)
-The §1 runner is runnable here after a relocation fix: `study/harness/runner.py` computed `REPO_ROOT` three
-levels up (the original layout); the study dir now sits two levels deep in the paper repo, so `REPO_ROOT`
-resolved above the repo and the data-gen paths + provenance broke. `_find_repo_root()` now walks up to the
-dir holding `infra/`/`.git`, so `--backend local` (which brings up its own single-node Spark Connect server
-for SDP arms) runs. A live cell is a multi-iteration agent loop plus Spark execution plus grading, on the
-order of minutes; a powered sweep is therefore many hours and real API spend, which is why it is the
-separate paper.
+## Instrument status (this repo) and the validated harness approach (2026-07-13)
+The §1 *authoring* harness (`study/harness/runner.py --backend local`) is UNRELIABLE in this env: a
+smoke of one arm-B cell (p5_mart, seed 42) brought up local Spark and wrote the authored `pipeline.py`
+into `.work/`, but produced no graded row and went silent at the materialize/record stage (the finicky
+propose/record path noted in the state memory). Debugging it is uncertain effort.
+
+**Decision: do NOT debug the flaky §1 authoring harness. Build the SP4.2 harness on the PROVEN Omnigent
+pipeline + the REAL §1 oracles.** Confirmed feasible (all pieces located 2026-07-13):
+- **Author** via Omnigent routing (reliable, and genuinely cross-vendor: Anthropic / OpenAI / Qwen /
+  DeepSeek) -- the §4 capstone pattern. Sidesteps the flaky Anthropic-only §1 brain.
+- **Materialize** the authored SDP over the local Spark Connect (:15002) with the capstone's dp-executor
+  (proven in the capstone), writing the contract table into `spark_catalog.default`.
+- **Grade with the REAL §1 oracles, standalone** (this is the gold standard the design demands, not the
+  earlier pilot's proxy): `study/harness/output_oracles.build_output_profile(read_table=spark.table, spark,
+  input_path, defects_in_scope, contract)` -> `study/harness/oracles.grade_run(TaskOracleSpec, RunOutcome)`.
+  The runner's exact recipe is `runner.py` ~456-544 (RunOutcome carries analysis_log + runtime_log +
+  OutputProfile). Structural D1/D4/D5 graded by log signature; semantic D2/D6/D7/D8 by residual corruption.
+- **Cost** = real Omnigent usage tokens priced per model + Spark executor-seconds; **catch-rate** = the
+  cross-vendor / same-vendor reviewer's flags scored against the oracle's ground-truth residual defect set.
+- Data generators (`infra/gen_*.py`, per task, per seed) and the frozen corpus (`study/TASKS.lock.json`,
+  12 seeds in `study/SEEDS.lock.json`) are reused unchanged.
+
+A live cell is still an author loop + Spark materialize + grade (order of minutes); the powered sweep
+(~552 cost cells = 23 tasks x {routed, single} x 12 seeds, plus the cheaper review pass) is many hours and
+real API + compute spend, which is why it is the separate paper and why the powered run is gated on an
+explicit spend estimate after a small real-oracle pilot.
 
 ## Honest limitations (must survive to the separate paper)
 - **Cross-vendor vs cross-model.** A true cross-vendor catch-rate (e.g. a non-Anthropic reviewer over a
