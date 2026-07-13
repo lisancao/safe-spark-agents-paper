@@ -422,5 +422,12 @@ paths = [a for a in sys.argv[1:] if not a.startswith("--")]
 OUTP = Path(paths[0]).expanduser() if paths else OUT
 OUTP.parent.mkdir(parents=True, exist_ok=True)
 OUTP.write_text(DOC, encoding="utf-8")
+# Publish to the GitHub Pages source (docs/index.html) on a default build, so the live site
+# cannot silently drift from the build (it did once, hence this). Skip when a custom path is given.
+if not paths:
+    DOCS = ROOT / "docs" / "index.html"
+    DOCS.parent.mkdir(parents=True, exist_ok=True)
+    DOCS.write_text(DOC, encoding="utf-8")
+    print(f"published {DOCS} (Pages source)")
 print(f"wrote {OUTP}  ({len(DOC):,} bytes, {len(toc_items)} toc entries"
       f"{', standalone' if '--standalone' in sys.argv else ''})")
