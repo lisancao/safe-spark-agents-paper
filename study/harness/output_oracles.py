@@ -73,7 +73,19 @@ def _load_fx():
     import importlib.util
     import os
     here = os.path.dirname(os.path.abspath(__file__))
-    fxpath = os.path.normpath(os.path.join(here, "..", "..", "..", "infra", "fx.py"))
+    # Mirrors runner.py._find_repo_root: infra/ sits at the repo root, which is two
+    # levels up in the paper repo and three in the original layout. Walk up.
+    root = os.environ.get("STUDY_REPO_ROOT")
+    if not root:
+        d = here
+        for _ in range(6):
+            d = os.path.dirname(d)
+            if os.path.isdir(os.path.join(d, "infra")):
+                root = d
+                break
+        else:
+            root = os.path.normpath(os.path.join(here, "..", "..", ".."))
+    fxpath = os.path.join(root, "infra", "fx.py")
     spec = importlib.util.spec_from_file_location("infra_fx", fxpath)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)

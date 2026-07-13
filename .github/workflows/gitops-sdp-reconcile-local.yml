@@ -1,0 +1,77 @@
+name: gitops-sdp-reconcile-local
+
+# RECONCILE (merge step): after a PR merges to main, materialize each changed SDP
+# pipeline with the REAL `spark-pipelines run` (via reconcile.py / cli.py run) against
+# a runner-local Spark Connect server. This is the controller side of the GitOps loop;
+# it legitimately holds a Spark session (SPARK_REMOTE). The agent never runs this.
+#
+# This is the LOCAL stand-in for the production EKS reconcile target documented in
+# PRODUCTION_EKS.md (which is intentionally NOT enabled here).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "study/gitops_demo/pipeline-definitions/**"
+
+permissions:
+  contents: read
+
+env:
+  GITOPS_DIR: study/gitops_demo
+  CONNECT_PORT: "15055"
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for the push diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pyspark[connect] + pyyaml
+        run: pip install "pyspark[connect]==4.1.2" pyyaml
+
+      - name: Resolve SPARK_HOME from pyspark
+        run: |
+          SPARK_HOME="$(python -c 'import os, pyspark; print(os.path.dirname(pyspark.__file__))')"
+          echo "SPARK_HOME=${SPARK_HOME}" >> "$GITHUB_ENV"
+          echo "resolved SPARK_HOME=${SPARK_HOME}"
+
+      - name: Start local Spark Connect server
+        run: bash "${GITOPS_DIR}/local_spark_connect.sh" start
+
+      - name: Ensure demo schema exists (spark_catalog.gitops_demo)
+        env:
+          SPARK_REMOTE: sc://localhost:15055
+        run: python3 "${GITOPS_DIR}/ensure_schema.py"
+
+      - name: Reconcile changed specs (spark-pipelines run)
+        env:
+          SPARK_REMOTE: sc://localhost:15055
+          BASE_REF: ${{ github.event.before }}
+          HEAD_REF: ${{ github.sha }}
+        # Runs from the default working dir (the repo root / $GITHUB_WORKSPACE), so
+        # reconcile.py -> changed_pipelines.resolve() resolves the git toplevel and
+        # discovers specs under study/gitops_demo/
+        # pipeline-definitions/ (the path fix). No --cwd needed; --cwd "${GITHUB_WORKSPACE}"
+        # would be equivalent.
+        run: |
+          set -euo pipefail
+          python3 "${GITOPS_DIR}/reconcile.py" --base "${BASE_REF}" --head "${HEAD_REF}" --cwd "${GITHUB_WORKSPACE}"
+
+      - name: Stop local Spark Connect server
+        if: always()
+        run: bash "${GITOPS_DIR}/local_spark_connect.sh" stop

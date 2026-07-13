@@ -373,18 +373,19 @@ def test_stale_dedup_parquet_cannot_mask_a_non_writing_iteration():
 
 
 def test_dedup_path_scope_matches_the_real_corpus():
-    """Pin the disk-grade scope to the ACTUAL task catalog: ONLY orders_silver_gold and
-    p12_quarantine_dlq (the two tasks whose dedup_table differs from the primary table)
-    produce a non-empty dedup path; every other corpus task yields "". A future task that
-    adds a SEPARATE dedup table trips this assertion instead of silently changing
-    imperative grading behaviour."""
+    """Pin the disk-grade scope to the ACTUAL task catalog: only the tasks whose
+    dedup_table differs from the primary table produce a non-empty dedup path; every
+    other corpus task yields "". A future task that adds a SEPARATE dedup table trips
+    this assertion instead of silently changing imperative grading behaviour.
+    (corpus22 / v3.0.0 added new_lineitem_reconcile, whose dedup mart is a secondary
+    output; acknowledged here.)"""
     catalog = os.path.join(STUDY, "TASKS.lock.json")
     if not os.path.exists(catalog):
         pytest.skip(f"task catalog not found at {catalog}")
     with open(catalog) as f:
         tasks = json.load(f).get("tasks", [])
     assert tasks, "no tasks found in the corpus catalog"
-    expected = {"orders_silver_gold", "p12_quarantine_dlq"}
+    expected = {"orders_silver_gold", "p12_quarantine_dlq", "new_lineitem_reconcile"}
     got = set()
     for t in tasks:
         contract = t.get("output_contract") or {}

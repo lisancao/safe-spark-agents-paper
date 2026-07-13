@@ -25,8 +25,18 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STUDY="$(cd "$HERE/.." && pwd)"
-REPO="$(cd "$STUDY/../.." && pwd)"
-BATTERY="$REPO/experiments/defect_battery"          # recovered E3 variants + quantify.py live here
+# Mirrors harness/runner.py: study/ sits two levels deep in the paper repo, three in the
+# original layout. Walk up to the dir holding infra/ or .git (STUDY_REPO_ROOT overrides).
+REPO="${STUDY_REPO_ROOT:-}"
+if [[ -z "$REPO" ]]; then
+  REPO="$STUDY"
+  for _ in 1 2 3 4 5 6; do
+    REPO="$(dirname "$REPO")"
+    if [[ -d "$REPO/infra" || -d "$REPO/.git" ]]; then break; fi
+  done
+fi
+BATTERY="$REPO/defect_battery"                      # recovered E3 variants + quantify.py live here
+[[ -d "$BATTERY" ]] || BATTERY="$REPO/experiments/defect_battery"   # original-layout fallback
 VARIANTS_DIR="$BATTERY/variants"
 QUANTIFY="$BATTERY/quantify.py"
 

@@ -32,11 +32,32 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STUDY = os.path.dirname(HERE)
-REPO = os.path.normpath(os.path.join(STUDY, "..", ".."))
+
+
+def _find_repo_root():
+    # Mirrors harness/runner.py: study/ sits two levels deep in the paper repo,
+    # three in the original layout. Walk up to the dir holding infra/ or .git.
+    env = os.environ.get("STUDY_REPO_ROOT")
+    if env:
+        return os.path.abspath(env)
+    d = HERE
+    for _ in range(6):
+        d = os.path.dirname(d)
+        if os.path.isdir(os.path.join(d, "infra")) or os.path.isdir(os.path.join(d, ".git")):
+            return d
+    return os.path.normpath(os.path.join(STUDY, "..", ".."))
+
+
+REPO = _find_repo_root()
 
 
 def _load(name, rel):
-    spec = importlib.util.spec_from_file_location(name, os.path.join(REPO, rel))
+    path = os.path.join(REPO, rel)
+    if not os.path.exists(path):
+        # the battery lives at <repo>/defect_battery in the paper repo,
+        # <repo>/experiments/defect_battery in the original working tree
+        path = os.path.join(REPO, "defect_battery", os.path.basename(rel))
+    spec = importlib.util.spec_from_file_location(name, path)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

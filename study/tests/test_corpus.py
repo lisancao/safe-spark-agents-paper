@@ -20,7 +20,23 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STUDY = os.path.dirname(HERE)
-REPO = os.path.normpath(os.path.join(STUDY, "..", ".."))
+
+
+def _find_repo_root():
+    # Mirrors harness/runner.py: the original layout put study/ three levels deep;
+    # the paper repo puts it two deep. Walk up to the dir holding infra/ or .git.
+    env = os.environ.get("STUDY_REPO_ROOT")
+    if env:
+        return os.path.abspath(env)
+    d = HERE
+    for _ in range(6):
+        d = os.path.dirname(d)
+        if os.path.isdir(os.path.join(d, "infra")) or os.path.isdir(os.path.join(d, ".git")):
+            return d
+    return os.path.normpath(os.path.join(STUDY, "..", ".."))
+
+
+REPO = _find_repo_root()
 sys.path.insert(0, STUDY)
 
 TASKS = json.load(open(os.path.join(STUDY, "TASKS.lock.json")))
@@ -29,8 +45,21 @@ SEMANTIC = {"D2", "D6", "D7", "D8"}
 ALL_CLASSES = {f"D{i}" for i in range(1, 10)}
 
 
+def _battery(fname):
+    # The battery lives at <repo>/defect_battery in the paper repo (the SSOT) and at
+    # <repo>/experiments/defect_battery in the original working-tree layout.
+    for rel in ("defect_battery", os.path.join("experiments", "defect_battery")):
+        p = os.path.join(REPO, rel, fname)
+        if os.path.exists(p):
+            return p
+    raise FileNotFoundError(f"defect_battery/{fname} not found under {REPO}")
+
+
 def _load(modname, relpath):
-    spec = importlib.util.spec_from_file_location(modname, os.path.join(REPO, relpath))
+    path = os.path.join(REPO, relpath)
+    if not os.path.exists(path):
+        path = _battery(os.path.basename(relpath))
+    spec = importlib.util.spec_from_file_location(modname, path)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

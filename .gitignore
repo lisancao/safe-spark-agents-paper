@@ -25,3 +25,7 @@ crash.log
 # spike run artifacts (reproducible via ./run.sh)
 deploy/eks/lakekeeper/spike/out/*
 !deploy/eks/lakekeeper/spike/out/.gitkeep
+
+# python bytecode
+__pycache__/
+*.pyc
