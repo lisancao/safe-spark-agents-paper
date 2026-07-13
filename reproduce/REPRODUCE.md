@@ -37,8 +37,9 @@ For the *full* replay archive (additionally every generated input, every materia
 every grade) download the larger archive from the GitHub **Release** and extract it into `study/`:
 
 ```bash
-# from the Releases tab (asset: ssa-repro-archive-<version>.tar.gz):
-tar xzf ssa-repro-archive-<version>.tar.gz -C study/
+# GitHub Release: https://github.com/lisancao/safe-spark-agents-paper/releases/tag/v1-repro
+gh release download v1-repro --repo lisancao/safe-spark-agents-paper --pattern 'ssa-repro-archive.tar.gz'
+tar xzf ssa-repro-archive.tar.gz -C study/
 ```
 
 The archive ships as a release asset (not committed) to keep the repo cloneable; its `MANIFEST.txt` lists
