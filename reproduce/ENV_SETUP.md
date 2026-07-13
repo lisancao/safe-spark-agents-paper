@@ -5,7 +5,10 @@ Everything needed to run the study and (optionally) stand up the reference platf
 measurement needs the EKS cluster.
 
 ## 1. Toolchain
-- **Python** 3.12+ (the reader/analysis) and a **JDK 17** on `JAVA_HOME` for Spark.
+- **Python** 3.12+ (the reader/analysis) and a **JDK 17** on `JAVA_HOME` for Spark. Java 17 may be
+  installed while `JAVA_HOME` is unset; export it once before any local Spark launch:
+  `export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))` (dry-run gate demos and the
+  analysis recompute do not need it; a live Spark or Connect launch does).
 - **Apache Spark 4.1.x** with `pyspark` (Spark Connect + Declarative Pipelines). Local runs use a
   local Spark / local Spark Connect server; no Databricks.
 - For the platform only: `terraform`, `aws`, `kubectl`, `kustomize`, `docker`.
