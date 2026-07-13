@@ -77,5 +77,38 @@ HONEST LIMITS
 -------------
 - Demonstration, not a powered result. No cost-per-correct or catch-rate claim (SP4.2, separate paper).
 - Correctness graded by the custodian/blind-grader proxy, not Section 1's Spark oracle suite.
-- Stage 1 is a deterministic wrapper (Polly decomposes; the wrapper executes). Stage 2 makes the
-  orchestration itself native in Omnigent (custodian as a first-class tool, native sub-agent dispatch).
+- Stage 1 (this proof, Parts A to G) is a deterministic wrapper (Polly decomposes; the wrapper
+  executes). Stage 2 (Part H below) runs the same capstone natively and autonomously in Omnigent.
+
+PART H  NATIVE AUTONOMOUS RUN (Stage 2, 2026-07-12)
+---------------------------------------------------
+The same capstone was then run AUTONOMOUSLY and NATIVELY: `omnigent run deploy/omnigent/sdp-capstone`.
+Polly (the Omnigent orchestrator) drove the whole loop itself, every governance concern a native
+Omnigent primitive: the custodian is a native MCP server (holds all credentials in its own process),
+cost is bounded by the native cost_budget policy, and cross-vendor routing is Polly's own sub-agent
+roster (claude_code / codex / pi).
+
+What Polly did unattended:
+- Seeded all three customers via the custodian MCP; loaded the shared pyspark-sdp skill.
+- Built a cross-vendor routing plan by complexity: retail (Low) to pi on a cheap gateway model
+  (qwen3-coder-flash); saas (High) to claude_code (opus); payments (Med) to an OpenAI model.
+- Adapted live: when the codex harness failed to start, it rerouted the OpenAI-vendor role to pi
+  running OpenAI models (gpt-5.x), preserving cross-vendor diversity.
+- Cross-vendor review (S4.2): saas (Anthropic-authored) reviewed by an OpenAI model; retail
+  (Qwen-authored) and payments (OpenAI-authored) reviewed by claude_code (Anthropic).
+- Governed submit + dev loop (S4.3 + Section 2): every pipeline went through the custodian MCP.
+  saas passed first submit (pii_restricted, region masked). retail failed on a real schema error
+  (the raw timestamp column is event_ts), was repaired by a stronger vendor, and passed on attempt 2
+  (standard policy, value conserved: 12 raw -> 8 silver + 4 quarantine). payments passed after a
+  cross-vendor review correction (financial_grade, value conserved).
+
+Ground truth verified on the live tenants after the run (each medallion on its OWN tenant):
+  retail   (tenant_a): gold_daily_revenue materialized, 4 rows.
+  saas     (tenant_b): gold_segment_counts materialized, 2 rows, region masked (no cleartext column).
+  payments (tenant_c): gold_usd_settlement materialized, 3 rows, value conserved.
+
+So the demonstrated core runs NATIVELY and AUTONOMOUSLY: a single Omnigent agent, given one brief and
+one governed tool, decomposed the work, routed a real cross-vendor fleet (Anthropic + Qwen + OpenAI),
+kept every agent credential-free, enforced each customer's contextual policy, repaired to convergence,
+and built all three medallions over three isolated live tenants. Reproducible agent:
+deploy/omnigent/sdp-capstone/.
