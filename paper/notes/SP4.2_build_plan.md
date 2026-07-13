@@ -12,7 +12,7 @@ Break SP4.2 into three cards, in order, each its own PR + opposite-vendor review
 
 ---
 
-## SP4.2a — The fleet-study harness (author -> materialize -> REAL-oracle grade -> cost + catch-rate)
+## SP4.2a: The fleet-study harness (author -> materialize -> REAL-oracle grade -> cost + catch-rate)
 
 **Why this exists.** §4 S4.1 needs **cost-per-correct-pipeline** (routed vs single-strong) and S4.2 needs a
 **cross-vendor defect catch-rate**. Both require §1's *gold-standard* grading (design: "reuses the §1
@@ -65,7 +65,7 @@ oracle needs the exact input path convention, mirror the runner's `AGENT_INPUT` 
 
 ---
 
-## SP4.2b — Real-oracle pilot (validate end-to-end + measure per-cell cost)
+## SP4.2b: Real-oracle pilot (validate end-to-end + measure per-cell cost)
 
 **Why this exists.** De-risk the harness before the powered spend, and produce a real-oracle PILOT that
 supersedes the earlier proxy-graded pilot. It also measures per-cell cost/time to size SP4.2c.
@@ -95,7 +95,7 @@ wiring before scaling (do not scale a mis-wired grader).
 
 ---
 
-## SP4.2c — Powered sweep (GATED on Lisa's explicit spend go)
+## SP4.2c: Powered sweep (GATED on Lisa's explicit spend go)
 
 **Why this exists.** The powered cost-per-correct + cross-vendor catch-rate, sized like §1: the SP4.2 separate
 paper's headline.
