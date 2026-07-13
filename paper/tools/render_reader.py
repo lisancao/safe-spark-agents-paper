@@ -425,7 +425,7 @@ OUTP.write_text(DOC, encoding="utf-8")
 # Publish to the GitHub Pages source (docs/index.html) on a default build, so the live site
 # cannot silently drift from the build (it did once, hence this). Skip when a custom path is given.
 if not paths:
-    DOCS = ROOT / "docs" / "index.html"
+    DOCS = ROOT.parent / "docs" / "index.html"   # repo-root /docs, the GitHub Pages source
     DOCS.parent.mkdir(parents=True, exist_ok=True)
     DOCS.write_text(DOC, encoding="utf-8")
     print(f"published {DOCS} (Pages source)")
