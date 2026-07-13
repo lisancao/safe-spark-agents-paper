@@ -1,0 +1,89 @@
+<svg width="100%" viewBox="0 0 680 432" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Section 4 (S4.5): Polly builds a governed medallion fleet for three customers over live per-tenant isolation</title>
+<desc>Omnigent's Polly decomposes one data-engineering brief into per-customer bronze/silver/gold subtasks and fans out a cross-vendor fleet of credential-free sub-agents. Each pipeline is authored by a model routed to the task's difficulty, cross-reviewed by a different vendor, and submitted to one custodian that holds every credential. The custodian runs each medallion over that customer's own Section 3 tenant, enforces the customer's contextual policy, and returns only pass or fail; on failure the fleet repairs and converges. Cross-tenant reads are denied, so Section 3 isolation holds under the fleet.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:12px;font-weight:500}.ts{font-size:9.5px}.tn{font-size:9px}
+  .lab{font-size:10px;font-weight:600;letter-spacing:.03em}
+  .arr{stroke:#93a29d;stroke-width:1.4;fill:none}
+  .att rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.att .th{fill:#2C2C2A}.att .ts{fill:#5F5E5A}
+  .cus rect{fill:#EEEDFE;stroke:#534AB7;stroke-width:.9}.cus .th{fill:#3C3489}.cus .ts{fill:#534AB7}
+  .cat rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.cat .th{fill:#085041}.cat .ts{fill:#0F6E56}
+  .pol{fill:#F7EFDD;stroke:#8a5a0b;stroke-width:.6}.polt{font-size:9px;font-weight:600;fill:#8a5a0b}
+  .rev rect{fill:#FBEEF2;stroke:#9E2B4E;stroke-width:.75}.rev .th{fill:#7A1E3B}.rev .ts{fill:#9E2B4E}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<text x="18" y="14" class="lab" fill="#5F5E5A">FLEET · credential-free · Omnigent-routed</text>
+<text x="270" y="14" class="lab" fill="#3C3489">CUSTODIAN</text>
+<text x="392" y="14" class="lab" fill="#085041">LIVE §3 PER-TENANT ISOLATION (EKS)</text>
+
+<!-- Polly -->
+<g class="cus"><rect x="18" y="22" width="216" height="30" rx="6"/>
+  <text x="126" y="36" class="th" text-anchor="middle">Polly (omnigent) decomposes</text>
+  <text x="126" y="47" class="ts" text-anchor="middle">1 brief → 3 customers × bronze/silver/gold DAG</text></g>
+<line x1="126" y1="52" x2="126" y2="62" class="arr" marker-end="url(#arrow)"/>
+<text x="140" y="61" class="tn" fill="#5c6b66">dispatches sub-agents</text>
+
+<!-- trust boundary -->
+<line x1="246" y1="20" x2="246" y2="300" stroke="#b9433a" stroke-width="1.1" stroke-dasharray="5 4"/>
+<text x="240" y="150" class="tn" fill="#b9433a" text-anchor="middle" transform="rotate(-90 240 150)">§2 boundary</text>
+
+<!-- fleet agents (routed by complexity, S4.1) -->
+<g class="att"><rect x="18" y="70" width="216" height="40" rx="6"/><text x="26" y="85" class="th">retail agent</text><text x="26" y="98" class="ts">qwen-coder:30b (local, $0) → opus repair</text><text x="210" y="85" class="polt" text-anchor="end">Low</text></g>
+<g class="att"><rect x="18" y="116" width="216" height="40" rx="6"/><text x="26" y="131" class="th">saas agent</text><text x="26" y="144" class="ts">opus → opus repair</text><text x="210" y="131" class="polt" text-anchor="end">High</text></g>
+<g class="att"><rect x="18" y="162" width="216" height="40" rx="6"/><text x="26" y="177" class="th">payments agent</text><text x="26" y="190" class="ts">deepseek → opus repair</text><text x="210" y="177" class="polt" text-anchor="end">Med</text></g>
+<!-- cross-vendor review -->
+<g class="rev"><rect x="18" y="226" width="216" height="34" rx="6"/><text x="26" y="240" class="th">cross-vendor review · gpt-5</text><text x="26" y="252" class="ts">flagged silent defects the authors missed (S4.2)</text></g>
+<line x1="120" y1="226" x2="120" y2="202" class="arr" marker-end="url(#arrow)"/>
+
+<!-- agents -> custodian (spec) + dev-loop return -->
+<line x1="234" y1="90"  x2="258" y2="120" class="arr" marker-end="url(#arrow)"/>
+<line x1="234" y1="136" x2="258" y2="132" class="arr" marker-end="url(#arrow)"/>
+<line x1="234" y1="182" x2="258" y2="150" class="arr" marker-end="url(#arrow)"/>
+<text x="236" y="108" class="tn" fill="#5c6b66">spec →</text>
+<line x1="316" y1="195" x2="150" y2="208" class="arr" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+<text x="150" y="219" class="tn" fill="#b9433a">fail → repair (escalate)</text>
+
+<!-- custodian -->
+<g class="cus"><rect x="258" y="66" width="112" height="140" rx="8"/>
+  <text x="314" y="84" class="th" text-anchor="middle">Custodian</text>
+  <text x="314" y="99" class="ts" text-anchor="middle">holds PSK +</text>
+  <text x="314" y="111" class="ts" text-anchor="middle">every tenant token</text>
+  <rect x="270" y="120" width="88" height="34" rx="5" fill="#fff" stroke="#534AB7" stroke-width=".5" stroke-dasharray="3 2"/>
+  <text x="314" y="133" class="tn" text-anchor="middle" fill="#3C3489">submit(customer,code)</text>
+  <text x="314" y="146" class="tn" text-anchor="middle" fill="#3C3489">→ pass / fail</text>
+  <text x="314" y="170" class="ts" text-anchor="middle">agents get only</text>
+  <text x="314" y="182" class="ts" text-anchor="middle">pass/fail (S4.3)</text>
+  <text x="314" y="197" class="ts" text-anchor="middle">+ contextual policy</text>
+</g>
+
+<!-- custodian -> tenants (token + run) -->
+<line x1="370" y1="110" x2="392" y2="96"  class="arr" marker-end="url(#arrow)"/>
+<line x1="370" y1="136" x2="392" y2="150" class="arr" marker-end="url(#arrow)"/>
+<line x1="370" y1="162" x2="392" y2="204" class="arr" marker-end="url(#arrow)"/>
+<text x="372" y="128" class="tn" fill="#5c6b66">mint token + run →</text>
+
+<!-- three live tenants + policy chips -->
+<g class="cat"><rect x="392" y="76" width="192" height="40" rx="6"/><text x="400" y="91" class="th">tenant_a · retail</text><text x="400" y="104" class="ts">own Connect · authz · vend · own executors + prefix</text></g>
+<g class="pol"><rect x="392" y="70" width="0" height="0"/></g>
+<rect class="pol" x="516" y="80" width="66" height="14" rx="7"/><text x="549" y="90" class="polt" text-anchor="middle">standard ✓</text>
+
+<g class="cat"><rect x="392" y="130" width="192" height="40" rx="6"/><text x="400" y="145" class="th">tenant_b · saas</text><text x="400" y="158" class="ts">own Connect · authz · vend · own executors + prefix</text></g>
+<rect class="pol" x="510" y="134" width="72" height="14" rx="7"/><text x="546" y="144" class="polt" text-anchor="middle">PII-mask ✓</text>
+
+<g class="cat"><rect x="392" y="184" width="192" height="40" rx="6"/><text x="400" y="199" class="th">tenant_c · pay</text><text x="400" y="212" class="ts">own Connect · authz · vend · own executors + prefix</text></g>
+<rect class="pol" x="512" y="188" width="66" height="14" rx="7"/><text x="545" y="198" class="polt" text-anchor="middle">financial ✓</text>
+
+<!-- cross-tenant deny -->
+<text x="392" y="242" class="tn" fill="#b9433a">cross-tenant reads DENIED (NoSuchNamespace): isolation holds</text>
+
+<!-- summary band -->
+<line x1="18" y1="286" x2="662" y2="286" stroke="#d9d5cc" stroke-width="1"/>
+<text x="18" y="306" class="th" fill="#3C3489">Polly decomposed one brief; a cross-vendor fleet built all three medallions over live per-tenant isolation.</text>
+<text x="18" y="322" class="ts" fill="#5c6b66">S4.1 routed 3 vendors by difficulty (qwen-local / deepseek / opus). S4.2 a different vendor (gpt-5) caught silent defects the authors missed.</text>
+<text x="18" y="336" class="ts" fill="#5c6b66">S4.3 the custodian held every credential; the 3 agents held zero. The dev-loop repaired all 3 to pass under their contextual policy (Section 2 at fleet scale).</text>
+<text x="18" y="350" class="ts" fill="#5c6b66">Section 3 isolation preserved: each medallion ran over its own tenant; every cross-tenant probe was denied. Routed cost $0.35.</text>
+<text x="18" y="368" class="tn" fill="#8a5a0b">Demonstration that the mechanism runs (S4.5 core); not a powered numbers claim (SP4.2 is a separate paper). Correctness graded by the custodian/blind-grader proxy.</text>
+<text x="18" y="382" class="tn" fill="#8a5a0b">Stage 1 = deterministic wrapper (Polly decomposes; wrapper executes). Stage 2 = the orchestration itself native in Omnigent (custodian as a first-class tool, native dispatch).</text>
+</svg>

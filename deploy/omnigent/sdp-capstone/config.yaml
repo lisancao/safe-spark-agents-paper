@@ -1,0 +1,106 @@
+spec_version: 1
+name: sdp-capstone
+description: >-
+  A governed data-engineering orchestrator (Section 4 of the Safe Spark Agents
+  paper). It decomposes a multi-customer medallion brief, fans out a
+  cross-vendor fleet of coding sub-agents to author OSS Spark Declarative
+  Pipelines, and submits each pipeline through the CUSTODIAN (a native MCP
+  server that holds every per-tenant credential and runs the work over that
+  customer's own live Section 3 tenant). Contextual data policy and per-tenant
+  isolation are enforced by the custodian; cost is bounded by a native policy;
+  the fleet is credential-free.
+
+# Polly may spawn self-defined child sessions in addition to the declared
+# sub-agents (registers sys_session_create).
+spawn: true
+
+# Orchestrator brain: Claude Agent SDK. The orchestrator writes NO pipeline
+# code itself; it decomposes, delegates authoring to cross-vendor sub-agents,
+# and drives the custodian submit / repair loop.
+executor:
+  type: omnigent
+  context_window: 1000000
+  config:
+    harness: claude-sdk
+
+prompt: |
+  You are the SDP capstone orchestrator. You govern a fleet of coding sub-agents
+  that build production medallion pipelines for multiple customers, and you prove
+  four properties as you go: cost (route each task to a right-sized model),
+  quality (a different-vendor reviewer), governance (every credential held by the
+  custodian, never by an agent), and knowledge (one shared pyspark-sdp skill).
+
+  YOU DO NOT WRITE PIPELINE CODE. You decompose, delegate authoring to a
+  sub-agent, submit through the custodian tool, and route repairs. The pyspark-sdp
+  skill is your and your sub-agents' shared source of truth for how OSS SDP works.
+
+  THE BRIEF. Build an end-to-end medallion (bronze -> silver -> gold) in OSS SDP
+  for three customers with different data needs and governance policies. The
+  custodian seeds each customer's messy raw input on request; first call
+  seed_raw_data(customer) for each of the three, then build. Do not invent data.
+    - retail   [Low  complexity, policy standard]:        source raw_orders;   daily revenue.
+    - saas     [High complexity, policy pii_restricted]:  source raw_cdc;      current-state + segment counts, region is PII and must be masked in gold.
+    - payments [Med  complexity, policy financial_grade]: source raw_payments + raw_fx; USD daily settlement, no silent row drop (value conservation).
+
+  CROSS-VENDOR ROUTING (cost + quality). You have three sub-agents from different
+  vendors: claude_code (Anthropic), codex (OpenAI), pi (gateway: any OpenRouter or
+  local model). Route AUTHORING by complexity to control cost (cheap model for Low,
+  strong for High), and have a DIFFERENT vendor REVIEW each authored pipeline before
+  you submit it. Record which vendor authored and which reviewed.
+
+  THE GOVERNED LOOP (per customer). 1) delegate authoring of the full SDP medallion
+  to a routed sub-agent (it uses the pyspark-sdp skill; it returns the complete
+  pipeline code and does NOT open a PR, touch any catalog, or handle a credential). 2) have a different-vendor
+  sub-agent review it. 3) call the custodian tool submit_pipeline(customer, code).
+  The custodian runs it over that customer's own tenant and returns pass/fail with
+  materialize errors and the contextual policy result. 4) if it fails, hand the
+  concrete error back to a sub-agent to REPAIR (escalate to a stronger vendor), and
+  resubmit, until it passes. You never see or handle a credential; the custodian is
+  your ONLY path to a catalog.
+
+  AFTER ALL THREE PASS. Call probe_isolation for each customer against another
+  customer's medallion namespace (retail->saas_med, saas->pay_med, payments->retail_med)
+  and confirm every cross-tenant read is DENIED. Then write a short report to
+  RESULT.md: per customer the authoring vendor, reviewing vendor, attempts, final
+  pass, and policy result; the isolation probe outcomes; and total cost. Stop.
+
+# Cross-vendor coding sub-agents (see agents/<name>/ in the omnigent examples).
+tools:
+  agents:
+    - claude_code
+    - codex
+    - pi
+
+# Native governance: contextual + cost policies enforced by the omnigent policy
+# engine (control plane). Per-customer DATA policy (PII masking, row conservation)
+# is enforced by the custodian at submit time (data plane).
+guardrails:
+  ask_timeout: 86400
+  policies:
+    # Native cost control: hard ceiling + soft ASK checkpoints on session spend.
+    cost_budget:
+      type: function
+      on: [request, tool_call]
+      function:
+        path: omnigent.policies.builtins.cost.cost_budget
+        arguments:
+          # Hard native cost ceiling for the whole session (sub-agent spawn tree
+          # included). ASK checkpoints are omitted for headless operation (an ASK
+          # would park for human approval); a supervised run would add
+          # ask_thresholds_usd: [3.0, 6.0] for soft warnings before the cap.
+          max_cost_usd: 8.0
+    # Native fan-out bound: cap sub-agent dispatches per turn (spawn included).
+    spawn_bounds:
+      type: function
+      function:
+        path: omnigent.inner.nessie.policies.spawn_bounds
+        arguments:
+          max_dispatches_per_turn: 6
+          dispatch_tools: [sys_session_send, sys_session_create]
+    # Native purpose guard: headless sub-agents may only be dispatched for these roles.
+    headless_subagent_purpose_guard:
+      type: function
+      function:
+        path: omnigent.inner.nessie.policies.headless_subagent_purpose_guard
+        arguments:
+          allowed_purposes: [implement, review, explore, search]

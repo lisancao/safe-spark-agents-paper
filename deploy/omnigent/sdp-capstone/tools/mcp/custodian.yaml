@@ -1,0 +1,26 @@
+# The governed SDP custodian, wired as a native Omnigent MCP server (stdio).
+# Omnigent spawns this process; the Spark Connect PSK and every per-tenant catalog
+# token live ONLY inside it, so a sub-agent that calls submit_pipeline never sees a
+# credential. Custody is a real process boundary. The server self-bootstraps its
+# connectivity to the live Section 3 tenants (resolves the PSK from the cluster and
+# opens per-tenant port-forwards) and runs in a python that has both `mcp` and pyspark.
+#
+# Reproduce: point `args` at your checkout, set AWS_PROFILE + a kubeconfig for the
+# EKS cluster that hosts the per-tenant Spark Connect servers. In production the
+# custodian is co-located in the cluster (no port-forward), which changes only the
+# connectivity bootstrap, not the tool contract.
+name: custodian
+transport: stdio
+command: python3
+args:
+  - /home/lnc/sdp-paper-local/deploy/omnigent/sdp-capstone/custodian/custodian_mcp.py
+env:
+  PATH: /home/lnc/.local/bin:/usr/local/bin:/usr/bin:/bin
+  AWS_PROFILE: ssa-deploy
+description: >-
+  Governed data-engineering custodian for the Section 3 multi-tenant platform.
+  Tools: seed_raw_data(customer), submit_pipeline(customer, code) which runs the
+  pipeline over that customer's own tenant and enforces its contextual data policy,
+  and probe_isolation(customer, other_namespace). Returns only results; holds every
+  credential itself.
+timeout: 300
