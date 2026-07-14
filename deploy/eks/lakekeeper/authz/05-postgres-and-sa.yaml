@@ -1,0 +1,67 @@
+# =============================================================================================
+# authz-owned Postgres + IRSA ServiceAccount for the GOVERNED (authz + vending) Lakekeeper.
+#
+# Purpose: make the authz/ layer self-contained so a client install applies authz/ ONLY and NEVER
+# the allow-all spike/ stack. These objects are lifted faithfully from spike/eks/lakekeeper.yaml
+# (the `lakekeeper` ServiceAccount + the in-cluster Postgres + its Service), MINUS the allow-all
+# `lakekeeper` serve Deployment/Service (authz/10-lakekeeper-authz.yaml provides the governed
+# `lakekeeper-authz` serve instead).
+#
+# The database is named `catalog_authz` (POSTGRES_DB below), which is exactly the DB that
+# authz/10-lakekeeper-authz.yaml's migrate Job and serve Deployment connect to, so NO separate
+# `CREATE DATABASE catalog_authz` step is needed.
+#
+# Apply order: kubectl apply -f 05-postgres-and-sa.yaml  BEFORE  00-idp-openfga.yaml + 10-lakekeeper-authz.yaml.
+#
+# PRODUCTIONIZATION TODO (durability): this in-cluster Postgres uses an ephemeral emptyDir, so a
+# pod restart LOSES all catalog metadata. For a client, use the substrate RDS instead: delete the
+# lakekeeper-postgres Deployment + Service below, create a `catalog_authz` database on RDS, and set
+# LAKEKEEPER__PG_DATABASE_URL_{READ,WRITE} in 10-lakekeeper-authz.yaml to the RDS endpoint
+# (spike note, spike/eks/lakekeeper.yaml:6-7).
+# PRODUCTIONIZATION TODO (secret): POSTGRES_PASSWORD is inline here (lifted from the spike); move it
+# to a Secret for a client.
+# =============================================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lakekeeper
+  namespace: spark
+  labels: { app.kubernetes.io/name: lakekeeper, app.kubernetes.io/part-of: reference-lakehouse }
+  annotations:
+    # <-- terraform output `lakekeeper_catalog_role_arn` (deploy/eks/terraform/lakekeeper-vending.tf:131)
+    eks.amazonaws.com/role-arn: arn:aws:iam::REPLACE-ACCOUNT:role/REPLACE-name-prefix-lakekeeper-catalog
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lakekeeper-postgres
+  namespace: spark
+  labels: { app.kubernetes.io/name: lakekeeper-postgres, app.kubernetes.io/part-of: reference-lakehouse }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: lakekeeper-postgres } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: lakekeeper-postgres } }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          env:
+            - { name: POSTGRES_USER, value: postgres }
+            - { name: POSTGRES_PASSWORD, value: postgres }   # PRODUCTIONIZATION TODO: move to a Secret
+            - { name: POSTGRES_DB, value: catalog_authz }     # the DB authz/10 points at (no manual CREATE DATABASE needed)
+          ports: [{ containerPort: 5432 }]
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres"] }
+            periodSeconds: 5
+          volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]
+      volumes: [{ name: data, emptyDir: {} }]   # PRODUCTIONIZATION TODO: ephemeral; use a PVC or RDS for a client
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lakekeeper-postgres
+  namespace: spark
+spec:
+  selector: { app.kubernetes.io/name: lakekeeper-postgres }
+  ports: [{ port: 5432, targetPort: 5432 }]
