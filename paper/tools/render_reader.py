@@ -115,6 +115,9 @@ body = body.replace("<p>[[[SVG-CUSTODIAN]]]</p>",
 body = body.replace("<p>[[[SVG-CAPSTONE-FLEET]]]</p>",
     figure(load_svg("section4_capstone_fleet.svg"),
            "The demonstrated core on the platform's own domain (S4.5). Omnigent's Polly decomposes one brief into per-customer medallions, routes authoring across three vendors by difficulty, has a different vendor review, and submits each through the custodian, which runs it over that customer's own live tenant and enforces its contextual data policy. On failure the fleet repairs and converges (the §2 dev loop at fleet scale); every cross-tenant read is denied, so §3 isolation holds. A demonstration that the mechanism runs, wired natively in the orchestration layer; the numbers are S4.7's separate study."))
+body = body.replace("<p>[[[SVG-CONTAINED]]]</p>",
+    figure(load_svg("section4_contained_omnigent.svg"),
+           "The contained deployment shape (architecture): the Omnigent server, the custodian, and the credential-free agent fleet as pods in the client's EKS, over the Section 3 platform, with one IdP governing both. S4.5's capstone demonstrates the mechanism; this is how it is packaged for a client via the official Omnigent Kubernetes path."))
 body = body.replace("<p>[[[SVG-ADVERSARY]]]</p>",
     figure(load_svg("section3_adversary_paths.svg"),
            "The adversary, and the five paths to tenant B. Each attack route is closed by exactly one of the five isolation layers, so all five must hold."))
