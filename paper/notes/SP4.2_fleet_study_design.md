@@ -42,14 +42,36 @@ the §1 oracle (the ground-truth defect set per task).
 - **Power:** sized like §1 (N = 12 seeds per cell target; N* from the same calibration), per arm and paired
   by (task, seed). Deferred to the separate paper.
 
-## Instrument status (this repo)
-The §1 runner is runnable here after a relocation fix: `study/harness/runner.py` computed `REPO_ROOT` three
-levels up (the original layout); the study dir now sits two levels deep in the paper repo, so `REPO_ROOT`
-resolved above the repo and the data-gen paths + provenance broke. `_find_repo_root()` now walks up to the
-dir holding `infra/`/`.git`, so `--backend local` (which brings up its own single-node Spark Connect server
-for SDP arms) runs. A live cell is a multi-iteration agent loop plus Spark execution plus grading, on the
-order of minutes; a powered sweep is therefore many hours and real API spend, which is why it is the
-separate paper.
+## Instrument status (this repo) and the harness path (2026-07-13)
+The §1 *authoring* harness (`study/harness/runner.py --backend local`) did not grade a cell in a first
+smoke here: an arm-B cell (p5_mart, seed 42) brought up local Spark and wrote the authored `pipeline.py`
+into `.work/`, but produced no graded row and went silent at the materialize/record stage. This is a
+reliability issue to FIX, not a reason to swap the instrument.
+
+**North-star-true path (primary). The cost arm stays §1's arm-B loop, per the Arms lock above: clone
+`arms/B.json`, vary `base_model_id` ONLY** (haiku Low, sonnet Med, opus High for routed; opus for single),
+**and run the real loop: propose -> structural dry-run gate -> execute -> blind grade.** The dry-run gate
+is a §1 headline mechanism and must be the real one, so the cost numbers are literally "§1's instrument
+lifted to a fleet" and stay comparable to §1. SP4.2a's first job is therefore to make the §1 harness grade
+one arm-B cell here (debug the silent materialize/record path, or run in the config that produced the §1
+528-run powered study), NOT to replace the harness. Grading is §1's blind oracle either way
+(`output_oracles.build_output_profile` -> `oracles.grade_run`, runner recipe ~456-544; structural
+D1/D4/D5 by log signature, semantic D2/D6/D7/D8 by residual corruption).
+
+Cross-vendor enters ONLY where this design already puts it: the **quality arm's review pass** (a
+different-vendor reviewer over the §1-authored pipelines), which may be driven through Omnigent.
+
+**Fallback (labeled, only if the §1 harness cannot be made reliable).** Author via Omnigent + materialize
+with the §4-capstone dp-executor over local Connect, still graded by the same REAL §1 oracles standalone.
+This trades instrument fidelity for reliability, so it carries an explicit comparability caveat (a
+different authoring/execution path than §1's arm B, hence cost numbers NOT strictly §1-comparable) and is
+used only if the primary path is genuinely blocked. Reusable regardless: generators `infra/gen_*.py`, the
+frozen corpus `study/TASKS.lock.json`, the 12 seeds, and the §1 oracles.
+
+A live cell is an author loop + Spark materialize + grade (order of minutes); the powered sweep (~552 cost
+cells = 23 tasks x {routed, single} x 12 seeds, plus the cheaper review pass) is many hours and real API +
+compute spend, which is why it is the separate paper and the powered run is gated on an explicit spend
+estimate after a small pilot.
 
 ## Honest limitations (must survive to the separate paper)
 - **Cross-vendor vs cross-model.** A true cross-vendor catch-rate (e.g. a non-Anthropic reviewer over a

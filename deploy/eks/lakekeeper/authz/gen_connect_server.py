@@ -2,8 +2,9 @@
 # Per-tenant Spark Connect server generator (multi-server Connect: token custody + execution
 # isolation). Each server injects ONLY its tenant's catalog JWT server-side. Set CONNECT_IMAGE to the
 # spark-connect image. usage: CONNECT_IMAGE=<img> gen_connect_server.py <tenant> <jwt_file> | kubectl apply -f -
-# Emit (as JSON, which kubectl apply accepts) a per-tenant Spark Connect server that INJECTS that
-# tenant's catalog token server-side. usage: gen_connect_server.py <tenant> <jwt_file>  > out.json
+# Emit (as JSON, which kubectl apply accepts) a per-tenant Spark Connect server (Deployment + Service)
+# that INJECTS that tenant's catalog token server-side, PLUS a per-tenant L3 NetworkPolicy that scopes
+# executor->driver traffic to the SAME tenant. usage: gen_connect_server.py <tenant> <jwt_file> > out.json
 import json, os, sys
 T = sys.argv[1]
 JWT = open(sys.argv[2]).read().strip()
@@ -79,4 +80,25 @@ svc = {
     "metadata": {"name": NAME, "namespace": "spark"},
     "spec": {"selector": {"app": NAME}, "ports": [{"port": 15002, "targetPort": 15002, "name": "grpc"}]},
 }
-print(json.dumps({"apiVersion": "v1", "kind": "List", "items": [dep, svc]}))
+# Per-tenant L3 NetworkPolicy (defense in depth). Rule 1: only the routing gateway may reach this
+# tenant's Connect gRPC :15002. Rule 2: ONLY this tenant's own executors (label tenant=T, set via
+# spark.kubernetes.executor.label.tenant above) may dial the driver back on 7078/7079. Scoping rule 2
+# to tenant=T (not a fleet-wide spark-role=executor) is what makes executor->driver isolation
+# per-tenant. INERT unless the cluster CNI enforces NetworkPolicy (EKS VPC CNI ENABLE_NETWORK_POLICY,
+# or Calico/Cilium); verify a cross-tenant dial is refused AND same-tenant execution still works
+# before citing it as enforced.
+netpol = {
+    "apiVersion": "networking.k8s.io/v1", "kind": "NetworkPolicy",
+    "metadata": {"name": NAME + "-ingress", "namespace": "spark", "labels": {"app": NAME, "tenant": T}},
+    "spec": {
+        "podSelector": {"matchLabels": {"app": NAME}},
+        "policyTypes": ["Ingress"],
+        "ingress": [
+            {"from": [{"podSelector": {"matchLabels": {"app": "connect-gateway"}}}],
+             "ports": [{"protocol": "TCP", "port": 15002}]},
+            {"from": [{"podSelector": {"matchLabels": {"spark-role": "executor", "tenant": T}}}],
+             "ports": [{"protocol": "TCP", "port": 7078}, {"protocol": "TCP", "port": 7079}]},
+        ],
+    },
+}
+print(json.dumps({"apiVersion": "v1", "kind": "List", "items": [dep, svc, netpol]}))

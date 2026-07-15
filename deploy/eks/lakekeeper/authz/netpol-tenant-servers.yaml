@@ -1,3 +1,7 @@
+# SUPERSEDED (2026-07-13) by the per-tenant NetworkPolicy that gen_connect_server.py now emits with each
+# tenant's server (rule 2 scoped to `tenant=<T>`). This single fleet-wide policy is kept for reference
+# only; its rule 2 (below) admits ANY executor, so do NOT use it as the enforced L3 for a client.
+#
 # INTENDED defense-in-depth, NOT YET APPLIED. Restricts inbound to each per-tenant Connect server so a
 # direct in-cluster dial (bypassing the gateway) is dropped at the network layer, making "reachable only
 # from the gateway" literally true rather than relying solely on the shared Connect PSK + interceptor.

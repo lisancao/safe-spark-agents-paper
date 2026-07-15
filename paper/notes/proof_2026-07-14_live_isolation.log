@@ -1,0 +1,50 @@
+LIVE ISOLATION RE-PROOF (2026-07-14): §3 catalog + storage isolation on the running ssa-spark-eks
+==================================================================================================
+Reproduced today against the LIVE cluster (account <ACCT>, us-east-1). Operator access to the
+private EKS API via an SSM port-forward tunnel through the bastion (i-<redacted>,
+AWS-StartPortForwardingSessionToRemoteHost); catalog reached via `kubectl port-forward
+svc/lakekeeper-authz`. This freshly re-proves L4 (per-principal catalog authorization) and L5
+(prefix-scoped credential vending) on the running platform, using the tenants' real tokens and the
+live lakekeeper-authz + ssa-spark-lakekeeper-vending role. It partially closes the composition gap
+SETUP.md:71 flagged: L1 ingress mTLS routing + L2 token custody are the remaining links for a single
+end-to-end request.
+
+PART L4. Per-principal catalog authorization (GET /catalog/v1/config?warehouse=), HTTP codes
+--------------------------------------------------------------------------------------------
+  identity            wh=tenant_a   wh=tenant_b
+  tenant_a token         200           404        (own OK; cross-tenant DENIED)
+  tenant_b token         404           200        (own OK; cross-tenant DENIED)
+  no token               401           401        (unauthenticated rejected)
+The 404 is Lakekeeper's authorization deny (returns not-found rather than leak existence). The
+2026-07-10 Part-C grant-toggle already established that this 404 flips to 200 when a grant is added,
+i.e. it is authorization, not nonexistence.
+
+PART L5. Prefix-scoped credential vending -> S3 (loadTable, X-Iceberg-Access-Delegation: vended-credentials)
+----------------------------------------------------------------------------------------------------------
+tenant_a loaded demo.t. Lakekeeper vended TEMPORARY STS credentials (AKID ASIA*, assumed-role
+ssa-spark-lakekeeper-vending/lakekeeper-sts) downscoped by an inline session policy to the table's
+exact prefix  s3://ssa-spark-warehouse-<ACCT>/tenant_a/019f4adf-.../ :
+  - list OWN table prefix .................. OK (PRE data/, PRE metadata/)
+  - list s3://.../tenant_b/ ................ AccessDenied (no session policy allows s3:ListBucket)
+  - list s3://.../tenant_a/ (tenant root) .. AccessDenied (the scope is the TABLE prefix, not the tenant)
+So the credential reaching a tenant is downscoped to exactly the object prefix it loaded; it cannot
+list another tenant's data, nor even its own tenant root.
+
+PART L2. Identity pinning / token custody (the running per-tenant Connect server)
+--------------------------------------------------------------------------------
+The deployed spark-connect image (ssa-spark/spark-connect:4.1.2-iceberg1.11.0) carries the REAL
+PrincipalPinningInterceptor, not the ALLOW_MISSING stub:
+  - /opt/spark/conf/spark-defaults.conf sets spark.connect.grpc.interceptor.classes =
+    com.safesparkagents.connect.auth.PrincipalPinningInterceptor
+  - /opt/spark/jars/interceptor.jar is present on the classpath
+  - tenant_a driver log: "PrincipalPinningInterceptor active: pinning Spark Connect user_id to the
+    x-connect-principal header set by the mTLS auth proxy (fail-closed)"; every request pins
+    user_id=tenant_a. Pods have run 4d+ (a configured class with a missing jar would crash-loop),
+    so the interceptor is loaded and fail-closed: a client cannot spoof user_id.
+
+STATUS
+------
+L4 (catalog authz), L5 (prefix-scoped vending), and L2 (interceptor identity-pinning, fail-closed)
+verified LIVE on ssa-spark-eks, 2026-07-14. Remaining for the literal single-request five-layer
+composition (SETUP.md:71): L1 ingress mTLS routing-by-principal through the connect-gateway (the mTLS
+Spark-client path, which needs a client-cert mTLS proxy). Account and bastion id redacted.

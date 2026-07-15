@@ -1,0 +1,3 @@
+client.env
+secrets-out/
+*.psk
