@@ -139,6 +139,9 @@ body = body.replace("<p>[[[SVG-WASTE]]]</p>",
 body = body.replace("<p>[[[SVG-COST]]]</p>",
     figure(load_svg("cost_tokens_conciseness.svg"),
            "The cost of the declarative paradigm, arm B relative to arm A (= 100%): SDP writes far less code and spends more tokens. Bars show B as a percentage of A; absolute medians beneath."))
+body = body.replace("<p>[[[SVG-HALLUCINATION]]]</p>",
+    figure(load_svg("section1_hallucination_profiles.svg"),
+           "What each paradigm hallucinates and where it is caught: imperative invents I/O paths (un-gateable, runtime); SDP writes imperative habits into the declarative pipeline, a large share caught at the cheap dry-run gate. Databricks DLT hallucination is zero in both arms."))
 body = body.replace("<p>[[[SVG-CONTROLBOUNDARY]]]</p>",
     figure(load_svg("section2_control_boundary.svg"),
            "The control boundary: the agent authors inert desired-state and never crosses into execution; a governed dry-run gate and reconciler validate and run it. Only structural feedback returns."))

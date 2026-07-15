@@ -1,0 +1,64 @@
+<svg width="100%" viewBox="0 0 680 344" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Section 1.4.4: what each paradigm hallucinates, and where it is caught</title>
+<desc>The imperative arm and the SDP arm hallucinate different things. The imperative agent's dominant hallucination is inventing nonexistent I/O paths, which nothing structural can catch, so it surfaces only at runtime (96 percent of its error iterations) and drives fail-loops and wasted compute. The SDP agent's hallucinations are imperative habits written into a declarative pipeline (setting session config, eager actions in a query function) plus invented undeclared tables and columns; 39 percent are caught at the cheap dry-run gate before any compute. Neither arm hallucinated Databricks DLT.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:12.5px;font-weight:600}.ts{font-size:10px}.tn{font-size:9px}
+  .lab{font-size:10.5px;font-weight:600;letter-spacing:.02em}
+  .imp rect{fill:#F1EFE8;stroke:#8a5a0b;stroke-width:.9}.imp .th{fill:#7a4f0a}.imp .ts{fill:#5F5E5A}
+  .sdp rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.9}.sdp .th{fill:#085041}.sdp .ts{fill:#0F6E56}
+  .runtime{fill:#FBEAE7;stroke:#b9433a;stroke-width:.9}.runtimet{fill:#8f2f27;font-size:10px;font-weight:600}
+  .gate{fill:#E6F3EA;stroke:#2f7d46;stroke-width:.9}.gatet{fill:#1f5c31;font-size:10px;font-weight:600}
+  .cnt{font-size:10px;font-weight:700}
+</style>
+
+<text x="20" y="16" class="lab" fill="#3C3489">What each paradigm hallucinates, and where it is caught</text>
+
+<!-- IMPERATIVE panel -->
+<g class="imp"><rect x="20" y="26" width="312" height="30" rx="6"/>
+  <text x="34" y="45" class="th">IMPERATIVE (A): invents where the data lives</text></g>
+<g class="imp">
+  <rect x="20" y="62" width="312" height="30" rx="5"/>
+  <text x="34" y="80" class="ts" fill="#2C2C2A">invents a nonexistent I/O path</text>
+  <text x="322" y="80" class="cnt" fill="#7a4f0a" text-anchor="end">51 runs</text>
+  <rect x="20" y="96" width="312" height="24" rx="5"/>
+  <text x="34" y="112" class="ts" fill="#2C2C2A">invented / unsupported API</text>
+  <text x="322" y="112" class="cnt" fill="#7a4f0a" text-anchor="end">4</text>
+</g>
+<g class="runtime"><rect x="20" y="128" width="312" height="40" rx="6"/>
+  <text x="176" y="145" class="runtimet" text-anchor="middle">caught only at RUNTIME (96% of error-iters)</text>
+  <text x="176" y="160" class="tn" fill="#8f2f27" text-anchor="middle">un-gateable, agent loops re-guessing, wasted compute (1.4.3)</text></g>
+
+<!-- SDP panel -->
+<g class="sdp"><rect x="348" y="26" width="312" height="30" rx="6"/>
+  <text x="362" y="45" class="th">SDP (B): confuses the paradigm</text></g>
+<g class="sdp">
+  <rect x="348" y="62" width="312" height="24" rx="5"/>
+  <text x="362" y="78" class="ts" fill="#083b30">spark.conf.set(...) inside a declarative pipeline</text>
+  <text x="650" y="78" class="cnt" fill="#085041" text-anchor="end">76</text>
+  <rect x="348" y="90" width="312" height="24" rx="5"/>
+  <text x="362" y="106" class="ts" fill="#083b30">invented / undeclared table or view</text>
+  <text x="650" y="106" class="cnt" fill="#085041" text-anchor="end">40</text>
+  <rect x="348" y="118" width="312" height="24" rx="5"/>
+  <text x="362" y="134" class="ts" fill="#083b30">eager .collect() inside a query function</text>
+  <text x="650" y="134" class="cnt" fill="#085041" text-anchor="end">27</text>
+</g>
+<g class="gate"><rect x="348" y="146" width="312" height="22" rx="6"/>
+  <text x="504" y="161" class="gatet" text-anchor="middle">39% caught at the cheap DRY-RUN GATE, before compute</text></g>
+
+<!-- the shared-line insight -->
+<line x1="340" y1="30" x2="340" y2="168" stroke="#d9d5cc" stroke-width="1"/>
+<g><rect x="128" y="182" width="424" height="26" rx="6" fill="#EEEDFE" stroke="#534AB7" stroke-width=".8"/>
+  <text x="340" y="199" class="ts" fill="#3C3489" text-anchor="middle">the same <tspan font-family="ui-monospace,monospace">spark.conf.set</tspan> line: legitimate in imperative, a gate-caught hallucination in SDP</text></g>
+
+<!-- DLT null -->
+<text x="340" y="228" class="ts" fill="#5c6b66" text-anchor="middle">Databricks DLT hallucination (import dlt, @dlt): 0 in BOTH arms.</text>
+<text x="340" y="242" class="tn" fill="#5c6b66" text-anchor="middle">Imperative has no framework to confuse; the SDP arm's governed pyspark-sdp skill keeps it on the OSS API.</text>
+
+<!-- takeaway band -->
+<line x1="20" y1="258" x2="660" y2="258" stroke="#d9d5cc" stroke-width="1"/>
+<text x="20" y="278" class="th" fill="#3C3489">The gate catches a whole class of hallucination cheaply; imperative's dominant one is un-gateable.</text>
+<text x="20" y="294" class="ts" fill="#5c6b66">§1.4.2's dry-run does not only catch structural defects (79 vs 0), it moves paradigm-confusion hallucinations from expensive-runtime to</text>
+<text x="20" y="307" class="ts" fill="#5c6b66">cheap-structural. The arms are not more-vs-less hallucinating; they hallucinate different things.</text>
+<text x="20" y="325" class="tn" fill="#8a5a0b">Qualitative characterization over the exploratory sweeps (imperative 158 runs, SDP 145). Recompute: study/analysis/hallucination_taxonomy.py.</text>
+</svg>
