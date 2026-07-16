@@ -154,6 +154,9 @@ body = body.replace("<p>[[[SVG-RUNLOOP]]]</p>",
 body = body.replace("<p>[[[SVG-TAXONOMY]]]</p>",
     figure(load_svg("section1_defect_taxonomy.svg"),
            "What a structural gate can and cannot catch: structural defects are caught pre-data; semantic defects are un-gateable by construction and ship as silent defects."))
+body = body.replace("<p>[[[SVG-GITOPS-LOOP]]]</p>",
+    figure(load_svg("section2_gitops_loop.svg"),
+           "The agent-native dev loop. An untrusted agent authors an inert SDP spec (no session, credentials, or config); its only action is to open a pull request. CI gates the PR with spark-pipelines dry-run, which validates the dataflow graph without touching data (valid: Run is COMPLETED; broken: TABLE_OR_VIEW_NOT_FOUND, fed back to the agent). Only on merge does a controller, never the agent, run spark-pipelines run over Spark Connect, shipping plans to a cluster that materializes tables with the controller's credential. The same loop runs locally or on the cluster by changing SPARK_REMOTE."))
 body = body.replace("<p>[[[SVG-DEVLOOP]]]</p>",
     figure(load_svg("section2_devloop_before_after.svg"),
            "The agent-native dev loop vs the normal imperative one: imperative finds errors by running (after data is touched and compute spent); the agent-native loop catches them at the gate, before any data."))
