@@ -208,15 +208,15 @@ Values are medians reported per field, so input + output need not sum to the tot
 
 **Data-processing compute (N2): SDP is *categorically incapable of burning compute on a structurally-invalid pipeline*.** This is the sharpest cost result, and it is structural, not a matter of degree. Imperative PySpark runs `spark-submit`, executing over the data, and *then* discovers the pipeline is wrong; SDP's dry-run rejects a structurally-invalid pipeline **before any executor starts**. A failed imperative attempt therefore costs real cluster compute; a failed SDP attempt costs ≈ 0, *by construction*. This scopes to *structural* defects: a semantically-wrong SDP pipeline passes the dry-run, executes, and burns compute like imperative (and ships), the un-gateable residue of §1.4.1. (In the powered run, **69.5%** of arm B's attempts were intercepted at the gate, before touching data.)
 
-Measured directly on a live EKS Spark-Connect cluster (48-cell sweep; m5.xlarge-equivalent executors at `$0.192`/executor-hour; valid N: A = 21, B = 23 after excluding 4 instrument-fault cells):
+Measured as real Spark executor-seconds (stage-diff) over a 48-cell A-vs-B sweep on an in-process Spark engine, priced at an m5.xlarge-equivalent rate (`$0.192`/executor-hour); valid N: A = 21, B = 23 after excluding 4 instrument-fault cells. The live-EKS confirmatory run of the same sweep is deferred to Phase 2b; the executor-second mechanism it measures is substrate-independent.
 
-| N2 (measured on EKS) | A (imperative) | B (SDP) | ratio |
+| N2 (executor-seconds, measured) | A (imperative) | B (SDP) | ratio |
 |---|---|---|---|
 | **wasted compute on *failed* attempts** | 521 exec-s · `$0.028` | 0.5 exec-s · `≈$0` | **~1000× (finite vs ≈0)** |
 | **total compute** | 596 exec-s · `$0.032` | 17 exec-s · `$0.0009` | **~34×** |
 | **cost per correct pipeline** | `$0.00033` | `$0.00005` | ~7× |
 
-Nine of arm A's cells hit the iteration cap (each one running, processing data, then failing) while SDP's failed cells cost ≈ 0. **The dollar amounts are small because the study is small** (tiny tasks, a 4-executor cluster), not because the effect is: the mechanism scales linearly with data size, cluster size, and failure rate. [src: [`repro/h3_eks/`](https://github.com/lisancao/safe-spark-agents-paper/tree/paper-v1/study/repro/h3_eks)  · `results.h3.sweep2.jsonl` · 48 cells]
+Nine of arm A's cells hit the iteration cap (each one running, processing data, then failing) while SDP's failed cells cost ≈ 0. **The dollar amounts are small because the study is small** (tiny tasks, a 4-executor cluster), not because the effect is: the mechanism scales linearly with data size, cluster size, and failure rate. [src: [`repro/h3_eks/`](https://github.com/lisancao/safe-spark-agents-paper/tree/paper-v1/study/repro/h3_eks)  · [`results.h3.sweep2.jsonl`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/repro/h3_eks/results.h3.sweep2.jsonl) · 48 cells]
 
 [[[SVG-WASTE]]]
 

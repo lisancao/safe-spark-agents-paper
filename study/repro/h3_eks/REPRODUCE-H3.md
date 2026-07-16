@@ -1,12 +1,15 @@
 # REPRODUCE-H3.md — H3 (data-processing compute / executor-seconds) on EKS, Phase 2b
 
-> **STATUS: PLAN ONLY. H3 HAS NOT BEEN RUN. There are ZERO confirmatory H3
-> executor-seconds results.** This runbook is the methodology + run scripts for
-> the deferred Phase-2b compute study (Task #3). Nothing here has produced an
-> A-vs-B compute number. Do not cite any number in this file as an H3 result —
-> the only compute figures that exist today are (a) a single instrument-validation
-> micro-probe and (b) a substrate-confounded wall-clock **proxy**; both are
-> described under "What already exists" so they are not mistaken for H3 data.
+> **STATUS: the LIVE-EKS confirmatory run is deferred (Phase 2b, Task #3) and has
+> NOT run yet.** The executor-second numbers cited in the paper's §1.4.3 come from the
+> in-process 48-cell A-vs-B sweep committed next to this runbook
+> (`results.h3.sweep2.jsonl`, summarized in `H3_SWEEP.md`): real Spark stage-diff
+> executor-seconds measured on an in-process Spark engine, priced at an
+> m5.xlarge-equivalent rate. This runbook is the methodology + scripts to reproduce
+> that same sweep on a real EKS Spark-Connect cluster (containerized image,
+> distributed executors), which will confirm the in-process measurement on the
+> production substrate. Until that run lands and is committed, cite the in-process
+> sweep (`results.h3.sweep2.jsonl`), not this runbook, as the source of the numbers.
 >
 > Nothing runs until every box in §1 is checked **and** the §5 spend ceiling is set.
 

@@ -1,6 +1,6 @@
 <svg width="100%" viewBox="0 0 680 288" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Section 4.3 (N2): wasted compute on failed attempts, imperative vs SDP</title>
-<desc>Executor-seconds spent on attempts that ultimately failed, measured on a live EKS Spark-Connect cluster. Bare imperative wastes 521 executor-seconds because spark-submit executes over the data and only then discovers the fault. SDP wastes about 0.5 executor-seconds because its dry-run rejects a bad pipeline before any executor starts. The ratio is roughly one thousand times, finite versus about zero. At production scale a fleet authoring a thousand pipelines a week would waste about five thousand dollars a month of compute that SDP never spends.</desc>
+<desc>Executor-seconds spent on attempts that ultimately failed, measured as real Spark stage-diff executor-seconds over a 48-cell sweep on an in-process Spark engine (live-EKS confirmatory run deferred to Phase 2b). Bare imperative wastes 521 executor-seconds because spark-submit executes over the data and only then discovers the fault. SDP wastes about 0.5 executor-seconds because its dry-run rejects a bad pipeline before any executor starts. The ratio is roughly one thousand times, finite versus about zero. At production scale a fleet authoring a thousand pipelines a week would waste about five thousand dollars a month of compute that SDP never spends.</desc>
 <style>
   text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .th{font-size:13px;font-weight:500}.ts{font-size:11px;fill:#5c6b66}
@@ -10,7 +10,7 @@
   .teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}
 </style>
 
-<text x="40" y="18" class="lab">WASTED COMPUTE ON FAILED ATTEMPTS · MEASURED ON LIVE EKS (48-CELL SWEEP)</text>
+<text x="40" y="18" class="lab">WASTED COMPUTE ON FAILED ATTEMPTS · MEASURED, 48-CELL IN-PROCESS SWEEP</text>
 <text x="40" y="36" class="ts">executor-seconds spent on attempts that ultimately failed</text>
 
 <!-- A bar -->

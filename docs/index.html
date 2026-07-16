@@ -166,7 +166,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git 3ae3542</span><span>·</span>
+    <span class="k">git f0bf145</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -752,11 +752,11 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 </table></div>
 <p>Values are medians reported per field, so input + output need not sum to the total. Direction: SDP <strong>higher</strong>: the declarative agent iterates more against the gate (H2.2), which shows up as tokens. Interpret jointly with H5: the extra iterations are a true cost only if they do not buy completion. [src: <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/results.powered.AB.n12.final.jsonl"><code>results.powered.AB.n12.final.jsonl</code></a> · input_tokens,output_tokens · per arm]</p>
 <p><strong>Data-processing compute (N2): SDP is <em>categorically incapable of burning compute on a structurally-invalid pipeline</em>.</strong> This is the sharpest cost result, and it is structural, not a matter of degree. Imperative PySpark runs <code>spark-submit</code>, executing over the data, and <em>then</em> discovers the pipeline is wrong; SDP's dry-run rejects a structurally-invalid pipeline <strong>before any executor starts</strong>. A failed imperative attempt therefore costs real cluster compute; a failed SDP attempt costs ≈ 0, <em>by construction</em>. This scopes to <em>structural</em> defects: a semantically-wrong SDP pipeline passes the dry-run, executes, and burns compute like imperative (and ships), the un-gateable residue of §1.4.1. (In the powered run, <strong>69.5%</strong> of arm B's attempts were intercepted at the gate, before touching data.)</p>
-<p>Measured directly on a live EKS Spark-Connect cluster (48-cell sweep; m5.xlarge-equivalent executors at <code>$0.192</code>/executor-hour; valid N: A = 21, B = 23 after excluding 4 instrument-fault cells):</p>
+<p>Measured as real Spark executor-seconds (stage-diff) over a 48-cell A-vs-B sweep on an in-process Spark engine, priced at an m5.xlarge-equivalent rate (<code>$0.192</code>/executor-hour); valid N: A = 21, B = 23 after excluding 4 instrument-fault cells. The live-EKS confirmatory run of the same sweep is deferred to Phase 2b; the executor-second mechanism it measures is substrate-independent.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
-<th>N2 (measured on EKS)</th>
+<th>N2 (executor-seconds, measured)</th>
 <th>A (imperative)</th>
 <th>B (SDP)</th>
 <th>ratio</th>
@@ -783,10 +783,10 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 </tr>
 </tbody>
 </table></div>
-<p>Nine of arm A's cells hit the iteration cap (each one running, processing data, then failing) while SDP's failed cells cost ≈ 0. <strong>The dollar amounts are small because the study is small</strong> (tiny tasks, a 4-executor cluster), not because the effect is: the mechanism scales linearly with data size, cluster size, and failure rate. [src: <a href="https://github.com/lisancao/safe-spark-agents-paper/tree/paper-v1/study/repro/h3_eks"><code>repro/h3_eks/</code></a>  · <code>results.h3.sweep2.jsonl</code> · 48 cells]</p>
+<p>Nine of arm A's cells hit the iteration cap (each one running, processing data, then failing) while SDP's failed cells cost ≈ 0. <strong>The dollar amounts are small because the study is small</strong> (tiny tasks, a 4-executor cluster), not because the effect is: the mechanism scales linearly with data size, cluster size, and failure rate. [src: <a href="https://github.com/lisancao/safe-spark-agents-paper/tree/paper-v1/study/repro/h3_eks"><code>repro/h3_eks/</code></a>  · <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/repro/h3_eks/results.h3.sweep2.jsonl"><code>results.h3.sweep2.jsonl</code></a> · 48 cells]</p>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 288" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Section 4.3 (N2): wasted compute on failed attempts, imperative vs SDP</title>
-<desc>Executor-seconds spent on attempts that ultimately failed, measured on a live EKS Spark-Connect cluster. Bare imperative wastes 521 executor-seconds because spark-submit executes over the data and only then discovers the fault. SDP wastes about 0.5 executor-seconds because its dry-run rejects a bad pipeline before any executor starts. The ratio is roughly one thousand times, finite versus about zero. At production scale a fleet authoring a thousand pipelines a week would waste about five thousand dollars a month of compute that SDP never spends.</desc>
+<desc>Executor-seconds spent on attempts that ultimately failed, measured as real Spark stage-diff executor-seconds over a 48-cell sweep on an in-process Spark engine (live-EKS confirmatory run deferred to Phase 2b). Bare imperative wastes 521 executor-seconds because spark-submit executes over the data and only then discovers the fault. SDP wastes about 0.5 executor-seconds because its dry-run rejects a bad pipeline before any executor starts. The ratio is roughly one thousand times, finite versus about zero. At production scale a fleet authoring a thousand pipelines a week would waste about five thousand dollars a month of compute that SDP never spends.</desc>
 <style>
   text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   .th{font-size:13px;font-weight:500}.ts{font-size:11px;fill:#5c6b66}
@@ -796,7 +796,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
   .teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}
 </style>
 
-<text x="40" y="18" class="lab">WASTED COMPUTE ON FAILED ATTEMPTS · MEASURED ON LIVE EKS (48-CELL SWEEP)</text>
+<text x="40" y="18" class="lab">WASTED COMPUTE ON FAILED ATTEMPTS · MEASURED, 48-CELL IN-PROCESS SWEEP</text>
 <text x="40" y="36" class="ts">executor-seconds spent on attempts that ultimately failed</text>
 
 <!-- A bar -->
