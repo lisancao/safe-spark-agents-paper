@@ -166,7 +166,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git c59cba0</span><span>·</span>
+    <span class="k">git 6604096</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -216,14 +216,14 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <a class="l2" href="#31-gitops-ci-integration-boundary-tested-integration-not-blind-submission">3.1 GitOps / CI integration boundary: tested integration, not blind submission</a>
 <a class="l2" href="#32-connect-on-kubernetes-scale-connect-is-the-governed-ingress-k8s-is-the-horsepower">3.2 Connect-on-Kubernetes scale: Connect is the governed ingress; k8s is the horsepower</a>
 <a class="l2" href="#33-tenant-governance-the-multi-tenancy-stack-built-and-demonstrated">3.3 Tenant governance: the multi-tenancy stack, built and demonstrated</a>
-<a class="l2" href="#34-evidence-tiering">3.4 Evidence tiering</a>
+<a class="l2" href="#34-where-each-pillar-stands">3.4 Where each pillar stands</a>
 <a class="l2" href="#35-what-3-unlocks-section-4-omnigent">3.5 What §3 unlocks: Section 4 (Omnigent)</a>
 <a class="l1" href="#section-4-omnigent-governed-multi-agent-orchestration-for-data-engineering"><span class="dot stub"></span><span>SECTION 4, Omnigent: Governed Multi-Agent Orchestration for Data Engineering</span></a>
-<a class="l2" href="#s41-cost-heterogeneous-model-routing-mechanism-runs-in-s45-number-in-s46">S4.1 Cost: heterogeneous model routing (mechanism runs in S4.5; number in S4.6)</a>
-<a class="l2" href="#s42-quality-cross-vendor-review-mechanism-runs-in-s45-number-in-s46">S4.2 Quality: cross-vendor review (mechanism runs in S4.5; number in S4.6)</a>
-<a class="l2" href="#s43-governance-credential-custody-the-keystone-demonstrated">S4.3 Governance: credential custody (the keystone) (demonstrated)</a>
-<a class="l2" href="#s44-knowledge-shared-skill-library-demonstrated">S4.4 Knowledge: shared skill library (demonstrated)</a>
-<a class="l2" href="#s45-the-demonstrated-core-on-the-live-platform">S4.5 The demonstrated core, on the live platform</a>
+<a class="l2" href="#s41-cost-heterogeneous-model-routing">S4.1 Cost: heterogeneous model routing</a>
+<a class="l2" href="#s42-quality-cross-vendor-review">S4.2 Quality: cross-vendor review</a>
+<a class="l2" href="#s43-governance-credential-custody-the-keystone">S4.3 Governance: credential custody (the keystone)</a>
+<a class="l2" href="#s44-knowledge-shared-skill-library">S4.4 Knowledge: shared skill library</a>
+<a class="l2" href="#s45-the-core-running-on-the-live-platform">S4.5 The core, running on the live platform</a>
 <a class="l2" href="#s46-the-fleet-study-the-separate-paper-sp42-the-numbers">S4.6 The fleet study (the separate paper SP4.2): the numbers</a>
 <a class="l2" href="#appendix-s2-a-reference-architecture-the-control-boundary">Appendix S2-A, Reference Architecture: The Control Boundary</a>
 <a class="l2" href="#appendix-s3-a-reference-architecture-the-open-governed-platform">Appendix S3-A, Reference Architecture: The Open Governed Platform</a>
@@ -1662,17 +1662,17 @@ boundary, not the boundary.</p>
 <tr>
 <td>L2 off-host execution</td>
 <td>a plan runs in-cluster, driver/executors in pods</td>
-<td><strong>DEMONSTRATED, both arms</strong></td>
+<td>Both arms run in-cluster, driver and executors in pods.</td>
 </tr>
 <tr>
 <td>L3 remote SDP green</td>
 <td>agent-authored SDP completes + grades green remotely</td>
-<td><strong>DEMONSTRATED (<code>ssa-spark-eks</code>)</strong>: Arm B SDP completes+grades green; took harness data-path/catalog fixes (<code>repro/h3_eks/</code>), not architecture</td>
+<td>On <code>ssa-spark-eks</code>, Arm B's SDP completes and grades green remotely; getting there took harness data-path and catalog fixes (<code>repro/h3_eks/</code>), not architectural ones.</td>
 </tr>
 <tr>
 <td>L4 gate before data</td>
 <td>dry-run rejects structural defects pre-execution</td>
-<td><strong>DEMONSTRATED remote</strong>: the SDP dry-run gate intercepted structural defects on EKS</td>
+<td>On EKS the SDP dry-run gate caught structural defects before any data ran.</td>
 </tr>
 <tr>
 <td>L5 governance split</td>
@@ -1757,7 +1757,7 @@ not a finished production system (that is Section 3).</p>
 </svg>
 </div><figcaption>The open governed reference architecture: three trust zones, untrusted agent authoring, a governed control plane, and the EKS data plane, joined by a GitOps loop, with Spark Connect as the single identity-pinned door and per-tenant isolation demonstrated on live EKS. Solid = demonstrated · dashed = configured but unrun · dotted = frontier.</figcaption></figure>
 <p>If an agent can be treated as fully untrusted, because it only ever emits inert desired-state (§2), then it can be dropped into a <strong>governed data platform that trusts it with nothing</strong>. This section builds that platform on an open stack, <strong>SDP</strong> for declarative authoring, a <strong>GitOps/CI</strong> layer that tests and reconciles every change, <strong>Spark Connect</strong> as the single identity-pinned front door, and <strong>Kubernetes</strong> for elastic execution, and it closes tenant isolation along five paths, <strong>all demonstrated on a live EKS cluster</strong>. An agent authenticated as tenant A is routed to <em>its own</em> Connect server, handed a credential it never holds, run on <em>its own</em> executor pods, authorized at the catalog only for itself, and prefix-scoped at storage, so it cannot reach tenant B by any path. (The adversary and those five paths are enumerated at the top of §3.3; each layer there closes exactly one.) §3 owns this whole per-tenant <em>mechanism</em>; what it delegates to §4/Omnigent is credential <em>custody</em> at fleet scale, holding and rotating the vended credential so no agent ever sees one.</p>
-<p><strong>Scope of "demonstrated."</strong> The five-layer per-tenant isolation runs on live EKS; the GitOps gate is demonstrated <em>locally</em> (its EKS-target reconcile is configured but unwired, and it gates against a runner-local integration-test catalog, distinct from the EKS-hosted governed catalog that enforces isolation in §3.3). The one unbuilt <em>capability</em> is multi-tenant <strong>scale</strong> (many tenants, node autoscaling); two proof-completeness seams also remain, a single request composing all five links, and unifying the storage-scoping forensic onto the authorization-enabled catalog. The layers were re-verified live on 2026-07-14 against the running cluster, catalog authorization (L4), prefix-scoped credential vending to S3 (L5), and the fail-closed identity interceptor (L2), reproduced fresh (<code>paper/notes/proof_2026-07-14_live_isolation.log</code>); the single-request composition remains the open seam. Maturity is called out pillar by pillar below.</p>
+<p><strong>What runs today, and what is still ahead.</strong> The five-layer per-tenant isolation runs on live EKS. The GitOps gate runs locally for now: its EKS-target reconcile is configured but not yet wired, and it gates against a runner-local integration-test catalog, distinct from the EKS-hosted governed catalog that enforces isolation in §3.3. The one capability still unbuilt is multi-tenant scale (many tenants, node autoscaling), and that is the next step. Two proof-completeness seams also remain: a single request composing all five links, and unifying the storage-scoping forensic onto the authorization-enabled catalog. On 2026-07-14 the layers were re-verified live against the running cluster, catalog authorization, prefix-scoped credential vending to S3, and the fail-closed identity interceptor, each reproduced fresh (<code>paper/notes/proof_2026-07-14_live_isolation.log</code>); the single-request composition is the one seam still open. Each pillar below says plainly where it stands.</p>
 <p>It builds on Section 2's boundary and does not relitigate the paradigm result (Section 1) or re-argue Connect; Connect stays the governed front door and Kubernetes is the horsepower behind it.</p>
 <h2 id="30-the-separation-of-concerns-the-boundary-this-section-draws">3.0 The separation of concerns (the boundary this section draws)</h2>
 <p>Each layer owns one thing and <strong>delegates the rest</strong>; this is the section's organizing principle:</p>
@@ -1819,18 +1819,18 @@ tests and applies it.</strong></p>
    <code>reconcile.py</code>, which requires <code>SPARK_REMOTE</code> and invokes <code>pipelines/cli.py run --spec</code>
    <code>[.github/workflows/gitops-sdp-reconcile-local.yml; gitops_demo/reconcile.py]</code>.
    Execution is owned by the governed CI controller; the agent that authored it holds no credentials and never ran it.</p>
-<p><strong>What it proves (demonstrated).</strong> Verified locally end-to-end: a valid spec dry-runs to <strong><code>Run is COMPLETED</code></strong>, and
+<p><strong>The whole loop runs locally, end to end.</strong> A valid spec dry-runs to <strong><code>Run is COMPLETED</code></strong>, and
 a spec with a missing upstream fails at the gate with <strong><code>[TABLE_OR_VIEW_NOT_FOUND] … SQLSTATE 42P01</code></strong>
-<code>[gitops_demo/README.md; gitops_demo/ensure_schema.py]</code>, i.e. the integration gate rejects a
-structurally-broken pipeline before it can reconcile. The session-denial boundary is <strong>unit-tested</strong>: the suite
-asserts no <code>pyspark</code>/<code>SparkSession</code> import and the <code>SPARK_REMOTE</code> refusal + git/gh allowlist
+<code>[gitops_demo/README.md; gitops_demo/ensure_schema.py]</code>, so the integration gate rejects a
+structurally-broken pipeline before it can reconcile. The session-denial boundary carries its own unit tests: the suite
+asserts no <code>pyspark</code>/<code>SparkSession</code> import and checks the <code>SPARK_REMOTE</code> refusal and the git/gh allowlist
 <code>[gitops_demo/tests/test_agent_pr_author_no_spark.py]</code>.</p>
 <p><strong>Why this beats blind submission.</strong> You get <strong>review + a real integration gate against the real target catalog +
 controller-owned execution + a full audit trail</strong>, with the agent strictly outside the runtime: CI/CD discipline
 applied to agent-authored data pipelines, rather than an agent firing pipelines at a cluster on trust.</p>
 <p><strong>Honest scoping.</strong>
-- <strong>DEMONSTRATED:</strong> the full author→PR→dry-run-gate→reconcile loop, run <strong>locally</strong> against a runner-local Spark
-  Connect server; the PR-author session-denial is unit-tested.
+- The full author→PR→dry-run-gate→reconcile loop runs locally, against a runner-local Spark
+  Connect server, and the PR-author session-denial is unit-tested.
 - <strong>GAP:</strong> the gate and reconcile target <strong>runner-local Connect, not the EKS Connect endpoint</strong>; the production-EKS
   GitOps path is <strong>documentation-only / not wired</strong> <code>[gitops_demo/PRODUCTION_EKS.md]</code>. No captured artifact of
   a real agent-opened PR (the <code>gh pr create</code> path exists in code but no public PR run is evidenced here).
@@ -1861,9 +1861,9 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <p>The topology above was stood up on a <strong>real EKS cluster</strong>, and one thing was measured directly: through the driver's Spark-UI REST API, a <code>spark.range(80_000_000).sum()</code> ran on the cluster's <strong>executor pods, not in the local process</strong>, and registered real Spark stages (executor-seconds 1.246, cpu-seconds 0.878). This is a small probe. It confirms execution genuinely left the client and ran on the cluster; it is <em>not</em> a large multi-executor parallelism benchmark, and the paper does not claim one. Reproducibility (updated 2026-07-09): the substrate is now <strong>terraform-applied and CI/OIDC-gated</strong>: a fresh cluster stands up via a reviewer-approved GitHub Actions apply against S3-backed state, with <strong>no long-lived AWS keys</strong> (GitHub OIDC assumes a scoped role). The full deploy-and-connect runbook and the end-to-end build narrative live in the repository (<code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code>).</p>
 <h3 id="323-honest-scoping">3.2.3 Honest scoping</h3>
 <ul>
-<li><strong>DEMONSTRATED:</strong> the topology was stood up on EKS; one shared long-lived Connect driver; execution ran on cluster executor pods, not locally (the <code>spark.range</code> probe registered real Spark stages) <code>[DEVIATIONS.md]</code>.</li>
+<li><strong>This runs on the live cluster.</strong> The topology stood up on a real EKS cluster with one shared long-lived Connect driver, and execution ran on the cluster's executor pods rather than in the local process (the <code>spark.range</code> probe registered real Spark stages) <code>[DEVIATIONS.md]</code>.</li>
 <li><strong>CONFIGURED-BUT-UNREPRODUCED:</strong> elastic <strong>0→10 executor</strong> scale-up/down (dynamic allocation is enabled, but no captured 0→N→0 cycle); <strong>no Cluster Autoscaler/Karpenter committed</strong>, so node-level autoscaling is unshown <code>[connect/base/deployment.yaml; terraform/README.md]</code>.</li>
-<li><strong>SUPERSEDED (see §3.3):</strong> the single-tenant baseline here is one <strong>singleton</strong> Connect driver (<code>replicas:1</code>) <code>[connect/base/deployment.yaml]</code>; §3.3 replaces it with <strong>per-tenant Connect servers behind a routing gateway, demonstrated for isolation</strong> on live EKS (2026-07-10). What is still design-only is multi-server as a <strong>scale</strong> mechanism, many tenants and horizontal replicas per tenant with node autoscaling, not the per-tenant isolation topology itself. <em>(The Terraform substrate is applied + CI-gated as of 2026-07-09.)</em></li>
+<li><strong>§3.3 replaces this single-server baseline with per-tenant servers.</strong> The baseline here is one singleton Connect driver (<code>replicas:1</code>) <code>[connect/base/deployment.yaml]</code>. In §3.3 that single server gives way to per-tenant Connect servers behind a routing gateway, which isolate the tenants on live EKS (2026-07-10). Per-tenant isolation runs today; what is still design-only is multi-server as a <em>scale</em> mechanism: many tenants, and horizontal replicas per tenant with node autoscaling, not the per-tenant isolation topology itself. The Terraform substrate is applied and CI-gated as of 2026-07-09.</li>
 </ul>
 <h2 id="33-tenant-governance-the-multi-tenancy-stack-built-and-demonstrated">3.3 Tenant governance: <em>the multi-tenancy stack, built and demonstrated</em></h2>
 <p><strong>Why co-tenancy, and what is at stake.</strong> Why multiplex tenants on shared infrastructure at all, rather than give each an isolated cluster? For the same reason §3.2 shares an elastic executor pool and §3.1 shares one governed catalog: consolidation. One elastic compute pool and one governed catalog serve many teams at a fraction of the cost and operational surface of a cluster per tenant, that efficiency is the whole point of a <em>platform</em>. But consolidation is exactly what puts a hostile or hallucinating tenant-A agent one misconfiguration away from tenant-B's data, reading it or overwriting it. So the platform has to make co-tenancy safe <em>by construction</em>, not by trusting the agent. That is what the five layers below do.</p>
@@ -1978,11 +1978,11 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 </div><figcaption>The five-layer per-tenant isolation chain, all demonstrated on live EKS, link by link. An agent authenticated as tenant A is routed to its own server, handed only its own credential, run on its own executor pods, authorized only for itself, and prefix-scoped at storage; tenant B travels a fully separate lane. (Proven per link; one request composing all five remains a seam, see §3.3.)</figcaption></figure>
 <p><strong>The five links, outside-in.</strong> Each is demonstrated on live EKS (2026-07-10 unless noted); each names the residual threat it uniquely closes, the attack that would still succeed with that layer removed but the other four intact.</p>
 <ol>
-<li><strong>Ingress routing: DEMONSTRATED.</strong> <em>Residual threat closed: an agent that connects straight to another tenant's server.</em> A gateway Envoy terminates client mTLS, derives the principal from the certificate's URI-SAN (<code>spiffe://safe-spark-agents/&lt;tenant&gt;</code>), and routes on it: a tenant-A certificate reaches <strong>only</strong> <code>spark-connect-tenant-a</code>, tenant-B only its own server, an un-granted principal is denied (<strong>HTTP 403</strong>), and a connection with no client certificate is refused at TLS. The <em>authenticated identity</em>, not the client's choice, selects the server, so no route can send a tenant-A certificate to tenant-B's server. Evidence: <code>paper/notes/proof_2026-07-10_ingress_routing.log</code>. <em>(Wire-level encoding and the defense-in-depth caveat are in the implementation notes after link 5.)</em></li>
-<li><strong>Token custody: DEMONSTRATED.</strong> <em>Residual threat closed: an agent that presents another tenant's credential.</em> Each tenant gets its own Connect server, configured with <strong>only its own tenant's catalog token, injected in the server's config</strong> and never exposed to the client. A session on tenant-A's server operates only as tenant-A; when it configures a catalog for tenant-B it holds no tenant-B credential and is refused (<code>NotAuthorized: Missing Authorization Header</code>). The agent never sees a token, so it cannot redirect or replay one. (Full custody at fleet scale, holding and rotating the vended credential, is §4/Omnigent's job; §3 shows the per-tenant server binding.) Evidence: <code>paper/notes/proof_2026-07-10_multiserver.log</code>.</li>
-<li><strong>Execution isolation: DEMONSTRATED.</strong> <em>Residual threat closed: a co-resident session reading another tenant's in-process data.</em> Because Connect sessions are server-local, tenant-A's work runs on executor pods owned by tenant-A's driver (2 pods, distinct IPs), disjoint from tenant-B's (a separate driver app and pod). The two tenants never share a JVM, so neither can read the other's in-memory or on-disk shuffle data or scavenge a leaked in-process credential. Evidence: <code>paper/notes/proof_2026-07-10_multiserver.log</code>.</li>
-<li><strong>Catalog authorization: DEMONSTRATED (Lakekeeper + OpenFGA).</strong> <em>Residual threat closed: an agent that simply asks the catalog for another tenant's tables or credential.</em> Beyond scoping the credential once issued (point 5), the catalog gates <em>which</em> principal may request <em>which</em> tenant. With OpenFGA and per-tenant OIDC identities, a tenant-A identity is denied at the catalog for tenant-B across warehouse resolution (<code>config</code>) and namespace list/create (<code>404</code>, existence hidden for a zero-relation principal), while tenant-B and the admin get <code>200</code> and an unauthenticated call is <code>401</code>. That the deny is <em>authorization</em> and not nonexistence is shown by toggling it: a <code>describe</code> grant flips <code>404</code>↔<code>200</code>. The credential-vending path itself is probed directly, not inferred: with a real table in tenant-B, tenant-B's own <code>loadTable</code> carrying the <code>vended-credentials</code> delegation returns <code>200</code> <strong>with credentials in the response</strong>, while a tenant-A identity gets <code>404</code> (table hidden, no credentials vended). That is the exact cross-principal vend the fleet-scoped catalog performed and this one refuses, the seam an audit of point 5 exposes, now closed. Evidence: <code>paper/notes/proof_2026-07-10_perprincipal_authz.log</code> (sections A-D).</li>
-<li><strong>Storage scoping: DEMONSTRATED (2026-07-09).</strong> <em>Residual threat closed: an agent that somehow holds a credential whose reach includes another tenant's bytes.</em> The catalog vends per-tenant, prefix-scoped STS credentials <strong>keylessly</strong> (IRSA assumes a downscoping role, external-id-pinned). The same vended credential replayed against the other tenant's prefix is <code>AccessDenied</code>, both directions; an ablation confirms a whole-bucket credential <em>would</em> cross, so the deny is the downscoping vend, not the base policy. CloudTrail settles that the compute uses the vend and nothing else: every warehouse object call is under the vended session and the fleet IRSA role makes <strong>zero</strong> data calls. OSS HMS/Iceberg cannot express any of this; the governed Iceberg-REST catalog is what makes even storage-scoping enforceable. Evidence: <code>paper/notes/cloudtrail_vend_evidence.md</code>, <code>paper/notes/proof_2026-07-10_delta_and_frontier.log</code>.</li>
+<li><strong>The gateway routes by who you are, not what you ask for.</strong> This closes the first way into another tenant: connecting straight to their server. A gateway Envoy terminates the client's mTLS, derives the principal from the certificate's URI-SAN (<code>spiffe://safe-spark-agents/&lt;tenant&gt;</code>), and routes on that. A tenant-A certificate reaches <strong>only</strong> <code>spark-connect-tenant-a</code>; tenant-B only its own server; an un-granted principal is turned away (<strong>HTTP 403</strong>); a connection with no client certificate never clears TLS. Because the authenticated identity, not the client's choice, selects the server, no route can send a tenant-A certificate to tenant-B's server. (<code>paper/notes/proof_2026-07-10_ingress_routing.log</code>) The wire-level encoding and the defense-in-depth caveat are in the implementation notes after link 5.</li>
+<li><strong>A tenant only ever holds its own token, and never sees it.</strong> This closes the next way in: presenting another tenant's credential. Each tenant gets its own Connect server, configured with <strong>only its own tenant's catalog token, injected in the server's config</strong> and never exposed to the client. A session on tenant-A's server operates only as tenant-A; when it configures a catalog for tenant-B it holds no tenant-B credential and is refused (<code>NotAuthorized: Missing Authorization Header</code>). Because the agent never sees a token, it cannot redirect or replay one. Full custody at fleet scale, holding and rotating the vended credential, is §4/Omnigent's job; §3 shows the per-tenant server binding. (<code>paper/notes/proof_2026-07-10_multiserver.log</code>)</li>
+<li><strong>Each tenant's work runs on its own pods, never sharing a process.</strong> This closes a subtler way in: a co-resident session reading another tenant's in-process data. Because Connect sessions are server-local, tenant-A's work runs on executor pods owned by tenant-A's driver (2 pods, distinct IPs), disjoint from tenant-B's (a separate driver app and pod). The two tenants never share a JVM, so neither can read the other's in-memory or on-disk shuffle data or scavenge a leaked in-process credential. (<code>paper/notes/proof_2026-07-10_multiserver.log</code>)</li>
+<li><strong>The catalog authorizes each request by principal (Lakekeeper + OpenFGA).</strong> This closes the way in where an agent simply asks the catalog for another tenant's tables or credential. Beyond scoping the credential once issued (point 5), the catalog gates <em>which</em> principal may request <em>which</em> tenant. With OpenFGA and per-tenant OIDC identities, a tenant-A identity is denied at the catalog for tenant-B across warehouse resolution (<code>config</code>) and namespace list/create (<code>404</code>, existence hidden for a zero-relation principal), while tenant-B and the admin get <code>200</code> and an unauthenticated call is <code>401</code>. The deny is <em>authorization</em>, not nonexistence, and toggling it proves so: a <code>describe</code> grant flips <code>404</code>↔<code>200</code>. The credential-vending path itself is probed directly, not inferred: with a real table in tenant-B, tenant-B's own <code>loadTable</code> carrying the <code>vended-credentials</code> delegation returns <code>200</code> <strong>with credentials in the response</strong>, while a tenant-A identity gets <code>404</code> (table hidden, no credentials vended). That is the exact cross-principal vend the fleet-scoped catalog performed and this one refuses, the seam an audit of point 5 exposes, now closed. (<code>paper/notes/proof_2026-07-10_perprincipal_authz.log</code>, sections A-D)</li>
+<li><strong>Even a leaked credential reaches only its own tenant's bytes.</strong> This closes the last way in: an agent that somehow holds a credential whose reach includes another tenant's bytes (shown 2026-07-09). The catalog vends per-tenant, prefix-scoped STS credentials <strong>keylessly</strong> (IRSA assumes a downscoping role, external-id-pinned). The same vended credential replayed against the other tenant's prefix is <code>AccessDenied</code> in both directions; an ablation confirms a whole-bucket credential <em>would</em> cross, so the deny is the downscoping vend, not the base policy. CloudTrail settles that the compute uses the vend and nothing else: every warehouse object call is under the vended session, and the fleet IRSA role makes <strong>zero</strong> data calls. OSS HMS/Iceberg cannot express any of this; the governed Iceberg-REST catalog is what makes even storage-scoping enforceable. (<code>paper/notes/cloudtrail_vend_evidence.md</code>, <code>paper/notes/proof_2026-07-10_delta_and_frontier.log</code>)</li>
 </ol>
 <p><strong>Implementation notes (ingress, link 1).</strong> The gateway supersedes the single-tenant per-pod mTLS sidecar of §3.2.1. Over gRPC the no-route deny surfaces as an HTTP-200 reply carrying <code>x-routed-to=DENIED</code> and <code>grpc-message: no tenant route</code> (a plain HTTP request gets a real 403). Two server-side checks bar a direct in-cluster dial that skips the gateway: Spark's pre-shared-token auth (the gateway injects a <code>spark-connect-psk</code> bearer the agent never holds; it is a shared infrastructure secret, not per-tenant) and the principal-pinning interceptor (rejects a request whose <code>user_id</code> does not match the gateway-derived <code>x-connect-principal</code>). The per-tenant servers are ClusterIP-only but bind <code>0.0.0.0:15002</code>, so those two secrets, not network topology, bar a direct connection today; a <code>NetworkPolicy</code> restricting ingress to the gateway (<code>deploy/eks/lakekeeper/authz/netpol-tenant-servers.yaml</code>) is shipped as defense-in-depth but is <strong>not yet applied</strong> (it needs a policy-enforcing CNI and executor-to-driver allowances).</p>
 <p><strong>Proven link by link, not yet as one composed request.</strong> Each link runs on live EKS, and the per-tenant servers already compose links 2 through 5, a write through tenant-A's server draws a tenant-scoped vend from the authorization-enabled catalog and runs on tenant-A's executors. Two honest seams remain. The storage-scoping <em>forensic</em> (the CloudTrail vend-not-IRSA discriminator) was captured against the fleet-scoped catalog, while routing, custody, execution, and authorization ran against the authorization-enabled catalog; and a single request traversing all five links, a Spark job over client-cert mTLS through the gateway to authz-catalog-vended, prefix-scoped storage on the tenant's own executors, is the remaining composition step. Neither weakens a per-link claim; both are named so the reader is not sold a composed run that was not captured.</p>
@@ -2029,7 +2029,7 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 </svg>
 </div><figcaption>Credential custody, the §3↔§4 line. The credential is vended by the catalog, held and injected by the §4 custodian, and used by the Connect server and executors; it never crosses the §2 trust boundary to the untrusted agent, which only emits an inert spec and receives a pass/fail.</figcaption></figure>
 <p><strong>The edge, stated plainly.</strong> §3 now demonstrates the governed, integrable, scalable boundary <em>per tenant</em>, all five isolation links running on live EKS, and draws the one line it does not cross: credential <strong>custody</strong> at fleet scale (delegated to §4/Omnigent) and <strong>scale</strong> itself (many tenants, node autoscaling), which are named, not left undone by accident. The specific open-stack limit, that <strong>OSS HMS/Iceberg cannot express per-user grants</strong>, is itself a finding: it marks where an open stack must hand tenant authorization to a governed catalog, which is exactly what the demonstrated Lakekeeper + OpenFGA layer does.
-- <strong>Tier: all five links DEMONSTRATED on live EKS; only multi-tenant scale is a new-capability FRONTIER (two proof-completeness seams remain, below).</strong> The per-link evidence is in points 1-5 above and the §3.4 table; the figure <code>paper/figures/isolation-architecture.html</code> renders the whole path. Two measurement caveats the per-link proofs carry, stated so they are not glossed: (i) the storage-scoping probe (a per-write delta of 12 tasks measured before/after an 8-partition shuffle under <code>spark.master=k8s</code>) proves only that execution left the driver onto a <strong>dedicated executor pod, not the local process</strong>, on the shared-server run both tenants happened to land on the <em>same</em> pod, so <em>per-tenant pod disjointness</em> is a separate result, established by the multi-server run (link 3, distinct pod IPs); and (ii) the cross-tenant storage denial is observed by <strong>replaying</strong> the tenant-scoped vended credential against the other prefix, not by an executor pod being refused in-cluster, the executor-side channel shows only that all FileIO used the vend (CloudTrail: the fleet IRSA role makes zero data calls). Full build + proof narrative: <code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code>.</p>
+- <strong>All five links run on the live EKS cluster today.</strong> Scaling to many tenants is the one capability still ahead, and two proof-completeness seams remain (below). The per-link evidence is in points 1-5 above and the §3.4 table; the figure <code>paper/figures/isolation-architecture.html</code> renders the whole path. Two measurement caveats the per-link proofs carry, stated so they are not glossed: (i) the storage-scoping probe (a per-write delta of 12 tasks measured before/after an 8-partition shuffle under <code>spark.master=k8s</code>) proves only that execution left the driver onto a <strong>dedicated executor pod, not the local process</strong>, on the shared-server run both tenants happened to land on the <em>same</em> pod, so <em>per-tenant pod disjointness</em> is a separate result, established by the multi-server run (link 3, distinct pod IPs); and (ii) the cross-tenant storage denial is observed by <strong>replaying</strong> the tenant-scoped vended credential against the other prefix, not by an executor pod being refused in-cluster, the executor-side channel shows only that all FileIO used the vend (CloudTrail: the fleet IRSA role makes zero data calls). Full build + proof narrative: <code>paper/notes/PLATFORM_LAB_NOTEBOOK.md</code>.</p>
 <h3 id="catalog-binding-lakekeeper-and-unity-catalog-oss-as-co-equal-governed-catalogs">Catalog binding: Lakekeeper and Unity Catalog OSS as co-equal governed catalogs</h3>
 <p><em>The governed catalog is a swappable component, not a Lakekeeper dependency. (Author disclosure: a co-author works on open-source Unity Catalog at Databricks; this evaluation names UC OSS's gaps as scrupulously as its strengths, and every UC claim is verified against v0.5.0 source or reproduced live.)</em></p>
 <p>The five isolation layers split by whether the <strong>catalog</strong> owns them. <strong>L1 ingress routing, L2 token custody, and L3 execution isolation are catalog-independent</strong>: they live at the Connect ingress, the per-tenant Connect servers (each injects <em>that tenant's</em> catalog token), and the executor pods, and carry a Unity Catalog token exactly as they carry a Lakekeeper token. <strong>L4 per-principal authorization and L5 prefix-scoped credential vending are the catalog's job</strong>, and both catalogs enforce them.</p>
@@ -2086,14 +2086,15 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 </tbody>
 </table></div>
 <p><strong>Takeaway.</strong> Per-principal authorization and prefix-scoped vending, the two things §3's isolation rests on, are achievable on both an Iceberg-REST-native catalog (Lakekeeper + OpenFGA) and Unity Catalog OSS 0.5.0 (native plugin + JCasbin). We demonstrate the full isolation proof on Lakekeeper and reproduce the catalog-integrated path <strong>end to end through Spark on UC OSS</strong> (per-tenant token custody, per-principal authorization, downscoped vending, and executor data-read isolation; the catalog-independent Envoy ingress and per-tenant Kubernetes pod separation are identical across bindings), and we name where UC OSS is weaker (Iceberg-REST per-principal authz, default posture, fine-grained governance) so the choice is an informed one.</p>
-<h2 id="34-evidence-tiering">3.4 Evidence tiering</h2>
+<h2 id="34-where-each-pillar-stands">3.4 Where each pillar stands</h2>
+<p>A quick map of where each pillar stands: what runs on the live EKS cluster today, what is configured but not yet exercised, and what is still ahead.</p>
 <div class="tablewrap"><table>
 <thead>
 <tr>
 <th>Pillar</th>
-<th>Demonstrated</th>
-<th>Configured-unrun</th>
-<th>Frontier / design-only</th>
+<th>Running on live EKS</th>
+<th>Configured but not yet run</th>
+<th>Still ahead</th>
 </tr>
 </thead>
 <tbody>
@@ -2242,12 +2243,12 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 </div><figcaption>Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody is the keystone, now demonstrated (S4.3).</figcaption></figure>
 <p><strong>The thesis.</strong> §3 governs <em>one</em> agent safely; <strong>Omnigent</strong>, an orchestration layer enacted at runtime by a single orchestrator agent that drives credential-free sub-agent workers, governs a <em>fleet</em>. A fleet is not "more agents in parallel": an orchestration layer makes many data-engineering agents cheaper, higher-quality, governed, and collectively knowledgeable, four properties that N independent sessions cannot provide by construction, having no shared coordination layer. The load-bearing one is <strong>governance</strong>: a single <strong>custodian</strong> holds every per-tenant credential from §3 and enforces each tenant's contextual data policy at submit time, so the whole fleet stays credential-free and policy-bound, the control boundary of §2 preserved at fleet scale and resting directly on §3's isolation. This section <strong>demonstrates</strong> that keystone and the orchestration pattern on the live platform; the <strong>cost and quality <em>numbers</em></strong> are a separate, pre-registered study (S4.6), not part of this paper's run.</p>
 <p><strong>Four axes: what runs here, and what the numbers defer.</strong> A fleet earns those properties along four axes, and all four <em>mechanisms</em> run in the demonstration below. Two are this section's demonstrated <strong>contribution</strong>: governance (credential custody, S4.3, the keystone) and knowledge (a shared skill library, S4.4). The other two, cost (heterogeneous model routing, S4.1) and quality (cross-vendor review, S4.2), also run in the capstone, but their <em>quantitative payoff</em> (cost-per-correct-pipeline, cross-vendor catch-rate) is what the separate study measures (S4.6). All four trace to one spine: an agent that emits only an inert spec (§2) can be fanned out safely.</p>
-<h2 id="s41-cost-heterogeneous-model-routing-mechanism-runs-in-s45-number-in-s46">S4.1 Cost: heterogeneous model routing <em>(mechanism runs in S4.5; number in S4.6)</em></h2>
+<h2 id="s41-cost-heterogeneous-model-routing">S4.1 Cost: heterogeneous model routing</h2>
 <p>Match the model to the task: a cheap model for a trivial fix, a strong model for a refactor, a different vendor for review. Metric: <strong>cost-per-correct-pipeline</strong>, §1's H5.3 (cost-per-correct-completion) lifted to the fleet. The number is S4.6's.</p>
-<h2 id="s42-quality-cross-vendor-review-mechanism-runs-in-s45-number-in-s46">S4.2 Quality: cross-vendor review <em>(mechanism runs in S4.5; number in S4.6)</em></h2>
+<h2 id="s42-quality-cross-vendor-review">S4.2 Quality: cross-vendor review</h2>
 <p>A different-vendor reviewer (for example an OpenAI model reviewing a Claude-authored pipeline) catches defects that a <strong>correlated-blind-spot</strong> same-vendor review structurally misses. A testable catch-rate hypothesis; the number is S4.6's.</p>
-<h2 id="s43-governance-credential-custody-the-keystone-demonstrated">S4.3 Governance: credential custody (the keystone) <em>(demonstrated)</em></h2>
-<p>The catalog (§3) vends short-lived scoped credentials; <strong>Omnigent holds custody and mediates the agent-to-catalog interface, so the agent never sees a credential.</strong> This is what preserves §2's "agent holds no creds" boundary at fleet scale: N raw sessions leak it per session, one custodian governs it once. <strong>Demonstrated (2026-07-10):</strong> a custodian process holds every per-tenant credential and exposes agents only a spec-in, pass-or-fail interface; on each job it mints a fresh short-lived (300s) per-tenant token, runs the work over a §3 catalog binding (UC OSS 0.5.0, executors as local Spark threads in this dedicated proof), and returns only the result. In one run a single custodian governed both tenants, minted and rotated three short-lived credentials with the agents holding none, and an agent attempting a cross-tenant read was refused (<code>PERMISSION_DENIED</code>). Governance also covers each tenant's <strong>contextual data policy</strong> (quarantine, PII masking, value conservation), enforced by the custodian at submit time and demonstrated on the live EKS platform in the capstone (S4.5). Evidence: <code>paper/notes/proof_2026-07-10_sp41_custody.log</code>.</p>
+<h2 id="s43-governance-credential-custody-the-keystone">S4.3 Governance: credential custody (the keystone)</h2>
+<p>The catalog (§3) vends short-lived scoped credentials; <strong>Omnigent holds custody and mediates the agent-to-catalog interface, so the agent never sees a credential.</strong> This is what preserves §2's "agent holds no creds" boundary at fleet scale: N raw sessions leak it per session, one custodian governs it once. In a run on 2026-07-10, a custodian process holds every per-tenant credential and exposes agents only a spec-in, pass-or-fail interface; on each job it mints a fresh short-lived (300s) per-tenant token, runs the work over a §3 catalog binding (UC OSS 0.5.0, executors as local Spark threads in this dedicated proof), and returns only the result. In one run a single custodian governed both tenants, minted and rotated three short-lived credentials with the agents holding none, and an agent attempting a cross-tenant read was refused (<code>PERMISSION_DENIED</code>). Governance also covers each tenant's <strong>contextual data policy</strong> (quarantine, PII masking, value conservation), enforced by the custodian at submit time and demonstrated on the live EKS platform in the capstone (S4.5). (<code>paper/notes/proof_2026-07-10_sp41_custody.log</code>)</p>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 330" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Section 4 (S4.3): the Omnigent credential custodian at fleet scale</title>
 <desc>A fleet of untrusted, credential-free agents submits inert specs to one Omnigent custodian and receives only pass or fail. The custodian holds and rotates every per-tenant credential, minting a fresh short-lived token per job and running the work over the Section 3 governed catalog and per-tenant storage. Credentials never cross the trust boundary back to the agents, and Section 3's per-tenant isolation is preserved under custody.</desc>
@@ -2310,10 +2311,10 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 <text x="40" y="278" class="ts" fill="#8a5a0b">Frontier: P6 scale-out (many tenants + node autoscaling) and rotation under live long-running jobs.</text>
 </svg>
 </div><figcaption>The credential custodian at fleet scale (S4.3), demonstrated. A fleet of credential-free agents submits inert specs and receives only pass or fail; one custodian holds and rotates every per-tenant credential, minting a fresh short-lived token per job and running the work over the §3 catalog. Credentials never cross back to the agents, and §3's per-tenant isolation holds under custody (a cross-tenant read is refused).</figcaption></figure>
-<h2 id="s44-knowledge-shared-skill-library-demonstrated">S4.4 Knowledge: shared skill library <em>(demonstrated)</em></h2>
+<h2 id="s44-knowledge-shared-skill-library">S4.4 Knowledge: shared skill library</h2>
 <p>One governed, versioned skill library (<code>pyspark-sdp</code>, safety, conventions) injected fleet-wide gives correctness propagation, consistency, single-point updates, and a guaranteed knowledge floor. It is <strong>load-bearing:</strong> §1 measured <strong>zero</strong> Databricks-DLT hallucination in both arms <em>with</em> <code>pyspark-sdp</code> equipped; the without-skill failure mode (agents defaulting to DLT) is a documented ablation §1 did not run. Fleet-wide skill sharing makes fleet competence a property of the orchestrator, not luck per session. Skills are <strong>governed artifacts</strong> (access-controlled, mandatable per tenant). <em>(Static shared skills are the demonstrated mechanism; a learned or emergent fleet memory is not claimed.)</em></p>
-<h2 id="s45-the-demonstrated-core-on-the-live-platform">S4.5 The demonstrated core, on the live platform</h2>
-<p>Two things are demonstrated on the live §3 platform, both mechanism, not numbers:</p>
+<h2 id="s45-the-core-running-on-the-live-platform">S4.5 The core, running on the live platform</h2>
+<p>Two things run on the live §3 platform, both the working mechanism rather than a measured number:</p>
 <ol>
 <li><strong>Credential custody (S4.3):</strong> one custodian holds and rotates every per-tenant credential while a fleet of credential-free agents submits specs and receives only pass or fail; a cross-tenant read is refused.</li>
 <li><strong>Heterogeneous orchestration:</strong> the model-routing, cross-vendor-review, and skill-injection pattern, run natively and autonomously by a single Omnigent agent as a governed data-engineering fleet.</li>
@@ -2326,7 +2327,7 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 - <strong>Submit through the custodian (governance):</strong> every pipeline crossed the custodian, so the agents held no credential, and each tenant's contextual data policy (quarantine, PII masking, financial value-conservation) was enforced at submit time; in the wrapper stage the value-conservation policy correctly rejected a non-conserving first draft before repair.
 - <strong>Repair (the §2 loop at fleet scale):</strong> on a custodian rejection the concrete error was fed back and the fleet repaired, escalating to a stronger model, until it passed.
 - <strong>Isolation held:</strong> each medallion materialized over its own tenant, and every cross-tenant read was denied, so §3 isolation held under the fleet.</p>
-<p>This demonstrates that the mechanism runs, not a numbers claim (S4.6). Evidence: <code>paper/notes/proof_2026-07-12_sp4_capstone.log</code>, the architecture in <code>paper/diagrams/section4_capstone_fleet.svg</code>, and the reproducible agent at <code>deploy/omnigent/sdp-capstone/</code>. <em>(This paper's own production used the same orchestration: an orchestrator fanned <code>claude_code</code> / <code>codex</code> / <code>pi</code> sub-agents over the work, had adversarial verifiers try to refute each finding, and synthesized only the survivors, all sharing one governed skill set.)</em></p>
+<p>This demonstrates that the mechanism runs, not a numbers claim (S4.6). The run, its architecture diagram, and the reproducible agent are at <code>paper/notes/proof_2026-07-12_sp4_capstone.log</code>, <code>paper/diagrams/section4_capstone_fleet.svg</code>, and <code>deploy/omnigent/sdp-capstone/</code>. <em>(This paper's own production used the same orchestration: an orchestrator fanned <code>claude_code</code> / <code>codex</code> / <code>pi</code> sub-agents over the work, had adversarial verifiers try to refute each finding, and synthesized only the survivors, all sharing one governed skill set.)</em></p>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 432" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Section 4 (S4.5): Polly builds a governed medallion fleet for three customers over live per-tenant isolation</title>
 <desc>Omnigent's Polly decomposes one data-engineering brief into per-customer bronze/silver/gold subtasks and fans out a cross-vendor fleet of credential-free sub-agents. Each pipeline is authored by a model routed to the task's difficulty, cross-reviewed by a different vendor, and submitted to one custodian that holds every credential. The custodian runs each medallion over that customer's own Section 3 tenant, enforces the customer's contextual policy, and returns only pass or fail; on failure the fleet repairs and converges. Cross-tenant reads are denied, so Section 3 isolation holds under the fleet.</desc>
@@ -2761,13 +2762,13 @@ that is the definition of drift here.</strong></p>
 <tr>
 <td>L2 off-host execution</td>
 <td>I3</td>
-<td><strong>DEMONSTRATED, both arms</strong>: driver+executors in pods, tables materialized</td>
+<td>Both arms run off-host on the cluster: the driver and executors run in pods and the tables materialize</td>
 <td><code>repro/h3_eks/</code></td>
 </tr>
 <tr>
 <td>L3 SDP green remote</td>
 <td>I1,I6</td>
-<td><strong>DEMONSTRATED (2026-07-06)</strong>: Arm B SDP completes+grades green remotely (agent authors inert spec; CLI submits session-less). Took harness data-path/catalog fixes, not architecture</td>
+<td>Arm B SDP completes and grades green remotely (2026-07-06): the agent authors an inert spec and the CLI submits it session-less. Getting there took harness data-path and catalog fixes, not architecture</td>
 <td><code>repro/h3_eks/</code></td>
 </tr>
 <tr>
@@ -2826,7 +2827,7 @@ remaining work; L1 needs native-mTLS de-risking; L6 needs capturing as a clean a
 <tr>
 <td><strong>P0 substrate</strong></td>
 <td>EKS + Connect + Envoy + catalog + S3 exist</td>
-<td><strong>DEMONSTRATED: terraform-applied + CI/OIDC-gated, live (2026-07-09)</strong></td>
+<td>The substrate is live: terraform-applied and CI/OIDC-gated (2026-07-09)</td>
 </tr>
 <tr>
 <td><strong>P1 governed ingress</strong></td>
@@ -2841,22 +2842,22 @@ remaining work; L1 needs native-mTLS de-risking; L6 needs capturing as a clean a
 <tr>
 <td><strong>P3 GitOps boundary</strong></td>
 <td>agent-as-PR-author + CI dry-run gate + reconcile</td>
-<td>DEMONSTRATED (local)</td>
+<td>Runs locally today</td>
 </tr>
 <tr>
 <td><strong>P4 integration testing</strong></td>
 <td>structural dry-run against the real catalog</td>
-<td>DEMONSTRATED; data-quality tests = future</td>
+<td>The structural dry-run runs against the real catalog today; data-quality tests are next</td>
 </tr>
 <tr>
 <td><strong>P5 tenant isolation</strong></td>
 <td>data isolation (credential scoping) + per-principal authz + per-tenant execution</td>
-<td><strong>data isolation / credential scoping DEMONSTRATED</strong> (Lakekeeper vended creds; cross-tenant <code>AccessDenied</code> both directions on EKS by replaying the vended cred; the write ran on a dedicated executor pod off-driver per Spark UI, 12-task per-write delta, per-tenant pod disjointness is the multi-server result below; CloudTrail shows cluster-side FileIO via the vend, fleet IRSA 0 data calls; ablation confirms the vend is load-bearing); <strong>per-principal catalog authz DEMONSTRATED</strong> (Lakekeeper+OpenFGA+OIDC: tenant-A identity denied at the catalog for tenant-B across warehouse-resolution, namespace, and the direct vend path (loadTable+delegation: tenant-B vends <code>200</code>+creds, tenant-A <code>404</code>), grants toggle; <code>proof_2026-07-10_perprincipal_authz.log</code>); <strong>token custody + per-tenant execution isolation DEMONSTRATED</strong> (two per-tenant Connect servers each injecting only its tenant's catalog token server-side; a tenant-A session is refused on tenant-B <code>NotAuthorized</code>, and tenant-A/tenant-B run on disjoint executor pods; <code>proof_2026-07-10_multiserver.log</code>); <strong>per-principal ingress routing DEMONSTRATED</strong> (Envoy gateway routes by client-cert URI-SAN: tenant-A cert reaches only tenant-A's server, un-granted principal <code>403</code>, no-cert refused; <code>proof_2026-07-10_ingress_routing.log</code>)</td>
+<td>Storage scoping holds today: Lakekeeper vends the creds, and replaying the vended cred a cross-tenant request gets <code>AccessDenied</code> both directions on EKS; the write ran on a dedicated executor pod off-driver per Spark UI, 12-task per-write delta, and per-tenant pod disjointness is the multi-server result below; CloudTrail shows cluster-side FileIO via the vend, fleet IRSA 0 data calls, and an ablation confirms the vend is load-bearing. Catalog authorization is per-principal (Lakekeeper+OpenFGA+OIDC): a tenant-A identity is denied at the catalog for tenant-B across warehouse-resolution, namespace, and the direct vend path (loadTable+delegation: tenant-B vends <code>200</code>+creds, tenant-A <code>404</code>), and grants toggle (<code>proof_2026-07-10_perprincipal_authz.log</code>). Token custody and per-tenant execution isolation run: two per-tenant Connect servers each inject only its tenant's catalog token server-side, a tenant-A session is refused on tenant-B <code>NotAuthorized</code>, and tenant-A/tenant-B run on disjoint executor pods (<code>proof_2026-07-10_multiserver.log</code>). Ingress routing is by identity: the Envoy gateway routes by client-cert URI-SAN, so a tenant-A cert reaches only tenant-A's server, an un-granted principal <code>403</code>, no-cert refused (<code>proof_2026-07-10_ingress_routing.log</code>).</td>
 </tr>
 <tr>
 <td><strong>P6 multi-tenant scale</strong></td>
 <td>multiple Connect servers + node autoscaling</td>
-<td>per-tenant Connect servers + gateway routing DEMONSTRATED (2 tenants for the per-link isolation proofs; a third tenant later provisioned by the same procedure for the §4 fleet capstone, S4.5); scale-out (many tenants + node autoscaling) = FRONTIER</td>
+<td>Per-tenant Connect servers and gateway routing run today (2 tenants for the per-link isolation proofs; a third tenant was later provisioned by the same procedure for the §4 fleet capstone, S4.5); scaling out to many tenants with node autoscaling is the next step</td>
 </tr>
 </tbody>
 </table></div>
@@ -2876,37 +2877,37 @@ remaining work; L1 needs native-mTLS de-risking; L6 needs capturing as a clean a
 <tr>
 <td>GitOps loop</td>
 <td>agent→PR→CI gate→reconcile to prod</td>
-<td>demonstrated local</td>
+<td>runs locally</td>
 <td><code>agent_pr_author.py</code>, <code>sdp_artifact.py</code>, dry-run + reconcile workflows, unit tests</td>
 <td>wire to EKS Connect (not runner-local); capture a real agent PR; enable prod reconcile</td>
 </tr>
 <tr>
 <td>Connect ingress</td>
 <td>single governed mTLS endpoint + per-principal routing</td>
-<td>built; native client mTLS DEMONSTRATED (Envoy gateway routes by cert-SAN to per-tenant servers)</td>
+<td>built, with native client mTLS running: the Envoy gateway routes by cert-SAN to per-tenant servers</td>
 <td>Envoy mTLS, principal interceptor, per-principal routing gateway, deployment, image</td>
-<td>(routing DONE 2026-07-10); apply Terraform for the gateway; capture deploy artifacts</td>
+<td>routing landed 2026-07-10; apply Terraform for the gateway; capture deploy artifacts</td>
 </tr>
 <tr>
 <td>Elastic execution</td>
 <td>driver + dyn executors, autoscaling</td>
-<td>small-scale demonstrated</td>
+<td>runs at small scale</td>
 <td>dyn-alloc config, executor pod template, executor node group, image</td>
 <td>prove 0→10→0 scale; add Karpenter/Cluster-Autoscaler</td>
 </tr>
 <tr>
 <td>Catalog authz</td>
 <td>per-tenant grants</td>
-<td>DEMONSTRATED via Lakekeeper + OpenFGA + OIDC (per-principal deny at the catalog)</td>
+<td>Runs via Lakekeeper + OpenFGA + OIDC, denying per-principal at the catalog</td>
 <td>governed Iceberg-REST catalog, per-tenant vending + grants, OIDC identities</td>
-<td>(delegation DONE 2026-07-10); OSS HMS/Iceberg still cannot enforce, hence the governed catalog</td>
+<td>delegation landed 2026-07-10; OSS HMS/Iceberg still cannot enforce, hence the governed catalog</td>
 </tr>
 <tr>
 <td>Tenant exec isolation</td>
 <td>per-tenant Connect / pools</td>
-<td>DEMONSTRATED: per-tenant Connect servers + gateway routing + disjoint executor pods</td>
+<td>Runs today: per-tenant Connect servers, gateway routing, and disjoint executor pods</td>
 <td>per-tenant Connect servers, per-principal routing gateway, token injection, distinct executor pods</td>
-<td>(per-tenant servers + routing DONE 2026-07-10); scale to N tenants + node autoscaling</td>
+<td>per-tenant servers and routing landed 2026-07-10; scale to N tenants + node autoscaling</td>
 </tr>
 <tr>
 <td>Integration testing</td>
