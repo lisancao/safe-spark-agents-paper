@@ -1,28 +1,95 @@
-<svg width="100%" viewBox="0 0 680 270" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
-<title>Spark Connect dev-to-prod: promote by changing one URL</title>
-<desc>The same agent, SDP spec, and dry-run gate develop against a local Spark Connect server and promote to the remote EKS cluster by changing a single endpoint URL (SPARK_REMOTE), no code change. Local mode without a Connect server arrives in Spark 4.3.</desc>
+<svg width="100%" viewBox="0 0 720 476" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>Spark Connect: one client, one plan, two endpoints (dev-to-prod by changing SPARK_REMOTE)</title>
+<desc>The client side is identical in development and production: the agent authors inert @dp transforms, a CI dry-run gate checks them, and a controller builds one serialized query plan. The client holds no engine. It ships that same plan over gRPC to whatever SPARK_REMOTE URL is set. In development the URL points at a local Connect server where driver and executors run in one in-process JVM on a laptop (fast, free, ungoverned). In production the identical plan goes to the EKS Spark Connect cluster where a driver pod schedules executor pods that read the S3 warehouse through the Lakekeeper catalog behind an mTLS ingress (governed, per-tenant isolated, real data). Promoting from dev to prod changes only the endpoint URL, no code change; the server, driver plus executors, is where execution and data live and the client never holds an engine either way.</desc>
 <style>
   text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .th{font-size:14px;font-weight:500;fill:#16201e}.ts{font-size:12px;fill:#5c6b66}
-  .mono{font-size:12px;fill:#5c6b66;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
-  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
-  .c-gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.c-gray .th{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
-  .c-blue rect{fill:#E6F1FB;stroke:#185FA5;stroke-width:.75}.c-blue .th{fill:#0C447C}.c-blue .ts{fill:#185FA5}
-  .c-teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
+  .lab{font-size:10px;font-weight:600;letter-spacing:.04em}
+  .th{font-size:12px;font-weight:600}.ts{font-size:10.5px}.tn{font-size:9px}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:9.5px}
+  .mons{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:8.5px}
 </style>
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
 
-<g class="c-gray"><rect x="270" y="30" width="140" height="48" rx="6"/><text x="340" y="50" class="th" text-anchor="middle">Agent + SDP spec</text><text x="340" y="68" class="ts" text-anchor="middle">one inert artifact</text></g>
-<line x1="340" y1="78" x2="340" y2="98" class="arr" marker-end="url(#arrow)"/>
+<text x="16" y="17" class="lab" fill="#5F5E5A">SPARK CONNECT: ONE CLIENT, ONE PLAN, TWO ENDPOINTS</text>
 
-<g class="c-blue"><rect x="278" y="98" width="124" height="42" rx="6"/><text x="340" y="116" class="th" text-anchor="middle">SPARK_REMOTE</text><text x="340" y="132" class="ts" text-anchor="middle">change one URL</text></g>
+<!-- ============ CLIENT (invariant) ============ -->
+<rect x="14" y="34" width="212" height="322" rx="8" fill="#FbFaF7" stroke="#8a8f8c" stroke-width="1" stroke-dasharray="5 4"/>
+<text x="120" y="52" class="lab" fill="#3C3489" text-anchor="middle">THE CLIENT</text>
+<text x="120" y="66" class="tn" fill="#5c6b66" text-anchor="middle">identical in dev and prod; holds no engine</text>
 
-<path d="M320 140 L180 156" class="arr" marker-end="url(#arrow)"/>
-<path d="M360 140 L500 156" class="arr" marker-end="url(#arrow)"/>
+<rect x="30" y="78" width="180" height="44" rx="6" fill="#FDF3F2" stroke="#b9433a" stroke-width="1"/>
+<text x="120" y="97" class="th" text-anchor="middle" fill="#b9433a">Agent</text>
+<text x="120" y="113" class="tn" text-anchor="middle" fill="#a2483f">authors inert @dp transforms</text>
+<line x1="120" y1="122" x2="120" y2="140" stroke="#8a8f8c" stroke-width="1.2" marker-end="url(#ar)"/>
 
-<g class="c-teal"><rect x="55" y="156" width="235" height="56" rx="6"/><text x="172" y="180" class="th" text-anchor="middle">Local development</text><text x="172" y="199" class="mono" text-anchor="middle">sc://localhost:15002</text></g>
-<g class="c-teal"><rect x="390" y="156" width="235" height="56" rx="6"/><text x="507" y="180" class="th" text-anchor="middle">Production (EKS)</text><text x="507" y="199" class="mono" text-anchor="middle">sc://&lt;cluster-nlb&gt;:15009</text></g>
+<rect x="30" y="142" width="180" height="40" rx="6" fill="#FDF3F2" stroke="#b9433a" stroke-width="1"/>
+<text x="120" y="160" class="th" text-anchor="middle" fill="#b9433a">SDP spec</text>
+<text x="120" y="175" class="tn" text-anchor="middle" fill="#a2483f">one inert artifact (pipeline.py)</text>
+<line x1="120" y1="182" x2="120" y2="200" stroke="#8a8f8c" stroke-width="1.2" marker-end="url(#ar)"/>
 
-<text x="340" y="238" class="ts" text-anchor="middle">Same agent, spec, and dry-run gate: develop locally, then promote to the cluster by changing the endpoint.</text>
-<text x="340" y="255" class="ts" text-anchor="middle">(Local mode without a Connect server arrives in Spark 4.3.)</text>
+<rect x="30" y="202" width="180" height="38" rx="6" fill="#ECF5F1" stroke="#0b7a63" stroke-width="1"/>
+<text x="120" y="220" class="th" text-anchor="middle" fill="#085041">CI dry-run gate</text>
+<text x="120" y="234" class="tn" text-anchor="middle" fill="#5c6b66">structural check, no data</text>
+<line x1="120" y1="240" x2="120" y2="258" stroke="#8a8f8c" stroke-width="1.2" marker-end="url(#ar)"/>
+
+<rect x="30" y="260" width="180" height="50" rx="6" fill="#F2F1FB" stroke="#3C3489" stroke-width="1"/>
+<text x="120" y="279" class="th" text-anchor="middle" fill="#3C3489">Controller</text>
+<text x="120" y="294" class="tn" text-anchor="middle" fill="#5c5b8f">builds ONE serialized plan</text>
+<text x="120" y="305" class="tn" text-anchor="middle" fill="#5c5b8f">no SparkContext, no engine</text>
+
+<text x="120" y="332" class="tn" fill="#5c6b66" text-anchor="middle">same agent, spec, gate, plan</text>
+<text x="120" y="345" class="tn" fill="#5c6b66" text-anchor="middle">in both modes</text>
+
+<!-- plan out to the switch -->
+<line x1="226" y1="285" x2="286" y2="285" stroke="#3C3489" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="256" y="278" class="tn" fill="#3C3489" text-anchor="middle">plan</text>
+<text x="256" y="299" class="mons" fill="#5c6b66" text-anchor="middle">gRPC</text>
+
+<!-- ============ SPARK_REMOTE switch ============ -->
+<rect x="288" y="258" width="118" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="1.2"/>
+<text x="347" y="279" class="th" text-anchor="middle" fill="#0C447C">SPARK_REMOTE</text>
+<text x="347" y="294" class="tn" text-anchor="middle" fill="#185FA5">the one thing</text>
+<text x="347" y="305" class="tn" text-anchor="middle" fill="#185FA5">that changes</text>
+
+<!-- routes to two servers -->
+<path d="M406 272 C 440 250, 452 150, 486 130" fill="none" stroke="#185FA5" stroke-width="1.4" marker-end="url(#ar)"/>
+<path d="M406 300 C 440 322, 452 372, 486 392" fill="none" stroke="#185FA5" stroke-width="1.4" marker-end="url(#ar)"/>
+
+<!-- ============ DEV server ============ -->
+<rect x="430" y="44" width="276" height="118" rx="8" fill="#ECF5F1" stroke="#0F6E56" stroke-width="1"/>
+<text x="446" y="62" class="lab" fill="#085041">DEV · LOCAL CONNECT SERVER</text>
+<rect x="446" y="72" width="244" height="42" rx="5" fill="#fff" stroke="#0F6E56" stroke-width=".8"/>
+<text x="568" y="90" class="ts" text-anchor="middle" fill="#085041">driver + executors in ONE in-process JVM</text>
+<text x="568" y="105" class="tn" text-anchor="middle" fill="#5c6b66">a laptop; the whole engine in one process</text>
+<text x="446" y="132" class="mons" fill="#5c6b66">sc://localhost:15002</text>
+<text x="446" y="150" class="tn" fill="#8a5a0b">fast · free · ungoverned (dev only)</text>
+
+<!-- ============ PROD server ============ -->
+<rect x="430" y="250" width="276" height="176" rx="8" fill="#ECF5F1" stroke="#0F6E56" stroke-width="1.2"/>
+<text x="446" y="268" class="lab" fill="#085041">PROD · EKS SPARK CONNECT CLUSTER</text>
+<!-- driver + executor pods -->
+<rect x="446" y="278" width="72" height="40" rx="5" fill="#fff" stroke="#0b7a63" stroke-width=".9"/>
+<text x="482" y="295" class="tn" text-anchor="middle" fill="#085041">driver</text>
+<text x="482" y="308" class="tn" text-anchor="middle" fill="#5c6b66">pod</text>
+<g fill="#fff" stroke="#0b7a63" stroke-width=".8">
+<rect x="530" y="278" width="52" height="17" rx="3"/><rect x="530" y="299" width="52" height="17" rx="3"/>
+<rect x="588" y="278" width="52" height="17" rx="3"/><rect x="588" y="299" width="52" height="17" rx="3"/>
+</g>
+<text x="586" y="331" class="tn" text-anchor="middle" fill="#085041">executor pods</text>
+<line x1="518" y1="297" x2="528" y2="297" stroke="#8a8f8c" stroke-width="1" marker-end="url(#ar)"/>
+<rect x="648" y="278" width="44" height="38" rx="5" fill="#F7EFDD" stroke="#8a5a0b" stroke-width=".8"/>
+<text x="670" y="294" class="tn" text-anchor="middle" fill="#8a5a0b">S3</text>
+<text x="670" y="308" class="tn" text-anchor="middle" fill="#8a5a0b">wh</text>
+<text x="446" y="347" class="tn" fill="#5c6b66">Lakekeeper catalog · mTLS ingress · per-tenant vending</text>
+<text x="446" y="365" class="mons" fill="#5c6b66">sc://&lt;cluster-nlb&gt;:15009</text>
+<text x="446" y="383" class="tn" fill="#085041">governed · per-tenant isolated · real data (§3)</text>
+<line x1="446" y1="392" x2="690" y2="392" stroke="#0b7a63" stroke-width=".6" stroke-dasharray="3 3"/>
+<text x="446" y="408" class="tn" fill="#5c6b66">executors alone touch data; they read S3 with the</text>
+<text x="446" y="419" class="tn" fill="#5c6b66">controller's credential, never the agent's</text>
+
+<!-- bottom caption -->
+<text x="16" y="447" class="ts" fill="#16201e">Same client, same plan, same gate; only the URL changes, and the client never holds an engine.</text>
+<text x="16" y="465" class="ts" fill="#16201e">The server (driver + executors) runs it and alone touches data; promote dev → prod by changing <tspan class="mono" fill="#0C447C">SPARK_REMOTE</tspan>.</text>
 </svg>

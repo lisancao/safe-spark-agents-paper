@@ -162,7 +162,10 @@ body = body.replace("<p>[[[SVG-DEVLOOP]]]</p>",
            "The agent-native dev loop vs the normal imperative one: imperative finds errors by running (after data is touched and compute spent); the agent-native loop catches them at the gate, before any data."))
 body = body.replace("<p>[[[SVG-DEVPROD]]]</p>",
     figure(load_svg("section2_connect_dev_prod.svg"),
-           "Spark Connect makes dev→prod a one-URL change: the same agent, spec, and dry-run gate develop locally and promote to the cluster by changing SPARK_REMOTE, no code change."))
+           "One client, one plan, two endpoints. The client side (agent, SDP spec, dry-run gate, controller) is identical in dev and prod and holds no engine; it ships one serialized plan over gRPC to whatever SPARK_REMOTE points at. In dev that is a local Connect server (driver + executors in one in-process JVM, fast and ungoverned); in prod it is the EKS cluster (driver pod + executor pods reading the S3 warehouse through the Lakekeeper catalog behind mTLS). The executors are the only thing that touches data. Promote dev→prod by changing the URL alone."))
+body = body.replace("<p>[[[SVG-CONNECT-LADDER]]]</p>",
+    figure(load_svg("section2_connect_privilege.svg"),
+           "The Spark Connect privilege ladder. The agent holds only an inert @dp transform (no session, credentials, or endpoint) and cannot reach the SparkContext. The controller, as a Connect client, submits serialized plans and holds the S3 credential but cannot reach SparkContext, the JVM, RDDs, or cluster config, Connect errors if it tries. Both are the client side. Below the Spark Connect boundary the cluster admin owns the engine, SparkContext, JVM, executor pods, and cluster config. A client can submit a plan but cannot cross into the engine, so SparkContext never leaves the cluster admin's side."))
 
 # --- wrap wide tables so the page never scrolls sideways ---
 body = body.replace("<table>", '<div class="tablewrap"><table>').replace("</table>", "</table></div>")
