@@ -682,10 +682,11 @@ client's identity, and runs the Section 4 delivery loop on top.
 **Architecture:** see `paper/diagrams/section4_contained_omnigent.svg` (this repo): the server, custodian,
 and credential-free fleet as pods in the client's EKS, over the §3 platform, one IdP over both.
 
-> **Use a CURRENT Omnigent checkout.** The local `~/omnigent` is **803 commits behind** upstream (and
-> diverged, 11 local commits ahead). Deploy from a fresh clone of `github.com/omnigent-ai/omnigent`, and
-> verify manifest/overlay names against THAT version: they have already drifted (upstream ships an
-> `overlays/sandbox-runners` the local checkout lacks). Official guide: `deploy/kubernetes/README.md`.
+> **Omnigent manifests are vendored in-repo** at `deploy/kubernetes/` (a pinned snapshot from
+> `github.com/omnigent-ai/omnigent@046246fb`, vendored 2026-07-14; see `deploy/kubernetes/VENDORED.md`).
+> Use them directly, no second clone needed. Omnigent moves fast (the local `~/omnigent` was ~800 commits
+> behind and even lacked `overlays/sandbox-runners`), so re-vendor periodically per VENDORED.md for the
+> latest overlays. Full guide: `deploy/kubernetes/README.md`.
 
 ### 6.1 Deploy the Omnigent server (Kustomize)
 
@@ -695,7 +696,7 @@ PVC + Secret/ConfigMap, in namespace `omnigent`. Back it with the substrate RDS 
 registry is in-memory).
 
 ```bash
-git clone https://github.com/omnigent-ai/omnigent && cd omnigent
+# Omnigent manifests are vendored at deploy/kubernetes/ (pinned snapshot; resync per VENDORED.md), run from the repo root.
 
 # Edit deploy/kubernetes/base/secret.yaml:
 #   DATABASE_URL: "postgresql+psycopg://<user>:<pass>@<rds-endpoint>:5432/omnigent"
