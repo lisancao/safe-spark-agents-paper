@@ -51,7 +51,7 @@ The rest of this section reads straight through: a short **reader's map** (below
 **Other running terms:**
 - **silent defect**: a run that completes and passes its checks but ships wrong data.
 - **the gate / dry-run**: SDP's structural check of the whole graph *before any data is processed*.
-- **skill**: a knowledge module injected into the agent's prompt. Here it is [`pyspark-sdp`](../study/skills/pyspark-sdp/SKILL.md), a **minimal 164-line API reference** (how to declare views, run the dry-run), *not* safety advice and not task hints.
+- **skill**: a knowledge module injected into the agent's prompt. Here it is [`pyspark-sdp`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/skills/pyspark-sdp/SKILL.md), a **minimal 164-line API reference** (how to declare views, run the dry-run), *not* safety advice and not task hints.
 - **instrument**: the frozen harness + blind oracle + task corpus used to run and grade, version-pinned so results reproduce.
 - **cell**: one run of one `(task, arm, seed)`. The study has 528 (22 tasks × 12 seeds × 2 arms).
 - **N1 / N2**, the two costs kept separate: LLM **tokens** (N1) vs **data-processing compute** on the cluster (N2).
@@ -77,7 +77,7 @@ The rest of this section reads straight through: a short **reader's map** (below
 
 [[[SVG-TAXONOMY]]]
 
-**The `pyspark-sdp` skill.** The base model is fluent in imperative PySpark but not in SDP's newer API, so arm B is given a minimal [`pyspark-sdp` skill](../study/skills/pyspark-sdp/SKILL.md): a **164-line API reference** that teaches *only* the mechanics (how to declare views, wire dependencies, and write a valid spec) and, in its own words, "says nothing about what your pipeline should compute." It is the fair analog of imperative being native to the base model (arm A needs no skill), not a safety aid: an earlier `spark-safety` skill was scrapped after it moved the silent-defect rate by 0.000. Because the skill is this minimal and task-agnostic, the results are a property of the **paradigm, not of a heavy skill doing the work**; the one small idiom this skill happens not to teach (bucketing a UTC calendar day) is exactly what the residual silent-defect gap in §1.4.1 traces to.
+**The `pyspark-sdp` skill.** The base model is fluent in imperative PySpark but not in SDP's newer API, so arm B is given a minimal [`pyspark-sdp` skill](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/skills/pyspark-sdp/SKILL.md): a **164-line API reference** that teaches *only* the mechanics (how to declare views, wire dependencies, and write a valid spec) and, in its own words, "says nothing about what your pipeline should compute." It is the fair analog of imperative being native to the base model (arm A needs no skill), not a safety aid: an earlier `spark-safety` skill was scrapped after it moved the silent-defect rate by 0.000. Because the skill is this minimal and task-agnostic, the results are a property of the **paradigm, not of a heavy skill doing the work**; the one small idiom this skill happens not to teach (bucketing a UTC calendar day) is exactly what the residual silent-defect gap in §1.4.1 traces to.
 
 **Substrate.** The safety, token, and conciseness results are substrate-independent and run on a local backend. The data-processing-compute question (H3) requires both paradigms on one uniform cluster and is measured separately on Spark Connect / EKS (§SM6.5, §1.4.3). All runs use a single model, `claude-opus-4-8`, with identical decoding across arms (§SM7.4).
 
@@ -109,12 +109,12 @@ Two measurement choices make these outcomes trustworthy. First, we separate the 
 
 [[[SVG-RUNLOOP]]]
 
-**Where to find it**: study repo [`lisancao/safe-spark-agents`](../study/) (paths under `study/`):
-- **Reproduction runbook** → [`repro/REPRODUCE.md`](../study/repro/REPRODUCE.md)
-- **Frozen corpus & seeds** → [`TASKS.lock.json`](../study/TASKS.lock.json), [`SEEDS.lock.json`](../study/SEEDS.lock.json)
-- **Arms & config** → [`arms/A.json`](../study/arms/A.json), [`arms/B.json`](../study/arms/B.json), [`study.config.json`](../study/study.config.json)
-- **Harness & analysis** → [`harness/`](../study/harness), [`analysis/analyze.py`](../study/analysis/analyze.py)
-- **EKS compute run (H3)** → [`repro/h3_eks/`](../study/repro/h3_eks) (runbook + `H3_EKS_INTEGRATION_LOG.md`)
+**Where to find it**: study repo [`lisancao/safe-spark-agents`](https://github.com/lisancao/safe-spark-agents-paper/tree/paper-v1/study) (paths under `study/`):
+- **Reproduction runbook** → [`repro/REPRODUCE.md`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/repro/REPRODUCE.md)
+- **Frozen corpus & seeds** → [`TASKS.lock.json`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/TASKS.lock.json), [`SEEDS.lock.json`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/SEEDS.lock.json)
+- **Arms & config** → [`arms/A.json`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/arms/A.json), [`arms/B.json`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/arms/B.json), [`study.config.json`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/study.config.json)
+- **Harness & analysis** → [`harness/`](https://github.com/lisancao/safe-spark-agents-paper/tree/paper-v1/study/harness), [`analysis/analyze.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/analysis/analyze.py)
+- **EKS compute run (H3)** → [`repro/h3_eks/`](https://github.com/lisancao/safe-spark-agents-paper/tree/paper-v1/study/repro/h3_eks) (runbook + `H3_EKS_INTEGRATION_LOG.md`)
 - **Raw results behind the numbers** → `results.powered.AB.n12.final.jsonl` (528 rows), `results.tzfix.jsonl` (the D7 skill-swap)
 
 *(GitHub links resolve once the study repo is public; the committed result JSONLs are the data behind every number, while the 100s of MB of raw generated data and agent transcripts are reproducible from the seeded generators rather than shipped.)*
@@ -132,7 +132,7 @@ Independent variable: **paradigm** (SDP vs imperative), tested as **two arms** (
 | **A** | imperative | none (bare) | none | bare imperative, imperative as it natively is |
 | **B** | SDP (declarative) | framework dry-run (intrinsic) | `pyspark-sdp` API skill | declarative treatment |
 
-**Headline contrast = A vs B.** This is deliberately a *paradigm-package* contrast, not a single-variable manipulation: the declarative paradigm brings its structural dry-run **by construction** (framing F1, §1.4.2), imperative has no equivalent, and injecting one would contaminate it (F2, rejected). So the gate is **part of the treatment, not a held-constant covariate**; that asymmetry *is* the finding. The earlier A2 (imperative+gate+skill) and B1 (SDP, no skill) arms are retired to `arms/supplementary/`; the `spark-safety` skill was scrapped everywhere (it moved silent-defect by 0.000 in pilot and was the largest reviewer confound). `[arms: study/arms/{A,B}.json]`
+**Headline contrast = A vs B.** This is deliberately a *paradigm-package* contrast, not a single-variable manipulation: the declarative paradigm brings its structural dry-run **by construction** (framing F1, §1.4.2), imperative has no equivalent, and injecting one would contaminate it (F2, rejected). So the gate is **part of the treatment, not a held-constant covariate**; that asymmetry *is* the finding. The earlier A2 (imperative+gate+skill) and B1 (SDP, no skill) arms are retired to `arms/supplementary/`; the `spark-safety` skill was scrapped everywhere (it moved silent-defect by 0.000 in pilot and was the largest reviewer confound). [arms: [`study/arms/A.json`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/arms/A.json), [`study/arms/B.json`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/arms/B.json)]
 
 ## 1.4 Results
 **The headline first, so it is not missed: SDP's structural dry-run catches 79 structural defects before any data is processed; bare imperative catches 0** (§1.4.2). That is the load-bearing result of the study. The rest of this section fills in four connected stories around it: a **silent semantic residue** (§1.4.2's sibling, §1.4.1) where a *raw* gap appears to favor imperative but proves *skill-induced*, not paradigm-inherent, once a controlled skill-swap closes it; the **root-cause attribution** of that gap (§SM1); **cost** (§1.4.3), code size, tokens, and compute; and **what each paradigm hallucinates** (§1.4.4), where the same gate catches a whole class of hallucination cheaply. Read together: declarative structure buys an early, real safety margin on structural faults, and is not, by itself, less safe on semantic ones.
@@ -148,7 +148,7 @@ Independent variable: **paradigm** (SDP vs imperative), tested as **two arms** (
 | B (SDP) | **0.326** | 86/264 | [0.269, 0.383] |
 
 Paired A−B contrast: Δ = −0.049 [−0.098, +0.000]; **OR = 1.97** (B vs A); GLMM p = 0.0033, Holm-adjusted p = 0.0033, **significant at α = 0.05**.
-`[src: results.powered.AB.n12.final.jsonl · silent_defect · per arm + paired (task,seed), Holm over GLMM contrasts · recompute: §SM6]`
+[src: [`results.powered.AB.n12.final.jsonl`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/results.powered.AB.n12.final.jsonl) · silent_defect · per arm + paired (task,seed), Holm over GLMM contrasts · recompute: §SM6]
 
 **The gap is skill-attributable, not paradigm-inherent.** The raw contrast shows B higher, which would reject the "un-gateable ⇒ paradigm-invariant" expectation (§SM3.2). It is not the paradigm, though. The gap sits in two semantic classes: timezone/day-bucket (D7) and silent row-drop (D8); the largest class, dedup (D6), is a wash. A controlled skill-swap pins the driver: arm B's minimal `pyspark-sdp` skill happened to be silent on *one* idiom (how to bucket a UTC calendar day) and teaching it drives **D7 from 7 to 0**, matching imperative (`results.tzfix.jsonl`). So the honest reading is not "SDP is less safe," but that a minimal skill has to teach the paradigm-matched idiom; once it does, the paradigms reach parity. The mechanism (why the one-line fix imperative uses isn't available in SDP) and the parallel D8 analysis are in **§SM1**, kept off the main line. *(Pilot N = 3: A = 18/66, B = 23/66, comparable.)*
 
@@ -162,7 +162,7 @@ The B-worse residue is **not uniform**: it decomposes by semantic class (shipped
 | **D7 timezone / day-bucket** | **0** | **7** | **SDP-specific**: imperative *never* ships it |
 | D8 silent row-drop / bad currency | 51 | 57 | B worse by +6, task-concentrated |
 
-The whole A−B gap is **D7 (+7) and D8 (+6)**; D6, the largest class, is tied. D7 is the sharp one: imperative ships **zero** timezone defects, SDP ships 7 (mostly `p8_currency_normalize`), and it is exactly the skill-attributable driver that closes to 0 once B is taught the idiom. `[src: results.powered.AB.n12.final.jsonl · per_defect_detection]`
+The whole A−B gap is **D7 (+7) and D8 (+6)**; D6, the largest class, is tied. D7 is the sharp one: imperative ships **zero** timezone defects, SDP ships 7 (mostly `p8_currency_normalize`), and it is exactly the skill-attributable driver that closes to 0 once B is taught the idiom. [src: [`results.powered.AB.n12.final.jsonl`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/results.powered.AB.n12.final.jsonl) · per_defect_detection]
 
 [[[SVG-COMPOSITION]]]
 
@@ -175,7 +175,7 @@ The whole A−B gap is **D7 (+7) and D8 (+6)**; D6, the largest class, is tied. 
 | B (SDP, framework dry-run) | **79** | 30 | 0 |
 
 SDP's framework dry-run intercepts 79 structural defects (353 iteration-level error events) *before any data is processed*; bare imperative has no gate and intercepts zero: the structural catches surface at runtime (or, for semantic defects, ship). Arm A is *bare* imperative with **no structural gate by construction**, so the contrast measures each paradigm as it natively is: there is no gate-rigor to conflate.
-`[src: results.powered.AB.n12.final.jsonl · per_defect_detection / dry_run_intercepts / per_iteration · per arm × class-group × stage · recompute: §SM6 (see §9 error-taxonomy block)]`
+[src: [`results.powered.AB.n12.final.jsonl`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/results.powered.AB.n12.final.jsonl) · per_defect_detection / dry_run_intercepts / per_iteration · per arm × class-group × stage · recompute: §SM6 (see §9 error-taxonomy block)]
 
 [[[SVG-WHERE]]]
 
@@ -195,7 +195,7 @@ Anticipated objection ("you gave SDP a better gate") is answered directly: the g
 | final_program_loc | 67.9 | 134.0 | **+66.1** | [+61.9, +70.4] |
 | ast_node_count | 614.9 | 1105.5 | **+490.6** | [+453, +530] |
 
-All CIs clear of zero: B is **~49% fewer LOC** and **~44% smaller AST** than imperative. `[src: results.powered.AB.n12.final.jsonl · final_program_loc / ast_node_count · paired (task,seed), B-vs-A · analyze.py conciseness block]`
+All CIs clear of zero: B is **~49% fewer LOC** and **~44% smaller AST** than imperative. [src: [`results.powered.AB.n12.final.jsonl`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/results.powered.AB.n12.final.jsonl) · final_program_loc / ast_node_count · paired (task,seed), B-vs-A · [`analyze.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/analysis/analyze.py) conciseness block]
 
 **Token spend (N1): SDP costs more to author.** Median tokens to a correct pipeline (264/264 cells populated in both arms; the streaming/32k brain fix closed the prior B-null gap):
 
@@ -204,7 +204,7 @@ All CIs clear of zero: B is **~49% fewer LOC** and **~44% smaller AST** than imp
 | A (bare imperative) | 1,436 | 9,964 | 11,524 | 1.0× |
 | B (SDP) | 7,295 | 18,499 | **26,480** | **≈ 2.3×** |
 
-Values are medians reported per field, so input + output need not sum to the total. Direction: SDP **higher**: the declarative agent iterates more against the gate (H2.2), which shows up as tokens. Interpret jointly with H5: the extra iterations are a true cost only if they do not buy completion. `[src: results.powered.AB.n12.final.jsonl · input_tokens,output_tokens · per arm]`
+Values are medians reported per field, so input + output need not sum to the total. Direction: SDP **higher**: the declarative agent iterates more against the gate (H2.2), which shows up as tokens. Interpret jointly with H5: the extra iterations are a true cost only if they do not buy completion. [src: [`results.powered.AB.n12.final.jsonl`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/results.powered.AB.n12.final.jsonl) · input_tokens,output_tokens · per arm]
 
 **Data-processing compute (N2): SDP is *categorically incapable of burning compute on a structurally-invalid pipeline*.** This is the sharpest cost result, and it is structural, not a matter of degree. Imperative PySpark runs `spark-submit`, executing over the data, and *then* discovers the pipeline is wrong; SDP's dry-run rejects a structurally-invalid pipeline **before any executor starts**. A failed imperative attempt therefore costs real cluster compute; a failed SDP attempt costs ≈ 0, *by construction*. This scopes to *structural* defects: a semantically-wrong SDP pipeline passes the dry-run, executes, and burns compute like imperative (and ships), the un-gateable residue of §1.4.1. (In the powered run, **69.5%** of arm B's attempts were intercepted at the gate, before touching data.)
 
@@ -216,7 +216,7 @@ Measured directly on a live EKS Spark-Connect cluster (48-cell sweep; m5.xlarge-
 | **total compute** | 596 exec-s · `$0.032` | 17 exec-s · `$0.0009` | **~34×** |
 | **cost per correct pipeline** | `$0.00033` | `$0.00005` | ~7× |
 
-Nine of arm A's cells hit the iteration cap (each one running, processing data, then failing) while SDP's failed cells cost ≈ 0. **The dollar amounts are small because the study is small** (tiny tasks, a 4-executor cluster), not because the effect is: the mechanism scales linearly with data size, cluster size, and failure rate. `[src: repro/h3_eks/ · results.h3.sweep2.jsonl · 48 cells]`
+Nine of arm A's cells hit the iteration cap (each one running, processing data, then failing) while SDP's failed cells cost ≈ 0. **The dollar amounts are small because the study is small** (tiny tasks, a 4-executor cluster), not because the effect is: the mechanism scales linearly with data size, cluster size, and failure rate. [src: [`repro/h3_eks/`](https://github.com/lisancao/safe-spark-agents-paper/tree/paper-v1/study/repro/h3_eks)  · `results.h3.sweep2.jsonl` · 48 cells]
 
 [[[SVG-WASTE]]]
 
@@ -242,7 +242,7 @@ Beyond *whether* an agent fails, *what* it invents differs sharply by paradigm, 
 
 Neither shipped arm hallucinated Databricks DLT (`import dlt`, `@dlt.table`): **0 in both**. Imperative has no framework to confuse; the SDP arm's governed `pyspark-sdp` skill keeps it on the OSS API. *(The no-skill counterfactual is a separate ablation, not measured here.)*
 
-So §1.4.2's gate does more than catch structural defects: it catches a whole *class of hallucination* (paradigm-confusion) cheaply, before compute, while imperative's dominant hallucination is un-gateable and bites only at runtime. `[src: study/raw/raw_20260628/all_results.jsonl · per_iteration error_class × arm × stage · recompute: study/analysis/hallucination_taxonomy.py]`
+So §1.4.2's gate does more than catch structural defects: it catches a whole *class of hallucination* (paradigm-confusion) cheaply, before compute, while imperative's dominant hallucination is un-gateable and bites only at runtime. [src: [`study/raw/raw_20260628/all_results.jsonl`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/raw/raw_20260628/all_results.jsonl) · per_iteration error_class × arm × stage · recompute: [`study/analysis/hallucination_taxonomy.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/analysis/hallucination_taxonomy.py)]
 
 [[[SVG-HALLUCINATION]]]
 
@@ -273,244 +273,7 @@ Finally, the safety result motivates what follows. If the most valuable thing a 
 
 ## Supplemental Materials (Section 1)
 
-> **Reading for the results? Skip this block, jump to Section 2.** What follows is Section 1's methods appendix, detailed forensics, the pre-registered protocol, operational definitions, and full materials, retained for reproduction and deep review, not the paper's through-line. The main text cites it inline as §SM1, §SM2, §SM3, §SM6, §SM7.
-
-## SM1. Root-cause forensics: the D7 timezone skill gap (full detail)
-
-*Expanded from §SM1. The main text gives the resolved result (D7 7→0; parity once arm B is taught the UTC idiom). This is the underlying mechanism, the three-agent code audit, the parallel D8 analysis, the validated skill-swap, and the remediations for framework and skill owners.*
-
-**D7 (timezone): the immutable-config safety property removes the fix imperative uses.** The executor box runs `America/Los_Angeles`, and the harness deliberately does **not** pin session tz in the SDP manifest (pinning it would hand SDP correct-UTC "for free," an asymmetric advantage `[runner.py:418-422]`) so the default session tz is Pacific for *both* arms. Imperative (A) owns its `SparkSession` and sets `spark.conf.set("spark.sql.session.timeZone","UTC")` in `main()`, then buckets with `to_date(to_timestamp(col))`, the **same construction the oracle uses to define truth** `[A/*/pipeline.py:e.g. seed42:21; output_oracles.py:101,195-199]`, so A's day-set equals the truth day-set and D7 never fires (0/12 seeds). SDP (B) authors inside `@dp.materialized_view`, where `spark.conf.set(...)` is **the D5 immutable-config gate** (`CANNOT_MODIFY_CONFIG` / SQLSTATE 46110) `[oracles.py:47-49]`; B's own transcript shows the agent writing the `session.timeZone=UTC` fix and then abandoning it ("UTC calendar day *without mutating* spark.sql.session.timeZone") `[B/seed1337 transcript]`. With no session-tz lever, B hand-rolls tz-*dependent*, payment/rate-**asymmetric** day math (`to_utc_timestamp(ts, current_timezone())`, `epoch//86400`, `date_from_unix_date`) that shifts naive-UTC instants by +7h and buckets the payment and rate sides under different assumptions → invents calendar days → D7 ships `[B/seed{1337,8675,11235}/…/pipeline.py:65/71/47]`.
-
-**D8 (row-drop, `p1_medallion`): the same wall, plus a code-completeness gap.** Both arms end the validated layer with the *same* silent-drop filter (`.where(amount.isNotNull() & ts.isNotNull())`) and neither writes a quarantine table, so the drop is a shared control, not the discriminator. B loses two ways: (i) **4/8 cells omit the epoch-millis parse branch** A carries, so 13-digit epoch strings → NULL → dropped (offline replay: 201–267 rows / $41k–$55k per run) `[A/seed11235:71-89 vs B/seed11235:28-44]`; (ii) the other 4 cells hit the same session-tz wall (can't pin UTC → `to_date` mis-buckets epoch rows) `[B/seed{9001,31415,16180,14142}]`.
-
-**The finding, mechanistically.** SDP's immutable-config property (D5) removes the one-line `session.timeZone=UTC` fix that imperative *and the oracle's own truth* rely on, so the SDP agent must instead get a careful column idiom exactly right. The base `pyspark-sdp/SKILL.md` is **silent on timezone** (0 references) and arm B loads no safety skill `[skills/pyspark-sdp/SKILL.md]`, so the agent, denied the lever and untaught the replacement, hand-rolled the broken math above. **This raises the *difficulty* of correct timezone handling; it does not make it impossible**, the distinction the A/B skill test below resolves.
-
-**The attribution: it was the skill.** A controlled skill-swap A/B test re-ran arm B on the three D7-shipping tasks (`p8_currency_normalize`, `p14_fx_settlement`, `new_stream_stream_join` × 12 seeds = 36 cells) with the `pyspark-sdp` skill *augmented by the UTC column idiom*; the frozen skill restored immediately after, so the instrument stays clean. **D7 ships went 7 → 0**, every timezone defect eliminated, cells still completing (D7 resolves to `n/a`, not a failure) `[src: results.tzfix.jsonl · per_defect_detection['D7']=='never' · arm B · 2026-07-02]`. So the immutable-config constraint is real but does **not** force the defect: it raises the difficulty, and a paradigm-appropriate skill closes the gap to parity. The raw §1.4.1 B-worse residue is therefore **skill-induced, not paradigm-inherent** (D8, the other driver, is a paradigm-neutral wash). This is the validated form of remediation #2 below.
-
-**Engineering remediation (for framework / skill owners).**
-1. **Framework (highest leverage):** OSS SDP / `pyspark.pipelines` offers no *symmetric, declarative* way to pin `session.timeZone`. Add a `spark-pipeline.yml` `configuration: {spark.sql.session.timeZone: UTC}` block (or `@dp.materialized_view(session_time_zone=…)`) applied before any view evaluates. Imperative gets this for free; SDP has no equivalent, forcing fragile hand-rolled epoch math.
-2. **Skill / idiom:** teach `pyspark-sdp` the column-level UTC idiom (config is immutable): `to_date(to_utc_timestamp(ts, src_tz))` applied *identically* on every joined side, always with an epoch-millis parse branch; never mix tz-shifted math on one side with a bare `to_date` on the other.
-3. **Contract:** change the validated-layer contract from *drop* to *quarantine + reconcile* (`raw_count == validated_count + rejected_count`), turns D8 from a silent completion into a loud, gate-catchable failure for both arms.
-
-> **Framing, resolved by the data.** The raw B-worse residue is **not** a paradigm effect. Its main driver (D7) is a *skill* gap that closes entirely with a UTC column idiom (§SM1 · `results.tzfix.jsonl` · **7→0**); D8 is a paradigm-neutral wash. F1's residue clause is re-locked to: **with a paradigm-appropriate skill the silent residue is comparable across paradigms; the base `pyspark-sdp` skill's silence on UTC handling, not the declarative paradigm, drove the raw gap.** The correct headline: *"structure alone isn't enough: it needs a skill that teaches the paradigm-matched idiom; once it has one, parity."* Structural-catch (§1.4.2) and conciseness (§1.4.3) are unaffected.
-
-## SM2. Gate-design history & retired arms (full detail)
-
-*Why the clean two-arm design carries no gate-rigor confound, and what the retired A2 arm showed. The powered run uses bare arm A (no gate) and arm B (SDP framework dry-run); the material below is the history behind that choice, kept for reviewers.*
-
-**Gate-validity verdict (cited).** The imperative gate is NOT a harness no-op (the prior sham-gate concern does not describe the current instrument). It runs the agent own `pipeline.py --analyze-only` `[live.py:735-738, 814-823; local.py:433-486]` and caught 2 genuine structural errors in the A2 rerun: `UNRESOLVED_COLUMN` (p10_scd2/seed1337), `ATTRIBUTE_NOT_SUPPORTED` (new_udf_classifier/seed2718). Provenance clean: 66/66 A2 rows stamped `git_sha 1d28563a` (instrument-v3.1).
-
-**BUT the gates are asymmetric; this is NOT "gate held constant, only paradigm varied":**
-- SDP gate = framework-owned real dry-run (`create_dataflow_graph` / `register_definitions` / `start_run(dry=True)`) `[sdp_dryrun.py:462-484]`, guaranteed structural analysis.
-- Imperative gate = agent-owned `--analyze-only`; the harness does NOT enforce real analysis. A harness-enforced imperative gate (`_df.schema`) existed at commit `ae56e82` but was deliberately removed at `a64d830` (agent owns the program); PR #43 (`1d28563a`) fixed A2 output-path validity but did not restore it.
-- Therefore the *pilot's* 74-vs-2 (A2-gate) difference **conflated paradigm with gate-rigor**, which is precisely why the locked design drops A2 for a **bare A (no gate)**: the clean powered contrast is **79-vs-0** (§1.4.2), where A has no gate *by construction*, so there is no gate-rigor confound left to conflate.
-
-> **Re-checked against the data.** Structural-catch (first two sentences) is **confirmed** (§1.4.2: B=79 gate intercepts vs A=0). The residue clause is **revised**: the raw powered run showed B's silent-defect rate higher (§1.4.1: OR 1.97, p=0.0033), but a controlled skill-swap test attributes that to a **skill gap, not the paradigm**: D7, the main driver, closes **7→0** once B is taught the UTC column idiom (§SM1 · `results.tzfix.jsonl`), and D8 is a paradigm-neutral wash. Re-locked residue claim: **with a paradigm-appropriate skill the silent residue is comparable across paradigms; the base API skill's silence on UTC handling, not the declarative paradigm, drove the raw gap.**
-
-## Citation convention (reference for the supplemental)
-Every empirical number in this paper is immediately followed by a source tag so it can be independently re-derived from raw data:
-
-> `[src: <file> · <field> · <row-filter> · recompute: <command>]`
-
-- **Primary raw data:** `study/results/h3_a2_rerun_20260628/results.h3_combined.jsonl` (198 rows; 66 each for arms A2, B, B1; committed on `origin/dev`, instrument SHA `1d28563a`).
-- **Code definitions** are cited as `file:line` against `origin/dev`.
-- Any number not yet carrying a source tag is a **placeholder** and is marked `[PENDING]`. No hand-typed numbers.
-
----
-
-## SM3. Methods: operational definitions (cited)
-Before any result, we fix what the words mean. Each construct below (what counts as a silent defect, how defects are classified, at what stage a defect is caught, and how we separate the two kinds of cost) is defined against the instrument code and cited to `file:line`, so the endpoints are set before the data is seen and cannot be reshaped afterward.
-
-
-### SM3.1 Silent defect
-A run has `silent_defect = True` iff it reached COMPLETED/materialized output AND >=1 in-scope **semantic** defect class still shows residual output corruption (`rows > 0`). Trigger: `silent_defect = outcome.completed and len(silent_classes) > 0`. `[def: harness/oracles.py:222-235 · schema: harness/schema.py:96-99]`
-Per-arm rate aggregation: `[analysis/analyze.py:274-278]`; paired (task,seed) contrasts: `[analyze.py:297-304]`.
-
-### SM3.2 Defect taxonomy: the structural / semantic / state split (load-bearing)
-`[def: harness/oracles.py:36-62]`
-
-| Class | Defects | Gate-detectable? | Consequence |
-|---|---|---|---|
-| **Structural** | D1 missing/unresolved column; D4 broken DAG / missing upstream; D5 immutable-config mutation | **Yes** (`dry_run_detectable: True`) | Catchable at the dry-run gate, before execution. |
-| **Semantic** | D2 timestamp misparse; D6 nondeterministic dedup; D7 timezone/day-bucket; D8 silent row-drop / absent quarantine | **No** (`dry_run_detectable: False`) | Only detectable in completed output → these ARE the silent-defect classes. |
-| **State** | D3 unwatermarked dedup; D9 unbounded state | n/a | Not scored offline (`oracles.py:217-220`). |
-
-**Key consequence for interpretation:** silent defects are *semantic by construction*, and semantic defects are *un-gateable by construction*. Any paradigm effect can therefore appear only in the **structural** defects (where the gate acts), never in the silent/semantic residue. `[PAPER scope note: offline-scored classes are D1, D2, D4–D8; D3/D9 excluded, paper/PAPER.md:177-191]`
-
-### SM3.3 Detection stage
-`detection_stage in {dry_run, runtime, never, n/a}`. Meaning: `dry_run` = caught by the structural gate before any executor ran; `runtime` = caught during execution; `never` = shipped corrupt in completed output (⇒ silent_defect); `n/a` = did not manifest. `[def: harness/oracles.py:19-23, 208-245 · enum: harness/schema.py:26-28]`
-Note: run-level priority is `never` > `dry_run` > `runtime` > `n/a` (NOT "earliest stage caught" as the schema comment says); Methods describes the implemented priority. `[oracles.py:237-245]`
-
-### SM3.4 Exit classes
-`completed` (materialized output); `analysis_error` (failed structural/dry-run analysis); `runtime_error` (failed during execution); `max_iterations` (hit cap without green); `harness_error` + `PROPOSE_*` / `HARNESS_*` (instrument faults). `[def: harness/schema.py:30-69]`
-Instrument-fault rows (`HARNESS_FAULT_EXIT_CLASSES`) are **excluded from all H1–H4 statistics** before aggregation. `[harness/schema.py:56-69 · analyze.py:118-121, 190-197]`
-
-### SM3.5 Cost: two distinct notions (kept separate on purpose)
-**(N1) Token spend**: LLM tokens the agent burns to reach a correct pipeline. Fields: `input_tokens`, `output_tokens`, per-iteration `per_iteration[].tokens.*`. `[schema: harness/schema.py:142-149]`
-**(N2) Data-processing compute**: actual Spark execution over data (the cluster/EKS cost). A *correctly* gate-rejected attempt processes **zero data** (caught at analysis time, before execution); an imperative attempt that fails at runtime has already executed and burned data-processing compute. Fields: `executor_seconds`, `cpu_seconds` (measured); `executor_seconds_wallclock` (a wall-clock proxy, NOT data compute). `[schema: harness/schema.py:101-126 · analyze.py local-vs-cluster selection 553-576]`
-
----
-
-## SM6. Experimental Design & Run Protocol
-This section is the study's pre-registration and reproducibility apparatus: the locked design, the full hypothesis tree, the corpus and seeds, the phased run with explicit human approval gates, and the exact commands, recorded so results cannot be retrofitted and any collaborator can re-run the study and recover the numbers in §1.4.
-
-*Every "run" executes THIS written protocol. A collaborator can read this and know exactly what runs, what is measured, and where a human approves. Nothing runs that is not described here.*
-
-### SM6.1 Design (LOCKED 2026-06-29): TWO arms
-- **A** = bare imperative PySpark: no gate, no skills. (Imperative as it natively is.)
-- **B** = SDP: framework dry-run gate + `pyspark-sdp` API skill. **NO safety skill.**
-- **`spark-safety` SCRAPPED everywhere.** It changed silent-defect rate by 0.000 (B=23/66 vs B1=23/66) and was the most confusing knob in the design. Removing it kills the biggest reviewer confound ("did SDP win, or did you just give it safety advice?").
-- **`pyspark-sdp` stays on B**: it is load-bearing SDP *API knowledge* (not safety), the fair analog of imperative being native to the base model. The residual asymmetry (B gets an API doc, A gets none) is addressed in §5.
-- **A2, B1, B2 retired from the headline.** They were built for the pre-registered framing where the gate was a separable knob (clean test = B-vs-A2). Under F1 the gate is intrinsic to the paradigm, which orphaned A2 (gives imperative a gate) and made B1 a "gate-off + safety-off" arm. B2 is a separate compute-only question if ever revisited.
-
-### SM6.2 Hypotheses (full tree)
-*New 2-arm framing (A vs B). Supersedes the old prereg H1–H5; not a 1:1 remap. Pilot numbers are N=3, instrument-mixed (§SM6.4); the clean A-vs-B values are the powered run (§1.4, 528 cells, complete 2026-07-02).*
-
-**H1, SAFETY (headline thesis):** forcing SDP collapses the user's catch-burden to the irreducible silent residue: SDP catches structural failures early at the gate; imperative surfaces them late or ships them.
-- **H1.1 Structural-catch:** SDP catches structural defects (D1 unresolved column, D4 broken DAG, D5 immutable-config mutation) at the dry-run gate, pre-execution; bare imperative has no gate, so they surface at runtime or ship. *Clean powered run (§1.4.2): B=79 gate intercepts (353 iteration-level error events) vs A=0. CONFIRMED.*
-- **H1.2 Failure-mode shift:** SDP's failures concentrate at gate-time (before data is touched); imperative's at runtime or as silent ships. *Measured via exit_class + detection_stage distribution. Pending.*
-- **H1.3 Silent-residue invariance (predicted NULL / control):** semantic defects (D2/D6/D7/D8) are un-gateable in any paradigm, so silent-defect rate is ~equal A vs B. *Pilot: A=18/66, B=23/66, comparable.*
-
-**H2, TOKEN COST (LLM effort to reach correct):**
-- **H2.1 Tokens-to-correct:** total input+output tokens to a correct pipeline. *Direction OPEN. Not computable yet (B/B1 token fields null); needs run.*
-- **H2.2 Iterations-to-correct (honest counter-signal):** pilot shows SDP uses MORE agent loops (median 3 vs 1), which may push tokens up, measured, not assumed in SDP's favor. *Interpret jointly with H5: extra iterations are justified if they convert into higher completion (see H5.3, cost-per-correct-completion); a raw iteration count is not, by itself, a verdict against SDP.*
-
-**H3, COMPUTE COST (data processing; the cluster/EKS-relevant cost):**
-- **H3.1 Wasted-compute-on-failed-attempts:** SDP's gate rejects failed attempts before execution (~0 data processed); imperative failures execute and burn compute. *Direction: SDP lower. **Per-attempt compute serialization (§SM6.6(3)) is now implemented** (branch `h3-per-attempt-compute`, offline tests green; it stamps per-attempt `executor_seconds`/`cpu_seconds`/`intercepted_at_dry_run` into `per_iteration`, and adds an analyze.py H3 reader). **Confirmed on EKS** by a 48-cell sweep (§1.4.3): imperative wastes ~1000× the compute SDP does on failed attempts (A `$0.028` vs B `≈$0`), because the dry-run rejects them before execution. Methodology + raw-data spec + runbook: `repro/H3_PLAN.md`, `repro/h3_eks/`.*
-- **H3.2 Total-compute-to-correct:** *Confirmed on EKS (§1.4.3): imperative spends ~34× the total cluster compute of SDP (A `$0.032` vs B `$0.0009`). The earlier local wall-clock proxy (SDP higher) was substrate-confounded and is superseded.*
-
-**H4, CONCISENESS:**
-- **H4.1 LOC:** SDP fewer lines. *Pilot: ~42% fewer (68 vs 117). SUPPORTED.*
-- **H4.2 AST nodes:** SDP smaller AST. *Pilot: ~38% fewer. SUPPORTED.*
-- *Defensible half of the "less surface area" instinct: smaller code surface.*
-
-**H5, EFFICACY ("does the agent get the job done?"):** head-to-head completion rate, A vs B. Direction-neutral: we report both arms' rates and let the data say which paradigm produces a working pipeline more often; no parity is assumed.
-- **H5.1 Completion rate:** fraction of cells reaching a materialized/completed output (`exit_class == completed`), A vs B. *(Captures "did it produce anything runnable.")*
-- **H5.2 Correct-completion rate (the real "job done"):** fraction reaching a CORRECT completed output (`success` = `exit_class == completed` AND `silent_defect == false`; cross-check `reached_correct`), A vs B. *(Captures "did it produce something actually right.")*
-- *Clean powered run (§1.4): correct-completion (`completed` AND not silent) A=182/264 (68.9%), B=172/264 (65.2%); completion alone A=96.6%, B=97.7%. The small A-edge tracks the silent-defect gap (§1.4.1), which is skill-attributable: a paradigm-appropriate UTC skill resolves the driver (D7) at the defect level (7→0; the post-swap completion rate was not separately re-measured).*
-- **H5.3 Cost-adjusted efficacy (interpret H2/H3 JOINTLY with H5):** SDP's extra iterations (H2.2) and any extra compute are a true *cost* only if they do NOT buy completion. Report **cost-per-correct-completion** (tokens / iterations / compute *per successful job*), so "SDP iterates more" is weighed against "SDP finishes more." More iterations are a win if the job gets done; a penalty only if it doesn't.
-- Rationale: a paradigm that is safer and cheaper but finishes the job less often is a worse tool, not a better one, and conversely, a paradigm that costs more per attempt but completes more jobs may be the better tool. Completion is a primary outcome, measured head-to-head, and cost is scored relative to it.
-
-### SM6.2.1 Control & rejected hypotheses
-- **CONTROL, silent-defect residue (= H1.3):** reported, predicted equal across arms; the irreducible semantic residue.
-- **REJECTED, "less surface => fewer TOTAL defects":** CONTRADICTED. SDP surfaced MORE total detected defects (A2=27, B=48, B1=46) and far more loop error-events, because the gate exposes errors rather than hiding them. The "less surface" instinct holds only as code economy (H4), not as defect count. Reported as a negative result, not omitted.
-
-### SM6.3 Corpus, seeds, power, model
-22 frozen tasks (`TASKS.lock.json` v3.0.0-corpus22); `SEEDS.lock.json` (v1.1.0-power) locks **12** seeds: the N=3 pilot used the first three (42/1337/2718), leaving headroom for N* up to 12. N* from calibration (§SM6.7): the Phase-1 calibration targets **80% power at α = 0.05** against the pilot-observed silent-defect effect (OR ≈ 2), which yields **N\* ≈ 260**; the powered run's N = 264 clears it. Model `claude-opus-4-8` (`study.config.json:4`). Full Materials & System detail in §SM7.
-
-### SM6.4 What we already have (retrofit) vs what must run
-- **Already CLEAN at instrument-v3.1 (`1d28563a`):** A (66 rows), A2 (66), B2 (66), on `origin/data/raw-export`.
-- **OLD instrument, must re-run for clean claims:** B, B1.
-- **=> the headline SAFETY run is essentially RE-RUN B (no-safety variant) on the current instrument, paired with existing clean A.** A does not need regenerating.
-- **The COST/compute claim** additionally needs A AND B on ONE uniform substrate (§SM6.5), a fresh A+B run on Connect.
-
-### SM6.5 Substrate (the real feasibility constraint)
-- The validated `local` backend SPLITS by paradigm: imperative -> classic local Spark, SDP -> local Spark Connect (`runner.py:1204-1239`; `local_connect.py:1-15`). So local A-vs-B compute is NOT apples-to-apples.
-- **Safety/structural claim:** substrate split is tolerable (defect detection is substrate-independent), noted as a minor threat.
-- **Cost/data-compute claim:** MUST run both arms on ONE substrate = the `live` Connect backend, whose ConnectExecutor handles both paradigms (`live.py:569-581, 835-849`). This is precisely the cluster/EKS motivation, now confirmed as necessary, not scope creep.
-- **Update (EKS run history, 2026-06-24):** the `live`/Connect substrate is **no longer hypothetical**: it was stood up and partially exercised on a real EKS cluster (`ssa-spark-eks`): driver + executors ran in k8s pods, **Arm A materialized tables remotely**, and the **in-cluster compute-measurement path was demonstrated** (Spark-UI stage-diff; a `spark.range(80M)` probe returned stage/executor-second readings) `[DEVIATIONS.md:184-227, 345-368]`. The uniform-substrate compute run is therefore a matter of **completing the live run with per-attempt compute serialized** (§SM6.6(3), **now implemented**: branch `h3-per-attempt-compute`, offline tests green; see `repro/H3_PLAN.md`), not building the capability. **Resolved 2026-07-06:** remote **Arm B SDP** completes + grades green on EKS (ref-arch **L3 closed**, §SM7, Appendix S2-A); it took harness data-path + catalog-resolution fixes (`repro/h3_eks/`), not architecture. **H3 compute was measured on EKS** (both arms, stage-diff executor-seconds) and **confirmed by a 48-cell sweep** (§1.4.3): imperative spends ~34× the total and ~1000× the wasted compute of SDP.
-
-### SM6.6 Instrument changes before the powered runs (each a reviewed PR you see the diff of)
-1. **Redefine B**: SDP + gate + `pyspark-sdp`, drop `spark-safety` (arm-manifest change). [trivial]
-2. **Token logging**: ALREADY works on current instrument; old B/B1 nulls were pre-token sweeps. Re-running B fixes it. [no code change]
-3. **Per-attempt compute**: serialize per-iteration `IterationCost` (`executor_seconds`/`cpu_seconds`/`usd`/`intercepted_at_dry_run`) into `per_iteration`, needed only for the compute claim. Location `runner.py::run_episode` ~228-260. [moderate]
-
-### SM6.7 Phased run with human gates
-- **Phase 0**, instrument changes as reviewed PRs (§SM6.6).
-- **Phase 1**, calibration: few tasks, N=3, on the fixed instrument. Output: per-cell token + compute cost, pilot effect sizes, projected **N\*** and **dollar figure**.
-- **Approval gate**, a human approves N\* and projected cost before any powered/spending run.
-- **Phase 2a (SAFETY paper):** re-run B (no-safety) at N\* on the current instrument; pair with existing clean A -> the A-vs-B structural-catch headline.
-- **Phase 2b (COST addendum):** A + B on the uniform `live`/Connect substrate with per-attempt compute logging.
-- **Phase 3**, analysis: `report.json` -> the §1.4 cited cells (no hand-typed numbers).
-- **Phase 4**, bind the analysis into the paper, with independent cross-review.
-
-### SM6.8 Literal commands (verified against runner.py argparse, `runner.py:1321-1344`)
-Calibration (local backend, few tasks, N=3):
-```bash
-cd study
-ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" python3 harness/runner.py \
-  --backend local --config study.config.json --arms-dir arms \
-  --tasks TASKS.lock.json --seeds SEEDS.lock.json \
-  --only-tasks orders_silver_gold,p1_medallion,p2_cdc \
-  --only-arms A,B --max-seeds 3 \
-  --out results.calibration.local.n3.jsonl \
-  --work-dir .work.calibration.local.n3 --per-cell-timeout 1800
-```
-Uniform-substrate run for the COST claim: identical but `--backend live` (requires a reachable Spark Connect endpoint + `ANTHROPIC_API_KEY`).
-Analysis: `python3 analysis/analyze.py <out.jsonl> --tasks TASKS.lock.json`.
-
-### SM6.9 Cost accounting (how each number is computed)
-- **Token:** tokens-to-correct(arm) = sum of `per_iteration[:iterations_to_green].tokens.{input,output}` over `reached_correct` rows; paired A-vs-B, bootstrap CI.
-- **Data compute:** per-arm total and *wasted* (failed-attempt) `executor_seconds`/`cpu_seconds`; gate-caught attempts contribute ~0; dollars via the substrate's metered rate. Requires §SM6.6(3) and the uniform Connect substrate.
-
----
-
-## SM7. Methods: Materials & System
-*(Data · Tasks · Agents/Models · Architecture · Execution. Placed here in the working draft; moves ahead of §1.4 Results in final layout. Every claim cited to a file:line on `origin/dev`.)*
-
-### SM7.1 Data
-Inputs are **deterministic NDJSON event streams** produced per `(task, seed)` by task-specific generators under `infra/`. The runner resolves each task's `input`, applies any `input_args` (e.g. `--v3`), and invokes `python <gen> --seed <seed>`, writing to `<work_dir>/_data/<gen>_seed<seed>.ndjson` (`runner.py:625-651`); multi-input tasks generate each `aux_inputs` the same way (`runner.py:654-672`). The agent receives only **location** env vars: `AGENT_INPUT_PATH` (+ `AGENT_OUTPUT_PATH`/`AGENT_DEDUP_PATH` for local imperative; `AGENT_OUTPUT_TABLE` + `AGENT_AUX_INPUT_*` for live), a paradigm-symmetric, location-only contract (`local.py:433-443`; `live.py:713-718`; `base.py:229-259`). Each generator seeds its RNG from `--seed`, so data is a pure function of (generator, args, seed); seed 42 reproduces the registered oracle stream as a regression check.
-
-Six substrates + an FX feed, each with **deliberately injected defect traps**:
-
-| Generator / substrate | Entity | Injected messiness → defect classes |
-|---|---|---|
-| `gen_messy_orders.py` / orders (`--N 5000`, `--v3` adds rows) | order events (`order_id, merchant_id, event_time, amount, category`) | dup `order_id`, late/out-of-order, null/missing merchant, amount-as-string, mixed timestamps, malformed JSON, unknown merchants; v3 adds nested arrays/structs + HTML junk → D1/D2/D6/D7/D8 (`gen_messy_orders.py:7-17,67-136`) |
-| `gen_customers_cdc.py` / cdc | customer CDC (`customer_id,…,op,seq,event_time`) | shuffled arrival (must order by `seq`), tombstone deletes with null payloads → D5/D6 (`gen_customers_cdc.py:43-53`) |
-| `gen_payments.py` / payments (`--N 4000`) | payments (`…currency, amount_minor, amount, settled`) | foreign-currency silent-drop/mis-total (D8), TZ-offset near day boundary → wrong UTC-date FX (D7), bad currency codes need quarantine (`gen_payments.py:15-25,79-99`) |
-| `fx.py` + `gen_fx_rates_cdc.py` / FX | daily USD rates (deterministic table) | ~12% wrong-rate-then-corrected revisions at higher `seq`; shuffled → must order by `seq` (`gen_fx_rates_cdc.py:44-57`) |
-| `gen_emails.py` / emails (`--N 900`) | `{email_id, subject}` | null/empty → routing; non-ASCII urgency markers → urgent; naive classifiers misclassify (`gen_emails.py:4-18`) |
-| `gen_trades.py` / trades (`--N 1200`) | trades (`…notional, event_time, side`) | string notionals, `-08:00` near day boundary, bad currencies → quarantine (`gen_trades.py:8-17`) |
-| `gen_clickstream.py` / clickstream | clicks over `view<cart<checkout<purchase` | late/out-of-order (sessionize by event time), truncated JSON → DLQ, 30-min inactivity sessions (`gen_clickstream.py:8-17`) |
-
-The shared ticket tells the agent the feeds are "genuinely messy" but describes *symptoms, not causes*, and forbids changing the output contract, mutating immutable config, or non-idempotent output (`prompts/task_prompt.md:1-28`).
-
-### SM7.2 Task corpus (22 tasks, `TASKS.lock.json` v3.0.0-corpus22, frozen 2026-06-24; complexity 7 Low / 8 Med / 7 High)
-Each task carries a ticket-style `prompt`, `complexity_bin`, `defects_in_scope`, `oracles`, and optional `invariants`/`aux_inputs`. D1,D2,D4–D8 are gradable; D3/D9 narrated as future work.
-
-| # | id | bin | substrate | defects | task |
-|--:|---|---|---|---|---|
-| 1 | orders_silver_gold | Med | orders | D1,D2,D3,D6,D7,D8 | orders → silver (clean/dedup/enrich) → gold daily revenue |
-| 2 | p1_medallion | Med | orders | D1,D2,D4,D8 | bronze→silver→gold medallion ETL over messy orders |
-| 3 | p2_cdc | High | cdc | D1,D4,D5,D6 | hand-rolled SCD-1 + SCD-2 over CDC (window functions) |
-| 4 | p3_windows | Low | orders | D2,D3,D7,D9 | event-time windowed revenue (1h × category) |
-| 5 | p4_fanout | Low | orders | D1,D3,D4,D8,D9 | one stream fans out to two streaming tables |
-| 6 | p5_mart | Low | cdc | D1,D4 | customer-segment mart from CDC |
-| 7 | p6_dedup_watermark | Low | orders | D1,D3,D6,D9 | streaming dedup WITH watermark (bounded state) |
-| 8 | p7_late_data | Low | orders | D2,D3,D7,D9 | late/out-of-order with allowed-lateness windows |
-| 9 | p8_currency_normalize | Med | payments | D1,D4,D7,D8 | multi-currency → USD (FX as-of UTC date) |
-| 10 | p9_enrich_join | Low | orders | D1,D3,D4,D8 | stream-static enrich join (orders × merchants) |
-| 11 | p10_scd2 | High | cdc | D1,D4,D5,D6 | full SCD-2 with effective_from/to + no-overlap invariant |
-| 12 | p11_schema_evolution | Med | orders | D1,D2,D5,D8 | schema-evolution-tolerant ingest, backfilled defaults |
-| 13 | p12_quarantine_dlq | Med | orders | D1,D2,D6,D8 | explicit dead-letter quarantine of malformed orders |
-| 14 | p13_cdc_windowed | High | cdc | D1,D3,D6,D9 | windowed change-rate aggregation over CDC |
-| 15 | p14_fx_settlement | High | payments | D5,D7,D8,D9 | daily FX settlement totals per currency, UTC day-close |
-| 16 | new_merge_upsert | Med | orders | D1,D5,D6 | idempotent MERGE/upsert into keyed silver |
-| 17 | new_stream_stream_join | Med | payments | D1,D3,D7,D8,D9 | stream-stream temporal join payments × live FX feed |
-| 18 | new_scd2_as_of_join | High | payments | D1,D4,D7 | point-in-time as-of join to SCD-2 FX dimension |
-| 19 | new_cdc_tombstone | Med | cdc | D1,D6 | CDC tombstones remove customers from current state |
-| 20 | new_udf_classifier | Low | emails | D1 | email-subject classifier UDF (imperative + SDP) |
-| 21 | HC1_fx_trade_ledger | High | trades | D1,D2,D4,D5,D7 | HC-1: multi-stage FX trade ledger (SCD2 → as-of USD → MERGE) |
-| 22 | HC2_session_funnel | High | clickstream | D1,D2,D6,D8 | HC-2: streaming session funnel (sessionize → funnel + DLQ) |
-
-### SM7.3 Seeds
-`SEEDS.lock.json` (v1.1.0-power, frozen 2026-06-23) locks 12 integer seeds: `[42,1337,2718,3141,5772,8675,9001,11235,27182,31415,16180,14142]`, selecting per-run input so **every arm sees byte-identical data for a given seed**. Seed 42 is first as the oracle-regression seed; `16180`/`14142` were appended to tighten the A–B CI (`SEEDS.lock.json:1-14`). The N=3 pilot used the first three.
-
-### SM7.4 Agent & model
-Base model `claude-opus-4-8`, shared across arms (`study.config.json:4`). Controlled sampling in the manifests is `temperature 0.0`, `top_p 1.0` (`arms/A.json:5-15`, `arms/B.json:5-15`); the manifest loader forces model/prompt/max-iterations/temperature/top_p to be **identical** across arms; only paradigm, gate, skills, allowed-commands vary (`arm_manifest.py:33-58`). `AnthropicBrain` defaults `temperature=0.0`, `top_p=1.0`, `max_tokens=16000` (the high cap leaves room for Opus adaptive thinking before the fenced code block) (`live.py:229-270`). **Decoding caveat:** for `claude-opus-4-*`, `build_request()` sends `thinking={"type":"adaptive"}` + `output_config={"effort":"high"}` and deliberately omits `temperature`/`top_p`/`top_k` (the Opus family rejects explicit sampling knobs), so temperature 0.0 is controlled *provenance* but is not transmitted for this model (`live.py:279-306`). Live calls run in a killable subprocess, 300 s request timeout, 2 retries; per-turn `input_tokens`/`output_tokens` are projected from usage onto each `Proposal` (`live.py:59-70,420-499`).
-
-### SM7.5 Prompting
-Per cell: `compose_task_prompt()` joins the shared preamble + the task's ticket `prompt`, **omitting the engineering `title`** so the prompt never leaks the fix; this is the "blind" framing (`runner.py:1146-1155`). `AnthropicBrain._system_prompt()` then appends paradigm framing (SDP: `from pyspark import pipelines as dp`, `@dp.table`/`@dp.materialized_view`, no `.start()`; imperative: own the SparkSession), each linked skill verbatim as `=== LINKED SKILL: <name> ===`, a gate instruction **only if the arm carries a gate**, and the output contract (a fenced Python block + a `COMMAND:` from allowed commands) (`live.py:319-373`). Bare arm A carries no gate, so no gate instruction is appended. A = no skills; B = `pyspark-sdp` only (safety skill scrapped per §SM6.1). The user message carries task id, dataset paths, and prior-iteration failure feedback (`live.py:375-413`).
-
-### SM7.6 System architecture
-`run_cell()` = one `(task, arm, seed)` → one `ResultRow`: makes a `<task>__<arm>__seed<seed>` workspace, generates data, instantiates brain + executor, stages input, runs the episode, blind-grades the output, aggregates cost, builds the row (`runner.py:744-828`). `run_episode()` loops to `max_iterations`: `propose → materialize → [gate] → execute → record → feedback-or-stop` (`runner.py:147-277`). Materialization is paradigm-specific: SDP → `transformations/pipeline.py` + harness `spark-pipeline.yml`; imperative → agent code verbatim to `pipeline.py`, no injected SparkSession/main/gate (`runner.py:305-405`).
-- **Live executor `ConnectExecutor`** (Spark Connect for both paradigms): SDP gate = `harness/sdp_dryrun.py` (graph-aware framework dry-run); SDP execute = `pipelines/cli.py run --spec`; imperative execute = agent's `python3/spark-submit pipeline.py` with neutral env (`live.py:569-583,724-845`). (The executor also supports a gated-imperative path, the agent's `pipeline.py --analyze-only`, but it is exercised only by the retired gated arms; bare arm A runs no gate. See §SM2.) Compute is measured by a **Spark-UI stage-diff** before/after each run (`live.py:585-600,852-860`).
-- **Local backend** splits by paradigm: SDP → `LocalConnectExecutor` (local single-node Connect), imperative → `LocalSparkExecutor` (classic in-process `local[*]`) (`runner.py:1204-1246`). This split is the §SM6.5 cross-paradigm compute constraint.
-- **Blind grading**: the oracle (`oracles.py`) scores the materialized output against ground truth without access to the agent's reasoning; "blind" = the grader sees only output, and the prompt never saw the fix's title.
-
-### SM7.7 Execution / run-triggering
-Launched via `python3 harness/runner.py` with `--backend {replay,live,local}`, `--config study.config.json`, `--arms-dir`, `--tasks`, `--seeds`, `--only-arms`, `--only-tasks`, `--max-seeds`, `--out <jsonl>`, `--work-dir`, `--per-cell-timeout` (`runner.py:1321-1344`). Backends: **replay** (offline deterministic, no LLM/Spark, needs a recorded trace), **live** (Anthropic + Spark Connect, needs a reachable endpoint + `ANTHROPIC_API_KEY`), **local** (real local Spark, paradigm-split). Outputs: one JSONL row per cell to `--out`, transcripts to `--work-dir`; `analysis/analyze.py <out> --tasks TASKS.lock.json` aggregates to `report.json`. Each row is stamped with provenance: `git_sha`, `image_digest`, `spark_version`, `base_model_id`, which is how instrument-version contamination (§SM6.4) is detectable. Literal commands in §SM6.8.
-
+To keep the paper readable, Section 1's methods appendix lives in a separate companion file: **[Section 1 Supplemental Materials](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/paper/SUPPLEMENT-Section1.md)**. It collects the root-cause forensics (§SM1), gate-design history and retired arms (§SM2), operational definitions (§SM3), the pre-registered run protocol (§SM6), and full materials and system (§SM7), everything the main text cites inline as §SM1–§SM7, retained for reproduction and deep review.
 ---
 
 # SECTION 2: The Agent-Native Development Loop
@@ -542,7 +305,7 @@ def gold():                                          # no builder, no .write, no
     return SparkSession.active().read.table("silver").groupBy(...).agg(...)
 ```
 
-The imperative program owns the session, the reads and writes, and the lifecycle: to *apply* it you must *run* it, so there is nothing to hand a governed platform but "run this program." The SDP version is just decorated transforms; the framework owns the graph, the session, and materialization `[runner.py:305-405]`. The `SparkSession.active()` inside a transform is not the agent holding an engine: it is a read-only handle to the session the *framework* has already built and owns, with no way to create one, configure it, point it at a cluster, or call `.write` / `.start()`. So an agent writing SDP **builds no session it owns, and holds no credentials, endpoint, or cluster config**: it declares what the tables should be, and stops. That is what makes the paradigm *agent-native*. Not that an agent can use it, but that an agent using it is structurally unable to run anything, misconfigure anything, or reach a credential. The authoring surface is deliberately small: open-source `pyspark.pipelines` (Apache Spark 4.1, not Databricks DLT), with `@dp.materialized_view` / `@dp.table` declaring datasets and `read.table` wiring upstreams, and never a session it owns; the full API is the [`pyspark-sdp` skill](../study/skills/pyspark-sdp/SKILL.md).
+The imperative program owns the session, the reads and writes, and the lifecycle: to *apply* it you must *run* it, so there is nothing to hand a governed platform but "run this program." The SDP version is just decorated transforms; the framework owns the graph, the session, and materialization [[`runner.py:305-405`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/harness/runner.py#L305-L405)]. The `SparkSession.active()` inside a transform is not the agent holding an engine: it is a read-only handle to the session the *framework* has already built and owns, with no way to create one, configure it, point it at a cluster, or call `.write` / `.start()`. So an agent writing SDP **builds no session it owns, and holds no credentials, endpoint, or cluster config**: it declares what the tables should be, and stops. That is what makes the paradigm *agent-native*. Not that an agent can use it, but that an agent using it is structurally unable to run anything, misconfigure anything, or reach a credential. The authoring surface is deliberately small: open-source `pyspark.pipelines` (Apache Spark 4.1, not Databricks DLT), with `@dp.materialized_view` / `@dp.table` declaring datasets and `read.table` wiring upstreams, and never a session it owns; the full API is the [`pyspark-sdp` skill](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/skills/pyspark-sdp/SKILL.md).
 
 [[[SVG-CONTROLBOUNDARY]]]
 
@@ -566,25 +329,46 @@ def orders_gold():
             .groupBy("day").agg(F.sum("amount").alias("revenue")))
 ```
 
-**Open a PR.** The agent's only action on the outside world is to open a pull request against a git repo, carrying just its spec (`pipeline-definitions/<name>/spark-pipeline.yml` plus the transforms) `[study/gitops_demo/agent_pr_author.py]`. It has no cluster access, no credentials, and no way to run anything; a unit test enforces exactly that on the *PR-authoring harness*, the code that generates and opens the PR, which is distinct from the `@dp` transforms it writes into the PR: the harness imports no `pyspark` and never lets `SparkSession` enter `sys.modules`, and it refuses to run when a live `SPARK_REMOTE` is set `[study/gitops_demo/tests/test_agent_pr_author_no_spark.py]`. The transforms it authors do name `SparkSession.active()`, but only the platform ever runs them (§2.2). The pull request is the entire interface between the untrusted agent and the platform.
+**Open a PR.** The agent's only action on the outside world is to open a pull request against a git repo, carrying just its spec (`pipeline-definitions/<name>/spark-pipeline.yml` plus the transforms) [[`study/gitops_demo/agent_pr_author.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/agent_pr_author.py)]. It has no cluster access, no credentials, and no way to run anything; a unit test enforces exactly that on the *PR-authoring harness*, the code that generates and opens the PR, which is distinct from the `@dp` transforms it writes into the PR: the harness imports no `pyspark` and never lets `SparkSession` enter `sys.modules`, and it refuses to run when a live `SPARK_REMOTE` is set [[`study/gitops_demo/tests/test_agent_pr_author_no_spark.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/tests/test_agent_pr_author_no_spark.py)]. The transforms it authors do name `SparkSession.active()`, but only the platform ever runs them (§2.2). The pull request is the entire interface between the untrusted agent and the platform.
 
-**Gate on CI.** CI runs the structural dry-run on every changed spec in the PR, before anything merges or runs:
+**Gate on CI.** This is not illustrative; it is the workflow in this repo [[`.github/workflows/gitops-sdp-dry-run.yml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/.github/workflows/gitops-sdp-dry-run.yml)]. Whenever a PR touches a pipeline spec, GitHub Actions runs the real structural dry-run on every changed spec, and a dry-run error fails the job so the PR cannot merge:
 
-```bash
-# in CI, on the pull request:
-spark-pipelines dry-run --spec orders/spark-pipeline.yml
+```yaml
+# .github/workflows/gitops-sdp-dry-run.yml  --  the actual PR gate
+on:
+  pull_request:
+    paths:
+      - "study/gitops_demo/pipeline-definitions/**"   # fires on the agent's spec
+      # ... (also changed_pipelines.py and this workflow file)
+# ...
+      - name: Run the dry-run gate on each changed spec
+        run: |
+          for spec in "${SPECS[@]}"; do
+            if python3 "${SPARK_HOME}/pipelines/cli.py" dry-run --spec "${spec}"; then
+              echo "GATE PASS: ${spec}"
+            else
+              echo "GATE FAIL: ${spec}"; rc=1     # a structural error fails the PR
+            fi
+          done
+          exit "${rc}"
 ```
 
-On CI this is the stock SDP CLI, `python3 $SPARK_HOME/pipelines/cli.py dry-run --spec` (which the `spark-pipelines` command wraps), run on every changed spec `[.github/workflows/gitops-sdp-dry-run.yml]`. The dry-run builds the whole dataflow graph and validates it without processing any data, via `create_dataflow_graph` then `register_definitions` then `start_run(dry=True)` (the same three calls §1's study harness makes, `[sdp_dryrun.py:513-520]`). A valid spec reports `Run is COMPLETED`; a spec that reads a table which will not exist fails right here with `[TABLE_OR_VIEW_NOT_FOUND] ... SQLSTATE 42P01`, and the PR cannot merge. In §1's study this gate caught **79 structural defects before any data was processed**, against **0** for the imperative arm, which has no such gate (§1.4.2). It checks structure, not semantics: a pipeline that is well-formed but computes the wrong result (§1's D7/D8 residue) passes here and is caught only after it runs.
+`spark-pipelines dry-run` is just the Spark bin wrapper for that `pyspark/pipelines/cli.py` call [[`pyspark/pipelines/cli.py:221-263`](https://github.com/apache/spark/blob/v4.1.2/python/pyspark/pipelines/cli.py#L221-L263)]. The dry-run builds the whole dataflow graph and validates it without processing any data, via `create_dataflow_graph` then `register_definitions` then `start_run(dry=True)` (the same three calls §1's study harness makes, [[`sdp_dryrun.py:513-520`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/harness/sdp_dryrun.py#L513-L520)]). A valid spec reports `Run is COMPLETED`; a spec that reads a table which will not exist fails right here with `[TABLE_OR_VIEW_NOT_FOUND] ... SQLSTATE 42P01`, and the PR cannot merge. In §1's study this gate caught **79 structural defects before any data was processed**, against **0** for the imperative arm, which has no such gate (§1.4.2). It checks structure, not semantics: a pipeline that is well-formed but computes the wrong result (§1's D7/D8 residue) passes here and is caught only after it runs.
 
-**Reconcile.** Only on merge does a controller, never the agent, materialize the pipeline, by running the same spec:
+**Reconcile.** Only on merge does a controller, never the agent, materialize the pipeline. The controller in this repo [[`study/gitops_demo/reconcile.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/reconcile.py)] refuses to run without a Connect endpoint and shells the same spec through the stock SDP CLI:
 
-```bash
-# on merge to main, run by the controller (never the agent):
-spark-pipelines run --spec orders/spark-pipeline.yml
+```python
+# study/gitops_demo/reconcile.py  --  the controller (never the agent)
+def reconcile_spec(spec_path, *, home=None, dry=False):
+    if not os.environ.get("SPARK_REMOTE"):
+        raise RuntimeError("SPARK_REMOTE is not set; reconcile needs a reachable "
+                           "Spark Connect endpoint (cli.py run is ONLY_SUPPORTED_WITH_SPARK_CONNECT).")
+    command = "dry-run" if dry else "run"
+    argv = ["python3", cli_path(home), command, "--spec", spec_path]
+    return subprocess.run(argv, env=dict(os.environ)).returncode
 ```
 
-The controller runs the stock SDP CLI as a Spark Connect client `[study/gitops_demo/reconcile.py]`: it builds the graph from the agent's transforms and ships plans over a Connect endpoint, never code to a live engine. This is what Spark Connect is *for* here, and why the platform isolates at this point. A Connect client submits a serialized plan, so the thing that actually runs on the cluster never held a `SparkSession`, and the credential that reads S3 belongs to the controller, never to the agent.
+It builds the graph from the agent's transforms and ships plans over a Connect endpoint, never code to a live engine. This is what Spark Connect is *for* here, and why the platform isolates at this point. A Connect client submits a serialized plan, so the thing that actually runs on the cluster never held a `SparkSession`, and the credential that reads S3 belongs to the controller, never to the agent.
 
 **Feedback.** Structural failures from the gate become the next iteration's input, and for that class of defect the loop closes at the gate, before any data is touched. (Semantic defects, right structure and wrong result, still execute and surface downstream, as in any pipeline; that is §1's residue, not something this gate claims to catch.) Imperative closes its loop only *after* execution, data read and compute spent; this one closes the structural class before.
 
@@ -637,26 +421,26 @@ tests and applies it.**
 **The mechanism (operationalizing §2's boundary as "the agent's only artifact is a PR").**
 1. **Authoring with no session.** The agent renders a declarative SDP artifact and opens a PR. The author process
    is hard-denied a runtime: it refuses to run if `SPARK_REMOTE` is set and whitelists only `git`/`gh`
-   subprocesses, re-checking the boundary immediately before writing `[gitops_demo/agent_pr_author.py]`.
+   subprocesses, re-checking the boundary immediately before writing [[`gitops_demo/agent_pr_author.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/agent_pr_author.py)].
    The emitted artifact has a fixed shape: `name`, `storage`, `catalog`, `database`, and a `libraries` glob
-   `[gitops_demo/sdp_artifact.py]`: it is inert desired-state, never code handed to a live engine (the §2 boundary, restated).
+   [[`gitops_demo/sdp_artifact.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/sdp_artifact.py)]: it is inert desired-state, never code handed to a live engine (the §2 boundary, restated).
 2. **PR-time gate = integration against the real catalog (CI).** A GitHub Actions workflow triggers on any PR
    touching `pipeline-definitions/**`, stands up a real Spark Connect server, ensures the target schema, resolves
    the changed specs, and runs the **SDP framework dry-run** on each
-   `[.github/workflows/gitops-sdp-dry-run.yml]`. This is the decisive difference
+   [[`.github/workflows/gitops-sdp-dry-run.yml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/.github/workflows/gitops-sdp-dry-run.yml)]. This is the decisive difference
    from blind submission: the desired-state is **validated against actual catalog/schema state**; broken DAGs and
    missing upstream tables are caught **before merge, before any data is processed.**
 3. **Merge-time reconcile (CI controller, not the agent).** On merge to `main`, a reconcile workflow runs
    `reconcile.py`, which requires `SPARK_REMOTE` and invokes `pipelines/cli.py run --spec`
-   `[.github/workflows/gitops-sdp-reconcile-local.yml; gitops_demo/reconcile.py]`.
+   [[`.github/workflows/gitops-sdp-reconcile-local.yml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/.github/workflows/gitops-sdp-reconcile-local.yml); [`gitops_demo/reconcile.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/reconcile.py)].
    Execution is owned by the governed CI controller; the agent that authored it holds no credentials and never ran it.
 
 **The whole loop runs locally, end to end.** A valid spec dry-runs to **`Run is COMPLETED`**, and
 a spec with a missing upstream fails at the gate with **`[TABLE_OR_VIEW_NOT_FOUND] … SQLSTATE 42P01`**
-`[gitops_demo/README.md; gitops_demo/ensure_schema.py]`, so the integration gate rejects a
+[[`gitops_demo/README.md`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/README.md); [`gitops_demo/ensure_schema.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/ensure_schema.py)], so the integration gate rejects a
 structurally-broken pipeline before it can reconcile. The session-denial boundary carries its own unit tests: the suite
 asserts no `pyspark`/`SparkSession` import and checks the `SPARK_REMOTE` refusal and the git/gh allowlist
-`[gitops_demo/tests/test_agent_pr_author_no_spark.py]`.
+[[`gitops_demo/tests/test_agent_pr_author_no_spark.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/tests/test_agent_pr_author_no_spark.py)].
 
 **Why this beats blind submission.** You get **review + a real integration gate against the real target catalog +
 controller-owned execution + a full audit trail**, with the agent strictly outside the runtime: CI/CD discipline
@@ -666,7 +450,7 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 - The full author→PR→dry-run-gate→reconcile loop runs locally, against a runner-local Spark
   Connect server, and the PR-author session-denial is unit-tested.
 - **GAP:** the gate and reconcile target **runner-local Connect, not the EKS Connect endpoint**; the production-EKS
-  GitOps path is **documentation-only / not wired** `[gitops_demo/PRODUCTION_EKS.md]`. No captured artifact of
+  GitOps path is **documentation-only / not wired** [[`gitops_demo/PRODUCTION_EKS.md`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/PRODUCTION_EKS.md)]. No captured artifact of
   a real agent-opened PR (the `gh pr create` path exists in code but no public PR run is evidenced here).
 - **GAP (the authoring→runtime bridge), design-only:** how a merged tenant-A artifact would be reconciled
   *as tenant A* against §3.3's mTLS gateway is not built. The intended path: the CI controller presents a
@@ -686,25 +470,25 @@ applied to agent-authored data pipelines, rather than an agent firing pipelines 
 ### 3.2.1 Architecture (topology)
 **Governed ingress.** Only one door into the cluster is reachable from outside, and it establishes identity by cryptography, not by trusting what the caller claims. Three facts carry the boundary:
 
-- **One external port, mutual-TLS only.** The sole externally reachable endpoint is an internal load balancer on TCP `15009`, the mutual-TLS port; the raw Spark Connect port (`15002`) is never exposed `[connect/base/service-mtls.yaml]`.
-- **Identity comes from the client's certificate, not from the client's word.** An **Envoy** proxy sidecar sits in front of Connect: it requires a valid client certificate, checks it against the cluster's certificate authority, reads the caller's identity out of that certificate, discards any identity the client tried to assert, and stamps the verified identity onto the request before passing it on `[connect/base/envoy/envoy.yaml]`.
-- **Raw Connect is unreachable except through that proxy.** The Connect server itself listens only on loopback (`127.0.0.1:15002`) `[connect/base/deployment.yaml]`, so the sidecar is the only way in.
+- **One external port, mutual-TLS only.** The sole externally reachable endpoint is an internal load balancer on TCP `15009`, the mutual-TLS port; the raw Spark Connect port (`15002`) is never exposed [[`connect/base/service-mtls.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/service-mtls.yaml)].
+- **Identity comes from the client's certificate, not from the client's word.** An **Envoy** proxy sidecar sits in front of Connect: it requires a valid client certificate, checks it against the cluster's certificate authority, reads the caller's identity out of that certificate, discards any identity the client tried to assert, and stamps the verified identity onto the request before passing it on [[`connect/base/envoy/envoy.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/envoy/envoy.yaml)].
+- **Raw Connect is unreachable except through that proxy.** The Connect server itself listens only on loopback (`127.0.0.1:15002`) [[`connect/base/deployment.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/deployment.yaml)], so the sidecar is the only way in.
 
 The §2 boundary therefore holds no matter how execution scales behind it: every session arrives with a cryptographically-pinned principal, and there is no path around the proxy.
 
-**Driver + executors.** The Connect server pod *is* the Spark **client-mode driver** (`spark.master=k8s://…`, `spark.submit.deployMode=client`); the long-lived Connect JVM talks to the in-cluster Kubernetes API to create **executor pods**, advertising its pod IP and fixed RPC/block-manager ports `[connect/base/deployment.yaml]`. Kubernetes access control (RBAC) gives the driver's service account exactly the permission it needs and no more: create, watch, and delete pods in its own namespace, so it can manage its own executors `[connect/base/rbac.yaml]`. Where those executors land is fixed by a **pod template**, they are pinned to executor-labeled nodes and spread across availability zones `[connect/base/deployment.yaml; connect/base/pod-templates/executor.yaml]`, matching the Terraform executor node group `[terraform/eks.tf]`.
+**Driver + executors.** The Connect server pod *is* the Spark **client-mode driver** (`spark.master=k8s://…`, `spark.submit.deployMode=client`); the long-lived Connect JVM talks to the in-cluster Kubernetes API to create **executor pods**, advertising its pod IP and fixed RPC/block-manager ports [[`connect/base/deployment.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/deployment.yaml)]. Kubernetes access control (RBAC) gives the driver's service account exactly the permission it needs and no more: create, watch, and delete pods in its own namespace, so it can manage its own executors [[`connect/base/rbac.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/rbac.yaml)]. Where those executors land is fixed by a **pod template**, they are pinned to executor-labeled nodes and spread across nodes (a `kubernetes.io/hostname` topology constraint, so losing one node cannot take a whole stage's tasks at once) [[`connect/base/deployment.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/deployment.yaml); [`connect/base/pod-templates/executor.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/pod-templates/executor.yaml)], matching the Terraform executor node group [[`terraform/eks.tf`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/terraform/eks.tf)].
 
-**Elasticity.** Dynamic allocation is enabled (`minExecutors=0`, `initialExecutors=0`, `maxExecutors=10`, shuffle tracking; executors `2` cores / `2g`) `[connect/base/deployment.yaml]`; the Terraform executor pool defaults `m6i.2xlarge`, min=0/max=10/desired=2 `[terraform/variables.tf]`. This is a configured elasticity *envelope*, not a reproduced 0→10→0 autoscaling cycle: Karpenter is explicitly deferred `[terraform/README.md]`.
+**Elasticity.** Dynamic allocation is enabled (`minExecutors=0`, `initialExecutors=0`, `maxExecutors=10`, shuffle tracking; executors `2` cores / `2g`) [[`connect/base/deployment.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/deployment.yaml)]; the Terraform executor pool defaults `m6i.2xlarge`, min=0/max=10/desired=2 [[`terraform/variables.tf`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/terraform/variables.tf)]. This is a configured elasticity *envelope*, not a reproduced 0→10→0 autoscaling cycle: Karpenter is explicitly deferred [[`terraform/README.md`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/terraform/README.md)].
 
-**One shared driver.** The Deployment is a singleton (`replicas:1`, `Recreate`) because Connect sessions are server-local and can't be spread behind one address without breaking session affinity `[connect/base/deployment.yaml]`; the live cluster runs "one long-lived Spark Connect server application shared by every run" `[DEVIATIONS.md]`, and the harness caches that single application id `[harness/backends/live.py]`. The same image (Spark 4.1.2, Iceberg 1.11.0, S3A/AWS SDK, PostgreSQL JDBC, principal-pinning interceptor jar) serves both driver and executors via role-dispatch in the entrypoint `[images/spark-connect/Dockerfile:18-35,65-118; images/spark-connect/entrypoint.sh]`.
+**One shared driver.** The Deployment is a singleton (`replicas:1`, `Recreate`) because Connect sessions are server-local and can't be spread behind one address without breaking session affinity [[`connect/base/deployment.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/deployment.yaml)]; the live cluster runs "one long-lived Spark Connect server application shared by every run" [[`DEVIATIONS.md`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/DEVIATIONS.md)], and the harness caches that single application id [[`harness/backends/live.py`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/harness/backends/live.py)]. The same image (Spark 4.1.2, Iceberg 1.11.0, S3A/AWS SDK, PostgreSQL JDBC, principal-pinning interceptor jar) serves both driver and executors via role-dispatch in the entrypoint [images/spark-connect/Dockerfile:18-35,65-118; [`images/spark-connect/entrypoint.sh`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/images/spark-connect/entrypoint.sh)].
 
 ### 3.2.2 What actually ran
 The topology above was stood up on a **real EKS cluster**, and one thing was measured directly: through the driver's Spark-UI REST API, a `spark.range(80_000_000).sum()` ran on the cluster's **executor pods, not in the local process**, and registered real Spark stages (executor-seconds 1.246, cpu-seconds 0.878). This is a small probe. It confirms execution genuinely left the client and ran on the cluster; it is *not* a large multi-executor parallelism benchmark, and the paper does not claim one. Reproducibility (updated 2026-07-09): the substrate is now **terraform-applied and CI/OIDC-gated**: a fresh cluster stands up via a reviewer-approved GitHub Actions apply against S3-backed state, with **no long-lived AWS keys** (GitHub OIDC assumes a scoped role). The full deploy-and-connect runbook and the end-to-end build narrative live in the repository (`paper/notes/PLATFORM_LAB_NOTEBOOK.md`).
 
 ### 3.2.3 Honest scoping
-- **This runs on the live cluster.** The topology stood up on a real EKS cluster with one shared long-lived Connect driver, and execution ran on the cluster's executor pods rather than in the local process (the `spark.range` probe registered real Spark stages) `[DEVIATIONS.md]`.
-- **CONFIGURED-BUT-UNREPRODUCED:** elastic **0→10 executor** scale-up/down (dynamic allocation is enabled, but no captured 0→N→0 cycle); **no Cluster Autoscaler/Karpenter committed**, so node-level autoscaling is unshown `[connect/base/deployment.yaml; terraform/README.md]`.
-- **§3.3 replaces this single-server baseline with per-tenant servers.** The baseline here is one singleton Connect driver (`replicas:1`) `[connect/base/deployment.yaml]`. In §3.3 that single server gives way to per-tenant Connect servers behind a routing gateway, which isolate the tenants on live EKS (2026-07-10). Per-tenant isolation runs today; what is still design-only is multi-server as a *scale* mechanism: many tenants, and horizontal replicas per tenant with node autoscaling, not the per-tenant isolation topology itself. The Terraform substrate is applied and CI-gated as of 2026-07-09.
+- **This runs on the live cluster.** The topology stood up on a real EKS cluster with one shared long-lived Connect driver, and execution ran on the cluster's executor pods rather than in the local process (the `spark.range` probe registered real Spark stages) [[`DEVIATIONS.md`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/DEVIATIONS.md)].
+- **CONFIGURED-BUT-UNREPRODUCED:** elastic **0→10 executor** scale-up/down (dynamic allocation is enabled, but no captured 0→N→0 cycle); **no Cluster Autoscaler/Karpenter committed**, so node-level autoscaling is unshown [[`connect/base/deployment.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/deployment.yaml); [`terraform/README.md`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/terraform/README.md)].
+- **§3.3 replaces this single-server baseline with per-tenant servers.** The baseline here is one singleton Connect driver (`replicas:1`) [[`connect/base/deployment.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/deployment.yaml)]. In §3.3 that single server gives way to per-tenant Connect servers behind a routing gateway, which isolate the tenants on live EKS (2026-07-10). Per-tenant isolation runs today; what is still design-only is multi-server as a *scale* mechanism: many tenants, and horizontal replicas per tenant with node autoscaling, not the per-tenant isolation topology itself. The Terraform substrate is applied and CI-gated as of 2026-07-09.
 
 ## 3.3 Tenant governance: *the multi-tenancy stack, built and demonstrated*
 **Why co-tenancy, and what is at stake.** Why multiplex tenants on shared infrastructure at all, rather than give each an isolated cluster? For the same reason §3.2 shares an elastic executor pool and §3.1 shares one governed catalog: consolidation. One elastic compute pool and one governed catalog serve many teams at a fraction of the cost and operational surface of a cluster per tenant, that efficiency is the whole point of a *platform*. But consolidation is exactly what puts a hostile or hallucinating tenant-A agent one misconfiguration away from tenant-B's data, reading it or overwriting it. So the platform has to make co-tenancy safe *by construction*, not by trusting the agent. That is what the five layers below do.
@@ -715,7 +499,7 @@ The topology above was stood up on a **real EKS cluster**, and one thing was mea
 
 **The stack at a glance** (see the diagram below, and the interactive `paper/figures/isolation-architecture.html`). From the outside in: an **mTLS gateway** routes a request to a server by the *authenticated* principal on its client certificate (closes *connect*); a **per-tenant Connect server** injects only that tenant's catalog token, so the agent never holds a credential it could redirect (*be handed*); the tenant's **own executor pods** run the work, never sharing a JVM (*execute*); the **governed catalog** (Lakekeeper + OpenFGA) authorizes credential requests per principal (*ask the catalog*); and the **vended credential** is prefix-scoped at storage (*hit storage*). So no path reaches tenant B. The rest of this section walks the five links outside-in, each with the residual threat it uniquely closes and the proof that it runs; all five run on a live EKS cluster today. Scaling to many tenants with node autoscaling is the open capability, and two proof-completeness seams remain, named after the walk.
 
-**Where enforcement ends in the default open stack (the baseline this section then closes, layer by layer, below).** Identity is strong at the door but not downstream. Envoy pins an unspoofable principal from the client cert SAN and the interceptor rejects a mismatched `user_id` `[connect/base/envoy/envoy.yaml; deploy/auth/interceptor/.../PrincipalPinningInterceptor.java]`: the platform *knows* who each session is. But **authorization is fleet-scoped**: a single shared Iceberg catalog and one fleet-wide cloud IAM role (via IRSA, *IAM Roles for Service Accounts*) with read/write to the entire warehouse `[images/spark-connect/conf/spark-defaults.template.conf; terraform/irsa.tf]`. Per-principal schema isolation (a `sandbox_<principal>` naming scheme) exists only **by convention, not enforcement** `[RUNBOOK.md]`, and the open-source Hive Metastore and Iceberg catalog (OSS HMS/Iceberg) **cannot express per-user grants** at all; the repo states this outright and does not claim it `[deploy/auth/README.md]`. Execution is shared too: one long-lived driver, shared executors, no per-tenant pool `[connect/base/deployment.yaml]`.
+**Where enforcement ends in the default open stack (the baseline this section then closes, layer by layer, below).** Identity is strong at the door but not downstream. Envoy pins an unspoofable principal from the client cert SAN and the interceptor rejects a mismatched `user_id` [[`connect/base/envoy/envoy.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/envoy/envoy.yaml); [`deploy/auth/interceptor/.../PrincipalPinningInterceptor.java`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/auth/interceptor/src/main/java/com/safesparkagents/connect/auth/PrincipalPinningInterceptor.java)]: the platform *knows* who each session is. But **authorization is fleet-scoped**: a single shared Iceberg catalog and one fleet-wide cloud IAM role (via IRSA, *IAM Roles for Service Accounts*) with read/write to the entire warehouse [[`images/spark-connect/conf/spark-defaults.template.conf`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/images/spark-connect/conf/spark-defaults.template.conf); [`terraform/irsa.tf`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/terraform/irsa.tf)]. Per-principal schema isolation (a `sandbox_<principal>` naming scheme) exists only **by convention, not enforcement** [[`RUNBOOK.md`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/RUNBOOK.md)], and the shared open-source catalog **cannot express per-user grants** at all: it gives audit and fleet-wide grants only, no per-user grants and no row/column masking, a limitation the repo names outright [[`deploy/auth/README.md`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/auth/README.md)]. Execution is shared too: one long-lived driver, shared executors, no per-tenant pool [[`connect/base/deployment.yaml`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/deployment.yaml)].
 
 [[[SVG-ISOLATION]]]
 
@@ -881,13 +665,13 @@ The control boundary **holds** iff ALL of these are true. Each is a checkable pr
 | Component | Zone | Role | Holds creds? |
 |---|---|---|---|
 | Agent (LLM) | U | Proposes SDP spec + transforms as text | **No** |
-| Per-cell workspace | U | Inert `spark-pipeline.yml` + `transformations/pipeline.py` `[runner.py:369-405]` | No |
+| Per-cell workspace | U | Inert `spark-pipeline.yml` + `transformations/pipeline.py` [[`runner.py:369-405`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/harness/runner.py#L369-L405)] | No |
 | Reconciler / controller | C | Runs SDP CLI client; drives gate+execute; blind-grades | **Yes** |
-| Dry-run gate | C→D | Structural validation before data `[sdp_dryrun.py:462-484]` | via controller |
-| Connect channel | C│D | mTLS + `Bearer PSK` + `x-connect-principal` via Envoy `[envoy.yaml:71-158]` | yes (controller-held) |
-| Connect server (driver) | D | Client-mode driver in pod; builds/runs graph `[6ff8139]` | cluster identity |
+| Dry-run gate | C→D | Structural validation before data [[`sdp_dryrun.py:462-484`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/harness/sdp_dryrun.py#L462-L484)] | via controller |
+| Connect channel | C│D | mTLS + `Bearer PSK` + `x-connect-principal` via Envoy [[`envoy.yaml:71-158`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/envoy/envoy.yaml#L71-L158)] | yes (controller-held) |
+| Connect server (driver) | D | Client-mode driver in pod; builds/runs graph [[`6ff8139`](https://github.com/lisancao/safe-spark-agents-paper/commit/6ff8139)] | cluster identity |
 | Executor pods | D | Do the data work | cluster (IRSA) |
-| Catalog | D | Iceberg JDBC / HMS `[spark-defaults.template.conf:33-40]` | cluster |
+| Catalog | D | Iceberg JDBC / HMS [[`spark-defaults.template.conf:33-40`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/images/spark-connect/conf/spark-defaults.template.conf#L33-L40)] | cluster |
 | Warehouse (S3) | D | `s3a://…` via IRSA | cluster |
 | Blind oracle | C | Grades output without seeing paradigm | n/a |
 
@@ -908,21 +692,21 @@ The control boundary **holds** iff ALL of these are true. Each is a checkable pr
 #### 4. The authenticated submission path (the C│D detail that is the crux)
 - The controller runs the stock SDP CLI as a Connect **client**: it imports the agent's transform Python,
   builds the dataflow graph, and sends **protobuf plans** over gRPC: **the server needs no raw files**
-  `[pyspark/pipelines/cli.py:221-263; spark_connect_graph_element_registry.py:51-136]`. (I6 satisfied for code.)
+  [[`pyspark/pipelines/cli.py:221-263`](https://github.com/apache/spark/blob/v4.1.2/python/pyspark/pipelines/cli.py#L221-L263); [`spark_connect_graph_element_registry.py:51-136`](https://github.com/apache/spark/blob/v4.1.2/python/pyspark/pipelines/spark_connect_graph_element_registry.py#L51-L136)]. (I6 satisfied for code.)
 - **Channel:** `sc://<NLB>:15009/;use_ssl=true` + `Bearer PSK` + `x-connect-principal`, terminated by Envoy
-  mTLS `[envoy.yaml:24-158]`. The controller, not a side-tunnel, must hold and present this identity. (I2.)
+  mTLS [[`envoy.yaml:24-158`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/connect/base/envoy/envoy.yaml#L24-L158)]. The controller, not a side-tunnel, must hold and present this identity. (I2.)
 - **Data plane:** Connect server = client-mode driver pod; executors = k8s pods; warehouse = S3 via IRSA;
-  catalog = Iceberg JDBC/HMS `[6ff8139; spark-defaults.template.conf:33-48]`. (I3.)
+  catalog = Iceberg JDBC/HMS [[`6ff8139`](https://github.com/lisancao/safe-spark-agents-paper/commit/6ff8139); [`spark-defaults.template.conf:33-48`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/deploy/eks/images/spark-connect/conf/spark-defaults.template.conf#L33-L48)]. (I3.)
 
 ---
 
 #### 5. Known boundary leaks to design against (name them, don't hide them)
 - **R1: agent code executes in Zone C during plan construction.** The SDP client `exec_module`s the agent's
-  transform Python to build the plan `[cli.py:248-263]`. No data/creds are exposed at that instant, but it *is*
+  transform Python to build the plan [[`cli.py:248-263`](https://github.com/apache/spark/blob/v4.1.2/python/pyspark/pipelines/cli.py#L248-L263)]. No data/creds are exposed at that instant, but it *is*
   agent-authored code running in the governed zone. Reference stance: acceptable as *plan construction* only if
   sandboxed/AST-checked; must be stated explicitly as the subtlest part of the boundary.
 - **R2: controller co-located with agent.** Today the reconciler runs as a subprocess on the agent/harness host
-  `[live.py:675-689]` (Zones U and C collapsed). Reference **requires them split**.
+  [[`live.py:690-704`](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/harness/backends/live.py#L690-L704)] (Zones U and C collapsed). Reference **requires them split**.
 - **R3: mTLS via socat tunnel.** The prior remote runs terminated mTLS in a local `socat` tunnel, not the client
   `[study.config.live.json:2]`. That parks the creds in the tunnel host, not the controller → violates the spirit
   of I2. Reference **requires the controller itself to present identity natively**.
