@@ -166,7 +166,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git f0bf145</span><span>·</span>
+    <span class="k">git 293e0e1</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -192,8 +192,6 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <a class="l2" href="#15-threats-to-validity">1.5 Threats to validity</a>
 <a class="l2" href="#18-conclusions">1.8 Conclusions</a>
 <a class="l2" href="#-">---</a>
-<a class="l2" href="#supplemental-materials-section-1">Supplemental Materials (Section 1)</a>
-<a class="l2" href="#to-keep-the-paper-readable-section-1s-methods-appendix-lives-in-a-separate-companion-file-section-1-supplemental-materials-it-collects-the-root-cause-forensics-sm1-gate-design-history-and-retired-arms-sm2-operational-definitions-sm3-the-pre-registered-run-protocol-sm6-and-full-materials-and-system-sm7-everything-the-main-text-cites-inline-as-sm1sm7-retained-for-reproduction-and-deep-review">To keep the paper readable, Section 1&#x27;s methods appendix lives in a separate companion file: Section 1 Supplemental Materials. It collects the root-cause forensics (§SM1), gate-design history and retired arms (§SM2), operational definitions (§SM3), the pre-registered run protocol (§SM6), and full materials and system (§SM7), everything the main text cites inline as §SM1–§SM7, retained for reproduction and deep review.</a>
 <a class="l1" href="#section-2-the-agent-native-development-loop"><span class="dot done"></span><span>SECTION 2: The Agent-Native Development Loop</span></a>
 <a class="l2" href="#21-the-problem-developing-a-pipeline-by-running-it-is-wrong-for-an-agent">2.1 The problem: developing a pipeline by running it is wrong for an agent</a>
 <a class="l2" href="#22-what-the-agent-writes-and-what-it-structurally-cannot">2.2 What the agent writes, and what it structurally cannot</a>
@@ -1002,9 +1000,10 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <p>Two limitations bound these claims. The data-processing-<em>compute</em> comparison (H3) requires both paradigms on one uniform cluster and is reported separately (§1.4.3, §SM6.5); and the study fixes a single model and grants arm B an API skill arm A does not need, an asymmetry discussed in §5. Neither affects the structural-catch, token, or conciseness results, which are substrate- and skill-robust.</p>
 <p>Finally, the safety result motivates what follows. If the most valuable thing a declarative paradigm offers is that faults can be caught, and data never touched, <em>before</em> execution, the natural next question is architectural: can we build a system in which an agent is <em>never</em> handed a live session at all, and authorship is separated from execution by construction? That is the control boundary of <strong>Section 2</strong>.</p>
 <h2 id="-">---</h2>
+<blockquote>
+<p><strong>Section 1 supplemental materials.</strong> To keep the paper readable, Section 1's methods appendix lives in a separate companion file: <strong><a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/paper/SUPPLEMENT-Section1.md">SUPPLEMENT-Section1.md</a></strong>. It collects the root-cause forensics (§SM1), gate-design history and retired arms (§SM2), operational definitions (§SM3), the pre-registered run protocol (§SM6), and full materials and system (§SM7), everything the main text cites inline as §SM1–§SM7, retained for reproduction and deep review.</p>
+</blockquote>
 <hr />
-<h2 id="supplemental-materials-section-1">Supplemental Materials (Section 1)</h2>
-<h2 id="to-keep-the-paper-readable-section-1s-methods-appendix-lives-in-a-separate-companion-file-section-1-supplemental-materials-it-collects-the-root-cause-forensics-sm1-gate-design-history-and-retired-arms-sm2-operational-definitions-sm3-the-pre-registered-run-protocol-sm6-and-full-materials-and-system-sm7-everything-the-main-text-cites-inline-as-sm1sm7-retained-for-reproduction-and-deep-review">To keep the paper readable, Section 1's methods appendix lives in a separate companion file: <strong><a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/paper/SUPPLEMENT-Section1.md">Section 1 Supplemental Materials</a></strong>. It collects the root-cause forensics (§SM1), gate-design history and retired arms (§SM2), operational definitions (§SM3), the pre-registered run protocol (§SM6), and full materials and system (§SM7), everything the main text cites inline as §SM1–§SM7, retained for reproduction and deep review.</h2>
 <h1 id="section-2-the-agent-native-development-loop" class="section">SECTION 2: The Agent-Native Development Loop <span class="badge done" title="the agent-native dev loop">Demonstrated</span></h1>
 <h3 id="reimagining-the-inner-dev-loop-around-the-agent-propose-gate-reconcile-converge-structural-mistakes-close-before-any-data">Reimagining the inner dev loop around the agent: propose, gate, reconcile, converge; structural mistakes close before any data</h3>
 <p>Section 1 showed that a declarative agent writes safer and far more concise pipelines. This section introduces the inner loop that makes that possible, a genuinely new way an agent builds a data pipeline. The point is not to seat an agent in the human's write-run-debug loop; that loop is actively wrong for a fallible, untrusted author (§2.1 below). It is the developer loop <strong>reimagined around the agent</strong>: the author emits only inert desired-state it cannot misuse, a gate rejects bad structure before any data moves, and a controller, never the author, holds the credentials and reconciles. That this lands near a GitOps shape is not borrowing a human pattern; declarative desired-state, reviewed before it is applied, is precisely what an untrusted data-engineering agent requires.</p>

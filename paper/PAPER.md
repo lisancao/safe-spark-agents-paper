@@ -269,11 +269,8 @@ Finally, the safety result motivates what follows. If the most valuable thing a 
 ---
 ---
 
----
+> **Section 1 supplemental materials.** To keep the paper readable, Section 1's methods appendix lives in a separate companion file: **[SUPPLEMENT-Section1.md](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/paper/SUPPLEMENT-Section1.md)**. It collects the root-cause forensics (§SM1), gate-design history and retired arms (§SM2), operational definitions (§SM3), the pre-registered run protocol (§SM6), and full materials and system (§SM7), everything the main text cites inline as §SM1–§SM7, retained for reproduction and deep review.
 
-## Supplemental Materials (Section 1)
-
-To keep the paper readable, Section 1's methods appendix lives in a separate companion file: **[Section 1 Supplemental Materials](https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/paper/SUPPLEMENT-Section1.md)**. It collects the root-cause forensics (§SM1), gate-design history and retired arms (§SM2), operational definitions (§SM3), the pre-registered run protocol (§SM6), and full materials and system (§SM7), everything the main text cites inline as §SM1–§SM7, retained for reproduction and deep review.
 ---
 
 # SECTION 2: The Agent-Native Development Loop
