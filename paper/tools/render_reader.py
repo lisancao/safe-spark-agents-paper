@@ -43,11 +43,8 @@ def load_svg(name):
 
 md_text = SRC.read_text(encoding="utf-8")
 
-# inject diagram placeholders right after the two vision-section subtitles
-md_text = md_text.replace(
-    "### Integrable, Scalable Agent Data Engineering on Spark Connect + Kubernetes",
-    "### Integrable, Scalable Agent Data Engineering on Spark Connect + Kubernetes\n\n[[[SVG-SECTION3]]]\n",
-    1)
+# inject the §4 diagram placeholder right after its subtitle (§3's SVG-SECTION3 is now
+# placed explicitly in PAPER.md after the §3 Introduction, since §3 dropped its subtitle)
 md_text = md_text.replace(
     "### An orchestration layer for a fleet of governed agents",
     "### An orchestration layer for a fleet of governed agents\n\n[[[SVG-SECTION4]]]\n",
@@ -106,6 +103,9 @@ def figure(svg, cap):
 body = body.replace("<p>[[[SVG-SECTION3]]]</p>",
     figure(load_svg("section3_open_governed_platform.svg"),
            "The open governed reference architecture: three trust zones, untrusted agent authoring, a governed control plane, and the EKS data plane, joined by a GitOps loop, with Spark Connect as the single identity-pinned door and per-tenant isolation demonstrated on live EKS. Solid = demonstrated · dashed = configured but unrun · dotted = frontier."))
+body = body.replace("<p>[[[SVG-CONNECT-K8S]]]</p>",
+    figure(load_svg("section3_connect_k8s.svg"),
+           "Connect on Kubernetes. A client reaches the cluster only through one external mTLS port (15009), an Envoy sidecar in the Spark Connect driver pod that pins the caller's principal and forwards over loopback to the Connect server on 127.0.0.1:15002 (never externally reachable). The driver pod is a singleton on the untainted system node pool and is the client-mode Spark driver: through an RBAC service account it schedules executor pods on a separate, tainted executor node pool (spark-role=executor), scaling 0->10 by dynamic allocation. Executors read the S3 Iceberg warehouse with the vended, prefix-scoped credentials of §3.3. Execution scales behind the governed door, never around it, and the two node pools keep driver and executors physically separated."))
 body = body.replace("<p>[[[SVG-SECTION4]]]</p>",
     figure(load_svg("section4_omnigent_orchestration.svg"),
            "Omnigent: one custodian over a credential-free heterogeneous fleet. Credential custody is the keystone, now demonstrated (S4.3)."))
