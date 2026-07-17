@@ -166,7 +166,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git 98e397b</span><span>·</span>
+    <span class="k">git e93bd81</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -1722,6 +1722,57 @@ spark.executor.memory=2g
 </ul>
 <h2 id="33-tenant-governance-the-multi-tenancy-stack-built-and-demonstrated">3.3 Tenant governance: <em>the multi-tenancy stack, built and demonstrated</em></h2>
 <p><strong>Why co-tenancy, and what is at stake.</strong> Why multiplex tenants on shared infrastructure at all, rather than give each an isolated cluster? For the same reason §3.2 shares an elastic executor pool and §3.1 shares one governed catalog: consolidation. One elastic compute pool and one governed catalog serve many teams at a fraction of the cost and operational surface of a cluster per tenant, that efficiency is the whole point of a <em>platform</em>. But consolidation is exactly what puts a hostile or hallucinating tenant-A agent one misconfiguration away from tenant-B's data, reading it or overwriting it. So the platform has to make co-tenancy safe <em>by construction</em>, not by trusting the agent. That is what the five layers below do.</p>
+<p><strong>The tenancy model: how tenants share the platform (and why a hybrid).</strong> Before the isolation <em>mechanism</em>, one design choice sets everything else: how do many tenants, potentially thousands of agents, map onto Spark Connect servers? We weighed three models.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Shape</th>
+<th>L1 · ingress</th>
+<th>L2 · custody</th>
+<th>L3 · execution</th>
+<th>L4/L5 · catalog</th>
+<th>Scales?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong> · server per tenant <em>(shown below)</em></td>
+<td>one server + driver + executors <strong>per tenant</strong></td>
+<td>route to the tenant's server</td>
+<td>static per-tenant token</td>
+<td>disjoint pods (<strong>physical</strong>)</td>
+<td>per-principal</td>
+<td>no</td>
+</tr>
+<tr>
+<td><strong>B</strong> · shared servers</td>
+<td>a few servers, tenants multiplex</td>
+<td>pin identity <strong>per request</strong></td>
+<td><strong>per-request vend</strong></td>
+<td>shared driver + executors (<strong>logical</strong>)</td>
+<td>per-principal</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><strong>C</strong> · hybrid <em>(chosen)</em></td>
+<td>shared by default <strong>+ optional dedicated tier</strong></td>
+<td>pin identity per request</td>
+<td>per-request vend</td>
+<td>shared, physical tier optional</td>
+<td>per-principal</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table></div>
+<p>The layers L1, L2, L4, and L5 hold in every model; in the shared models L2 becomes a credential <em>vended per request</em> keyed on the pinned principal, rather than a static per-tenant injection. The one thing that fundamentally changes is <strong>L3, execution isolation</strong>: physical, disjoint executor pods per tenant (A) versus credential-scoped, logical isolation on shared executors (B and C).</p>
+<p>What tips the decision is a property of §2. The risk of a shared executor depends on <em>what runs there</em>: an imperative agent runs arbitrary code and could scavenge a co-resident tenant's in-memory or shuffle data, but an <strong>SDP agent emits only inert declarative transforms that the framework runs, never agent code</strong> (§2), so that attack is removed by the authoring paradigm itself. Shared execution is therefore safe for declarative agents in a way it is not for imperative ones, and physical per-tenant execution drops from a <em>requirement</em> to an optional defense-in-depth tier. Isolation rests instead on identity (L1/L2) and the catalog (L4/L5), which hold on shared infrastructure.</p>
+<p><strong>We chose Model C, a hybrid:</strong> shared Connect servers by default, each session handed a credential <em>vended per request</em> (no session ever holds a standing credential, the safest and most production-grade posture), with a dedicated-pod tier available for a high-sensitivity tenant when warranted (deferred). Two properties make this production-realistic rather than a lab convenience:</p>
+<ul>
+<li><strong>The server pool need not be homogeneous or co-located.</strong> A Connect server is just a governed compute endpoint; a pool can span substrates, one on AWS, one on-prem, one on Databricks, and a request routes to the <em>best infrastructure for that workload</em>. We do not assume all Connect servers are equal. Choosing where a job runs, and vending its credential per request, is the orchestration layer's job at fleet scale (§4/Omnigent).</li>
+<li><strong>At scale the bottleneck moves off Connect and onto the catalog.</strong> With a shared pool, the pressure a fleet of agents puts on the platform is concurrent writers and metadata contention at the governed catalog, not the number of Connect servers. Catalog-side scale, concurrent-writer handling and catalog federation, is the real multi-tenant-scale frontier, and it is a property of the catalog, not of Connect.</li>
+</ul>
+<p><strong>What is proven here, and what is the frontier.</strong> The mechanism below is demonstrated on <strong>Model A</strong>, the per-tenant-server instance, the <em>strongest-isolation</em> end of the spectrum where every layer is physically separate. The headline the hybrid calls for, two tenants sharing <em>one</em> Connect server who still cannot reach each other (identity plus catalog plus vend holding across a shared executor), is the proof being re-earned on the EKS-native platform. We show the design and its strongest instance now; the shared-server isolation proof and catalog-scale are named as the frontier, not claimed.</p>
 <p><strong>The adversary, and the five paths.</strong> The threat is §2's: a tenant-A agent that is <em>fully untrusted</em>, it may emit code that executes on the cluster, hallucinate, or actively try to reach tenant B's data. Reaching tenant B decomposes into exactly five distinct paths, and closing the isolation problem means closing all five: the agent could <strong>connect</strong> to tenant B's Connect server, <strong>be handed</strong> tenant B's credential, <strong>execute</strong> in a process co-resident with tenant B, <strong>ask the catalog</strong> for tenant B's tables or credential, or <strong>hit storage</strong> directly with a credential whose reach includes tenant B's bytes. Each path is closed by a different layer, and each layer is independently defeatable, so all five must hold; a skeptical reader can check the enumeration against the layers rather than take "isolated" on faith. Crucially, the later layers cannot backstop a failure of the earlier ones, because a failure of routing or custody produces a <em>legitimately-issued</em> tenant-B identity, not a forgery: if a tenant-A agent reached tenant-B's server (path one) or were handed tenant-B's token (path two), the catalog and storage gates would see a <strong>valid</strong> tenant-B credential and correctly serve it. The early links keep the identity honest; the late links bound what an honest identity may do. That is why the chain is non-redundant.</p>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 356" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Section 3.3: the adversary and the five paths to tenant B</title>
