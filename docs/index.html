@@ -166,7 +166,7 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
     platform that enforces it, with per-tenant isolation demonstrated end to end on a live cluster.</p>
   <div class="metarow">
     <span class="k">Updated 2026-07-10</span><span>·</span>
-    <span class="k">git 06b88ea</span><span>·</span>
+    <span class="k">git 4f5492d</span><span>·</span>
     <span>4 sections + 2 reference appendices</span>
     <span class="legend">
       <span><span class="swatch solid"></span>demonstrated</span>
@@ -193,6 +193,8 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 <a class="l2" href="#18-conclusions">1.8 Conclusions</a>
 <a class="l2" href="#-">---</a>
 <a class="l1" href="#section-2-the-agent-native-development-loop"><span class="dot done"></span><span>SECTION 2: The Agent-Native Development Loop</span></a>
+<a class="l2" href="#abstract-section-2">Abstract (Section 2)</a>
+<a class="l2" href="#introduction_1">Introduction</a>
 <a class="l2" href="#21-the-problem-developing-a-pipeline-by-running-it-is-wrong-for-an-agent">2.1 The problem: developing a pipeline by running it is wrong for an agent</a>
 <a class="l2" href="#22-what-the-agent-writes-and-what-it-structurally-cannot">2.2 What the agent writes, and what it structurally cannot</a>
 <a class="l2" href="#23-the-dev-loop-step-by-step">2.3 The dev loop, step by step</a>
@@ -1005,13 +1007,63 @@ figure.diagram figcaption{font-family:var(--sans);font-size:12.5px;color:var(--m
 </blockquote>
 <hr />
 <h1 id="section-2-the-agent-native-development-loop" class="section">SECTION 2: The Agent-Native Development Loop <span class="badge done" title="the agent-native dev loop">Demonstrated</span></h1>
-<h3 id="reimagining-the-inner-dev-loop-around-the-agent-propose-gate-reconcile-converge-structural-mistakes-close-before-any-data">Reimagining the inner dev loop around the agent: propose, gate, reconcile, converge; structural mistakes close before any data</h3>
-<p>Section 1 showed that a declarative agent writes safer and far more concise pipelines. This section introduces the inner loop that makes that possible, a genuinely new way an agent builds a data pipeline. The point is not to seat an agent in the human's write-run-debug loop; that loop is actively wrong for a fallible, untrusted author (§2.1 below). It is the developer loop <strong>reimagined around the agent</strong>: the author emits only inert desired-state it cannot misuse, a gate rejects bad structure before any data moves, and a controller, never the author, holds the credentials and reconciles. That this lands near a GitOps shape is not borrowing a human pattern; declarative desired-state, reviewed before it is applied, is precisely what an untrusted data-engineering agent requires.</p>
-<p>What makes that loop possible is a <strong>control boundary</strong> that separates <em>authoring</em> from <em>execution</em>: the agent only ever proposes inert desired-state and never holds a session, credentials, or touches data, while a governed system validates it with a structural dry-run before any data and executes it. Declarative pipelines make the boundary expressible and Spark Connect enforces it, which is exactly what lets the loop <strong>close at the gate on a structural check, with nothing touched</strong>. The scope is deliberate: a pipeline that is well-formed but computes the wrong number (the silent-defect residue §1 measured) still executes and is caught downstream, so the gate closes the loop before any data only for <em>structural</em> defects, and this section keeps that scoping explicit.</p>
-<p>This is a <strong>demonstration, not a proposal</strong>: we built the loop, ran real AI agents through it, and executed it across hosts on a live EKS Spark-Connect cluster (driver and executors in Kubernetes pods, tables materialized remotely). Two honest gaps remain: the remote client still reaches Connect through a <code>socat</code> tunnel rather than native mTLS, and the reconciler still runs co-located on the agent's host rather than split onto the platform (the <em>governance split</em>), while the production-scale governed platform is built and demonstrated in <strong>Section 3</strong> (per-tenant isolation on live EKS; multi-tenant scale is the remaining frontier), not claimed here. This section does not relitigate the paradigm safety result (Section 1); the agent-native loop is the argument, and the control boundary is what lets its structural gate close before any data.</p>
+<h2 id="abstract-section-2">Abstract <em>(Section 2)</em></h2>
+<p>Section 1 showed that a declarative agent writes safer and far more concise pipelines. This section is about <em>why</em> that works: the declarative paradigm is <strong>agent-native by design</strong>. The agent's entire job is to <em>declare the tables</em> and stop. There is no session to open, no endpoint to point at, no credential to hold, no cluster to configure, and no run to manage, so the agent writes in isolation and reasons about nothing but the transform logic itself. That minimal surface is the design goal, and it reshapes the whole developer loop around a fallible, untrusted author: rather than seat an agent in the human's write-run-debug loop (which is actively wrong for one, §2.1), we give it a loop where it emits only inert desired-state, a gate rejects bad structure up front, and a controller, never the agent, holds the credentials and reconciles.</p>
+<p>What that buys is a <strong>control boundary</strong> between <em>authoring</em> and <em>execution</em>: because the agent proposes only inert desired-state, the same agent is structurally unable to run anything, misconfigure the cluster, or reach a credential. Declarative pipelines make that boundary expressible and Spark Connect enforces it, so the loop can <strong>close at a structural dry-run gate before any data is touched</strong>. The scope is deliberate: a well-formed pipeline that computes the wrong number (§1's silent-defect residue) still executes and is caught downstream, so the gate closes the loop before data only for <em>structural</em> defects. This is a <strong>demonstration, not a proposal</strong>: we built the loop and ran real agents through it, end to end and across hosts on a live EKS Spark-Connect cluster; §2.6 states honestly where it is finished and where it is not.</p>
+<h2 id="introduction_1">Introduction</h2>
+<p>§2 takes the single developer's seat: the agent developer experience, step by step. §1 established <em>that</em> a declarative agent writes safer and more concise pipelines; this section shows the loop that lets you <em>operate</em> one safely, from the point of view of one developer shipping one pipeline. The infrastructure that makes the same loop multi-tenant and production-grade, the governed catalog, Kubernetes execution, per-tenant credential vending, and the trust model, is <strong>§3's</strong> concern, from the infrastructure engineer's seat.</p>
+<p>The walk-through: <strong>§2.1</strong> shows why building a pipeline by running it is wrong for a fallible agent; <strong>§2.2</strong> shows what the agent actually writes and the minimal surface that makes it agent-native; <strong>§2.3</strong> walks the loop end to end (author, open a PR, gate on CI, reconcile over Spark Connect); <strong>§2.4</strong> accounts for what the boundary buys and its one price; <strong>§2.5</strong> shows that dev and prod are the same loop at two endpoints; and <strong>§2.6</strong> states honestly where this holds today and hands off to §3.</p>
 <hr />
 <h2 id="21-the-problem-developing-a-pipeline-by-running-it-is-wrong-for-an-agent">2.1 The problem: developing a pipeline by running it is wrong for an agent</h2>
-<p>The normal way to build a Spark pipeline is imperative: write code, run it, and find out what is wrong by running it. The program executes over real data and only then surfaces an error, so every mistake costs a run. That loop was built for a person at a keyboard who mostly writes correct code, not for an agent that sometimes hallucinates. The obvious way to give that agent a platform, hand it a live <code>SparkSession</code> or warehouse credentials and let it run its own code, makes each mistake maximally expensive: a wrong or hallucinated program does not merely fail, it <em>executes</em>. It can mutate cluster config, read or overwrite arbitrary tables, run unbounded operations, and, as §1 showed, ship silently-wrong data or burn real compute on pipelines that never worked. There is no governance story for "an agent holding a <code>SparkSession</code>": no gate before it touches data, no line between what it authors and what it runs, nothing to audit or contain. This section shows how to give an agent a full production data platform without ever handing it the runtime keys, and what that buys over the normal setup.</p>
+<p>The normal way to build a Spark pipeline is imperative: write code, run it, and find out what is wrong by running it. The program executes over real data and only then surfaces an error, so every mistake costs a run. That loop was built for a person at a keyboard who mostly writes correct code, not for an agent that sometimes hallucinates.</p>
+<p>Step back to how a pipeline normally ships. A data engineer works in an IDE or notebook against a live <code>SparkSession</code>, iterates until the job looks right, then submits it to the platform with a submission tool, <code>spark-submit</code>, a Jobs or Livy API, or an Airflow DAG, and GitOps CI/CD promotes it to production. Every step of that loop assumes a <em>trusted</em> author: one who holds a live session, warehouse credentials, and a cluster endpoint, and who owns the run and its lifecycle. That is the developer loop we are reimagining, and an untrusted agent can safely be given none of what it assumes.</p>
+<p>The obvious way to give that agent a platform, hand it a live <code>SparkSession</code> or warehouse credentials and let it run its own code, makes each mistake maximally expensive: a wrong or hallucinated program does not merely fail, it <em>executes</em>. It can mutate cluster config, read or overwrite arbitrary tables, run unbounded operations, and, as §1 showed, ship silently-wrong data or burn real compute on pipelines that never worked. There is no governance story for "an agent holding a <code>SparkSession</code>": no gate before it touches data, no line between what it authors and what it runs, nothing to audit or contain. This section shows how to give an agent a full production data platform without ever handing it the runtime keys, and what that buys over the normal setup.</p>
+<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 316" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>The agent-native dev loop vs the traditional developer loop</title>
+<desc>Two loops, contrasted. The traditional loop is built for a trusted developer: work in an IDE or notebook holding a live session and credentials, submit the job to the internal platform with a submission tool (spark-submit, a Jobs or Livy API, or an Airflow DAG), execute over real data, and discover a runtime error or wrong data only then, so every retry happens after data is touched and compute is spent; every step assumes a trusted author holding a session, credentials, an endpoint, and the run lifecycle. The agent-native loop is built for an untrusted agent that holds none of that: it proposes inert desired-state, a structural dry-run gate rejects bad structure before any data, then a controller (never the agent) reconciles and executes; the retry happens at the gate with no data touched and near-zero compute.</desc>
+<style>
+  text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .th{font-size:13px;font-weight:600;fill:#16201e}.ts{font-size:10px;fill:#5c6b66}
+  .lbl{font-size:12px;font-weight:600}.note{font-size:10px}
+  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
+  .c-amber rect{fill:#FAEEDA;stroke:#BA7517;stroke-width:.75}.c-amber .th{fill:#633806}.c-amber .ts{fill:#854F0B}
+  .c-red rect{fill:#FCEBEB;stroke:#A32D2D;stroke-width:.75}.c-red .th{fill:#791F1F}.c-red .ts{fill:#A32D2D}
+  .c-green rect{fill:#EAF3DE;stroke:#3B6D11;stroke-width:.75}.c-green .th{fill:#27500A}.c-green .ts{fill:#3B6D11}
+  .c-teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
+  .c-red2 rect{fill:#FDF3F2;stroke:#b9433a;stroke-width:.75}.c-red2 .th{fill:#b9433a}.c-red2 .ts{fill:#a2483f}
+  .c-gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.c-gray .th{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<!-- BEFORE: traditional loop -->
+<text x="36" y="20" class="lbl" fill="#854F0B">TRADITIONAL LOOP · a trusted developer submits and runs; the error surfaces at runtime</text>
+<g class="c-amber"><rect x="36" y="32" width="134" height="52" rx="6"/><text x="103" y="54" class="th" text-anchor="middle">IDE / notebook</text><text x="103" y="71" class="ts" text-anchor="middle">holds live session + creds</text></g>
+<g class="c-amber"><rect x="184" y="32" width="140" height="52" rx="6"/><text x="254" y="54" class="th" text-anchor="middle">Submit to platform</text><text x="254" y="71" class="ts" text-anchor="middle">spark-submit / Jobs / Airflow</text></g>
+<g class="c-amber"><rect x="338" y="32" width="104" height="52" rx="6"/><text x="390" y="54" class="th" text-anchor="middle">Execute</text><text x="390" y="71" class="ts" text-anchor="middle">over real data</text></g>
+<g class="c-red"><rect x="456" y="32" width="150" height="52" rx="6"/><text x="531" y="54" class="th" text-anchor="middle">Runtime error</text><text x="531" y="71" class="ts" text-anchor="middle">or wrong data</text></g>
+<line x1="170" y1="58" x2="184" y2="58" class="arr" marker-end="url(#arrow)"/>
+<line x1="324" y1="58" x2="338" y2="58" class="arr" marker-end="url(#arrow)"/>
+<line x1="442" y1="58" x2="456" y2="58" class="arr" marker-end="url(#arrow)"/>
+<path d="M531 84 V102 H103 V84" fill="none" stroke="#BA7517" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+<text x="317" y="116" class="note" fill="#854F0B" text-anchor="middle">retry, after the data is touched and compute is spent · every step assumes a trusted author (session · creds · endpoint · lifecycle)</text>
+
+<!-- divider -->
+<line x1="36" y1="140" x2="606" y2="140" stroke="#d9d6cf" stroke-width="1"/>
+
+<!-- AFTER: agent-native loop -->
+<text x="36" y="168" class="lbl" fill="#0F6E56">AGENT-NATIVE LOOP · an untrusted agent proposes; the error is caught at the gate, before data</text>
+<g class="c-red2"><rect x="36" y="182" width="134" height="52" rx="6"/><text x="103" y="204" class="th" text-anchor="middle">Propose (PR)</text><text x="103" y="221" class="ts" text-anchor="middle">inert spec, no session/creds</text></g>
+<g class="c-green"><rect x="184" y="182" width="140" height="52" rx="6"/><text x="254" y="204" class="th" text-anchor="middle">Dry-run gate (CI)</text><text x="254" y="221" class="ts" text-anchor="middle">structural check, before data</text></g>
+<g class="c-teal"><rect x="338" y="182" width="118" height="52" rx="6"/><text x="397" y="204" class="th" text-anchor="middle">Controller</text><text x="397" y="221" class="ts" text-anchor="middle">reconcile &amp; execute</text></g>
+<g class="c-teal"><rect x="470" y="182" width="136" height="52" rx="6"/><text x="538" y="204" class="th" text-anchor="middle">Materialized data</text><text x="538" y="221" class="ts" text-anchor="middle">over Spark Connect</text></g>
+<line x1="170" y1="208" x2="184" y2="208" class="arr" marker-end="url(#arrow)"/>
+<line x1="324" y1="208" x2="338" y2="208" class="arr" marker-end="url(#arrow)"/>
+<line x1="456" y1="208" x2="470" y2="208" class="arr" marker-end="url(#arrow)"/>
+<path d="M254 234 V252 H103 V234" fill="none" stroke="#3B6D11" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+<text x="321" y="266" class="note" fill="#0F6E56" text-anchor="middle">retry at the gate, no data touched, ≈0 compute · the agent holds none of the runtime keys, only the inert spec</text>
+<text x="36" y="300" class="ts" fill="#5c6b66">Same shape, reimagined for a fallible author: the submission tool becomes a reviewed PR, and the platform's controller (not the author) runs it.</text>
+</svg>
+</div><figcaption>The agent-native loop vs the traditional developer loop. The traditional loop is built for a trusted developer: work in an IDE holding a live session and credentials, submit to the platform with a tool (spark-submit, Jobs, or Airflow), execute over real data, and hit the error only at runtime, so every retry follows touched data and spent compute. The agent-native loop is built for an untrusted agent that holds none of that: it proposes an inert spec, a dry-run gate catches structure before any data, then a controller (never the agent) reconciles and executes; the retry happens at the gate, no data touched. Same shape, the submission tool becomes a reviewed PR.</figcaption></figure>
 <h2 id="22-what-the-agent-writes-and-what-it-structurally-cannot">2.2 What the agent writes, and what it structurally cannot</h2>
 <p>Everything turns on one property: the agent authors an inert description of desired state, and can touch nothing else. The two paradigms make fundamentally different artifacts:</p>
 <pre><code class="language-python"># Imperative: the agent owns and runs the session; authoring IS execution.
@@ -1024,51 +1076,74 @@ df.write.saveAsTable(&quot;gold&quot;)                         # to apply it, yo
 def gold():                                          # no builder, no .write, no .start()
     return SparkSession.active().read.table(&quot;silver&quot;).groupBy(...).agg(...)
 </code></pre>
-<p>The imperative program owns the session, the reads and writes, and the lifecycle: to <em>apply</em> it you must <em>run</em> it, so there is nothing to hand a governed platform but "run this program." The SDP version is just decorated transforms; the framework owns the graph, the session, and materialization [<a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/harness/runner.py#L305-L405"><code>runner.py:305-405</code></a>]. The <code>SparkSession.active()</code> inside a transform is not the agent holding an engine: it is a read-only handle to the session the <em>framework</em> has already built and owns, with no way to create one, configure it, point it at a cluster, or call <code>.write</code> / <code>.start()</code>. So an agent writing SDP <strong>builds no session it owns, and holds no credentials, endpoint, or cluster config</strong>: it declares what the tables should be, and stops. That is what makes the paradigm <em>agent-native</em>. Not that an agent can use it, but that an agent using it is structurally unable to run anything, misconfigure anything, or reach a credential. The authoring surface is deliberately small: open-source <code>pyspark.pipelines</code> (Apache Spark 4.1, not Databricks DLT), with <code>@dp.materialized_view</code> / <code>@dp.table</code> declaring datasets and <code>read.table</code> wiring upstreams, and never a session it owns; the full API is the <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/skills/pyspark-sdp/SKILL.md"><code>pyspark-sdp</code> skill</a>.</p>
-<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 680 190" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
-<title>Section 2: the control boundary and agent-native dev loop</title>
-<desc>The agent authors inert desired-state in an untrusted zone; a governed control plane validates it at a structural dry-run gate and a reconciler submits plans to execution. Authoring never crosses into execution; only structural feedback returns to the agent.</desc>
+<p>The imperative program owns the session, the reads and writes, and the lifecycle: to <em>apply</em> it you must <em>run</em> it, so there is nothing to hand a governed platform but "run this program." The SDP version is just decorated transforms; the framework owns the graph, the session, and materialization [<a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/harness/runner.py#L305-L405"><code>runner.py:305-405</code></a>]. The <code>SparkSession.active()</code> inside a transform is not the agent holding an engine: it is a read-only handle to the session the <em>framework</em> has already built and owns, with no way to create one, configure it, point it at a cluster, or call <code>.write</code> / <code>.start()</code>. So an agent writing SDP <strong>builds no session it owns, and holds no credentials, endpoint, or cluster config</strong>: it declares what the tables should be, and stops. That is what makes the paradigm <em>agent-native</em>, and the sense is positive first: the agent's entire authoring surface is <em>declare the tables</em>. Its whole API is a handful of primitives from open-source <code>pyspark.pipelines</code> (Apache Spark 4.1, not Databricks DLT), <code>@dp.materialized_view</code> / <code>@dp.table</code> to declare datasets and <code>read.table</code> to wire upstreams, with the complete reference a 164-line <a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/skills/pyspark-sdp/SKILL.md"><code>pyspark-sdp</code> skill</a>. Everything an imperative program must get right is simply <strong>absent</strong> from what the agent touches: no <code>builder.getOrCreate</code>, no <code>.write</code> / <code>.saveAsTable</code>, no session or cluster config, no endpoint, no credential, no submission or lifecycle. The agent writes in isolation and reasons about nothing but the transform. Only <em>because</em> that surface exposes none of those things is the same agent also structurally unable to run, misconfigure, or reach a credential: containment is what the minimal surface buys, not what <em>agent-native</em> means.</p>
+<figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 720 372" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>The control boundary: the imperative agent crosses it, the SDP agent stops at it</title>
+<desc>A single control boundary separates authoring from execution. The obvious, uncontained way: an imperative agent holds a live SparkSession and credentials and calls df.write.saveAsTable, so its authoring IS execution, the write crosses the boundary and touches data directly. The agent-native way: an SDP agent writes only @dp transforms, uses SparkSession.active() as a read-only handle, and produces an inert spec that stops at the boundary; absent from its surface are any owned session, credentials, endpoint, cluster config, or run lifecycle (invariants I1/I2). Only the platform crosses, carrying that spec across through the dry-run gate and the controller, so the same execution engine (driver and executor pods, the only things that touch data) runs it. Imperative authoring reaches execution by itself; SDP authoring reaches it only through the governed crossing.</desc>
 <style>
   text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .th{font-size:14px;font-weight:500;fill:#16201e}.ts{font-size:12px;fill:#5c6b66}
-  .arr{stroke:#93a29d;stroke-width:1.5;fill:none}
-  .c-gray rect{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:.75}.c-gray .th{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
-  .c-blue rect{fill:#E6F1FB;stroke:#185FA5;stroke-width:.75}.c-blue .th{fill:#0C447C}.c-blue .ts{fill:#185FA5}
-  .c-teal rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.75}.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
-  .c-green rect{fill:#EAF3DE;stroke:#3B6D11;stroke-width:.75}.c-green .th{fill:#27500A}.c-green .ts{fill:#3B6D11}
+  .lab{font-size:10px;font-weight:600;letter-spacing:.03em}
+  .th{font-size:12px;font-weight:600}.ts{font-size:10px}.tn{font-size:9px}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:9px}
 </style>
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="arR" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#A32D2D" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
 
-<text x="42" y="24" class="ts">Zone U: authoring</text>
-<text x="282" y="24" class="ts">Zone C: governed control</text>
-<text x="548" y="24" class="ts">Zone D: execution</text>
+<text x="16" y="17" class="lab" fill="#5F5E5A">THE CONTROL BOUNDARY: THE IMPERATIVE AGENT CROSSES IT, THE SDP AGENT STOPS AT IT</text>
+<text x="16" y="40" class="lab" fill="#8a8f8c">AUTHORING · what the agent writes</text>
+<text x="556" y="40" class="lab" fill="#8a8f8c">EXECUTION</text>
 
-<rect x="34" y="38" width="214" height="132" rx="10" fill="none" stroke="#888780" stroke-width="1" stroke-dasharray="4 4" opacity="0.55"/>
-<rect x="262" y="38" width="262" height="132" rx="10" fill="none" stroke="#378ADD" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
-<rect x="536" y="38" width="110" height="132" rx="10" fill="none" stroke="#1D9E75" stroke-width="1" stroke-dasharray="4 4" opacity="0.6"/>
+<!-- the boundary -->
+<line x1="392" y1="48" x2="392" y2="352" stroke="#16201e" stroke-width="2.5"/>
+<text x="386" y="200" class="lab" fill="#16201e" text-anchor="middle" transform="rotate(-90 386 200)">CONTROL BOUNDARY</text>
 
-<!-- control boundary -->
-<line x1="255" y1="46" x2="255" y2="172" stroke="#16201e" stroke-width="2.5"/>
+<!-- shared execution -->
+<rect x="500" y="96" width="206" height="176" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.1"/>
+<text x="603" y="150" class="th" text-anchor="middle" fill="#085041">EXECUTION</text>
+<text x="603" y="169" class="ts" text-anchor="middle" fill="#0F6E56">driver + executor pods</text>
+<text x="603" y="185" class="ts" text-anchor="middle" fill="#0F6E56">the only things that</text>
+<text x="603" y="199" class="ts" text-anchor="middle" fill="#0F6E56">touch data</text>
 
-<!-- feedback loop -->
-<path d="M330 84 V66 H141 V84" fill="none" stroke="#93a29d" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
-<text x="236" y="60" class="ts" text-anchor="middle">structural defects → feedback</text>
+<!-- ===== TOP: imperative crosses ===== -->
+<text x="24" y="66" class="lab" fill="#854F0B">THE OBVIOUS WAY · imperative agent (uncontained)</text>
+<rect x="24" y="74" width="232" height="66" rx="6" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+<text x="140" y="93" class="th" text-anchor="middle" fill="#633806">Imperative agent</text>
+<text x="140" y="108" class="tn" text-anchor="middle" fill="#854F0B">holds a live SparkSession + credentials</text>
+<text x="140" y="126" class="mono" text-anchor="middle" fill="#791F1F">df.write.saveAsTable("gold")</text>
+<!-- red crossing arrow -->
+<line x1="256" y1="107" x2="498" y2="130" stroke="#A32D2D" stroke-width="2" marker-end="url(#arR)"/>
+<text x="392" y="92" class="tn" fill="#A32D2D" text-anchor="middle">the write CROSSES the boundary:</text>
+<text x="392" y="103" class="tn" fill="#A32D2D" text-anchor="middle">authoring IS execution, data touched</text>
 
-<g class="c-gray"><rect x="48" y="84" width="186" height="60" rx="6"/><text x="141" y="110" class="th" text-anchor="middle">AI agent</text><text x="141" y="128" class="ts" text-anchor="middle">authors inert spec</text></g>
-<g class="c-green"><rect x="272" y="84" width="116" height="60" rx="6"/><text x="330" y="110" class="th" text-anchor="middle">Dry-run gate</text><text x="330" y="128" class="ts" text-anchor="middle">before any data</text></g>
-<g class="c-blue"><rect x="402" y="84" width="112" height="60" rx="6"/><text x="458" y="110" class="th" text-anchor="middle">Reconciler</text><text x="458" y="128" class="ts" text-anchor="middle">submits plans</text></g>
-<g class="c-teal"><rect x="548" y="84" width="92" height="60" rx="6"/><text x="594" y="110" class="th" text-anchor="middle">Execute</text><text x="594" y="128" class="ts" text-anchor="middle">driver + exec</text></g>
+<!-- ===== BOTTOM: SDP stops ===== -->
+<text x="24" y="212" class="lab" fill="#0F6E56">AGENT-NATIVE · the SDP agent writes, and stops</text>
+<rect x="24" y="220" width="214" height="66" rx="6" fill="#FDF3F2" stroke="#b9433a" stroke-width="1"/>
+<text x="131" y="239" class="th" text-anchor="middle" fill="#b9433a">SDP agent (untrusted)</text>
+<text x="131" y="254" class="tn" text-anchor="middle" fill="#a2483f">writes only @dp transforms</text>
+<text x="131" y="272" class="mono" text-anchor="middle" fill="#5c6b66">SparkSession.active()  # read-only</text>
+<line x1="238" y1="253" x2="260" y2="253" stroke="#8a8f8c" stroke-width="1.2" marker-end="url(#ar)"/>
+<!-- inert spec stops at the boundary -->
+<rect x="262" y="230" width="104" height="46" rx="5" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="1"/>
+<text x="314" y="248" class="th" text-anchor="middle" fill="#2C2C2A">inert spec</text>
+<text x="314" y="263" class="tn" text-anchor="middle" fill="#5F5E5A">stops at the wall</text>
+<line x1="374" y1="230" x2="374" y2="276" stroke="#b9433a" stroke-width="2"/>
+<!-- governed crossing -->
+<rect x="398" y="234" width="96" height="38" rx="6" fill="#EAF3DE" stroke="#3B6D11" stroke-width="1"/>
+<text x="446" y="250" class="tn" text-anchor="middle" fill="#27500A">gate + controller</text>
+<text x="446" y="263" class="tn" text-anchor="middle" fill="#3B6D11">the platform (§2.3)</text>
+<line x1="366" y1="253" x2="396" y2="253" stroke="#3B6D11" stroke-width="1.4" stroke-dasharray="4 2" marker-end="url(#ar)"/>
+<line x1="494" y1="248" x2="500" y2="234" stroke="#3B6D11" stroke-width="1.4" marker-end="url(#ar)"/>
+<text x="392" y="292" class="tn" fill="#0F6E56" text-anchor="middle">only the platform crosses: the inert spec goes across via the gate and controller, never the agent</text>
 
-<line x1="234" y1="114" x2="272" y2="114" class="arr" marker-end="url(#arrow)"/>
-<line x1="388" y1="114" x2="402" y2="114" class="arr" marker-end="url(#arrow)"/>
-<line x1="514" y1="114" x2="548" y2="114" class="arr" marker-end="url(#arrow)"/>
-
-<text x="141" y="162" class="ts" text-anchor="middle">never executes · I1</text>
-<text x="330" y="162" class="ts" text-anchor="middle">gate before data · I4</text>
-<text x="458" y="162" class="ts" text-anchor="middle">holds creds · I2/I5</text>
-<text x="594" y="162" class="ts" text-anchor="middle">off-host · I3</text>
+<!-- absent-surface checklist -->
+<rect x="24" y="304" width="342" height="48" rx="6" fill="#FbFaF7" stroke="#8a8f8c" stroke-width=".8" stroke-dasharray="4 3"/>
+<text x="34" y="321" class="tn" fill="#5c6b66">Absent from the agent's surface (I1/I2):</text>
+<text x="34" y="336" class="tn" fill="#16201e">no session owned · no credentials · no endpoint · no cluster</text>
+<text x="34" y="348" class="tn" fill="#16201e">config · no run / lifecycle</text>
 </svg>
-</div><figcaption>The control boundary: the agent authors inert desired-state and never crosses into execution; a governed dry-run gate and reconciler validate and run it. Only structural feedback returns.</figcaption></figure>
+</div><figcaption>The control boundary, two authors. The obvious way: an imperative agent holds a live SparkSession and credentials and calls df.write.saveAsTable, so its authoring IS execution, the write crosses the boundary and touches data. The agent-native way: the SDP agent writes only @dp transforms (SparkSession.active() is a read-only handle) and produces an inert spec that stops at the boundary; absent from its surface are any owned session, credentials, endpoint, cluster config, or run lifecycle (I1/I2). Only the platform crosses, carrying the spec across through the dry-run gate and controller to the same execution engine.</figcaption></figure>
 <h2 id="23-the-dev-loop-step-by-step">2.3 The dev loop, step by step</h2>
 <p>Because the agent's output is inert, the loop is not an ordinary dev loop with an agent dropped into the author's seat; it is that loop <em>reimagined</em> for an untrusted author. The steps below land near a GitOps shape, but for a reason particular to agents: an author that can only emit reviewable desired-state, gated before it is applied, is exactly what a fallible agent on production data calls for. We built and ran it end to end <code>[study/gitops_demo/]</code>.</p>
 <p><strong>Author.</strong> The agent writes the pipeline as decorated transforms, and nothing more:</p>
@@ -1085,7 +1160,21 @@ def orders_gold():
     return (SparkSession.active().read.table(&quot;orders_silver&quot;)
             .groupBy(&quot;day&quot;).agg(F.sum(&quot;amount&quot;).alias(&quot;revenue&quot;)))
 </code></pre>
-<p><strong>Open a PR.</strong> The agent's only action on the outside world is to open a pull request against a git repo, carrying just its spec (<code>pipeline-definitions/&lt;name&gt;/spark-pipeline.yml</code> plus the transforms) [<a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/agent_pr_author.py"><code>study/gitops_demo/agent_pr_author.py</code></a>]. It has no cluster access, no credentials, and no way to run anything; a unit test enforces exactly that on the <em>PR-authoring harness</em>, the code that generates and opens the PR, which is distinct from the <code>@dp</code> transforms it writes into the PR: the harness imports no <code>pyspark</code> and never lets <code>SparkSession</code> enter <code>sys.modules</code>, and it refuses to run when a live <code>SPARK_REMOTE</code> is set [<a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/tests/test_agent_pr_author_no_spark.py"><code>study/gitops_demo/tests/test_agent_pr_author_no_spark.py</code></a>]. The transforms it authors do name <code>SparkSession.active()</code>, but only the platform ever runs them (§2.2). The pull request is the entire interface between the untrusted agent and the platform.</p>
+<p><strong>Open a PR.</strong> The agent's <em>only</em> action on the outside world is to open a pull request. It adds one directory, a four-field spec plus its transforms, and nothing else:</p>
+<pre><code>pipeline-definitions/orders/
+  spark-pipeline.yml            # the SDP spec: what to build
+  transformations/pipeline.py   # the @dp transforms above
+</code></pre>
+<pre><code class="language-yaml"># pipeline-definitions/orders/spark-pipeline.yml  --  the whole spec
+name: gitops_demo__orders
+storage: file:///…/orders/storage    # metadata + checkpoint root
+catalog: spark_catalog
+database: gitops_demo
+libraries:
+  - glob:
+      include: transformations/**     # the @dp code, discovered by glob
+</code></pre>
+<p>That spec is the GitOps source of truth the gate and the controller both read; it is four keys and a glob, and it names no endpoint, credential, or cluster. To open the PR the agent runs only allowlisted <code>git</code> and <code>gh</code>, <code>git checkout -b agent/gitops/orders-&lt;ts&gt;</code> → <code>git commit</code> → <code>git push</code> → <code>gh pr create --base main</code> [<a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/agent_pr_author.py"><code>agent_pr_author.py</code></a>]. It has no cluster access, no credentials, and no way to run anything; a unit test enforces that on the PR-authoring harness itself, which imports no <code>pyspark</code>, never lets <code>SparkSession</code> enter <code>sys.modules</code>, and refuses to run when a live <code>SPARK_REMOTE</code> is set [<a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/study/gitops_demo/tests/test_agent_pr_author_no_spark.py"><code>test_agent_pr_author_no_spark.py</code></a>]. The pull request is the entire interface between the untrusted agent and the platform.</p>
 <p><strong>Gate on CI.</strong> This is not illustrative; it is the workflow in this repo [<a href="https://github.com/lisancao/safe-spark-agents-paper/blob/paper-v1/.github/workflows/gitops-sdp-dry-run.yml"><code>.github/workflows/gitops-sdp-dry-run.yml</code></a>]. Whenever a PR touches a pipeline spec, GitHub Actions runs the real structural dry-run on every changed spec, and a dry-run error fails the job so the PR cannot merge:</p>
 <pre><code class="language-yaml"># .github/workflows/gitops-sdp-dry-run.yml  --  the actual PR gate
 on:
@@ -1116,8 +1205,8 @@ def reconcile_spec(spec_path, *, home=None, dry=False):
     argv = [&quot;python3&quot;, cli_path(home), command, &quot;--spec&quot;, spec_path]
     return subprocess.run(argv, env=dict(os.environ)).returncode
 </code></pre>
-<p>This is where <strong>Spark Connect</strong> earns its place. Connect splits Spark into a thin <strong>client</strong> that only builds a query plan and ships it over a gRPC URL, and a <strong>server</strong>, the driver and its executor pods, that runs that plan inside the cluster. The controller is only the client; it holds no engine. The driver and executors live server-side on the cluster and are the only things that touch data. So a plan authored by an agent that never held a session, submitted by a controller that holds no engine, runs on a cluster the controller never logs into, reading S3 with the controller's credential and never the agent's. The boundary isolates here because a Connect client can submit a plan but cannot reach into the engine that runs it.</p>
-<p><strong>Feedback.</strong> Structural failures from the gate become the next iteration's input, and for that class of defect the loop closes at the gate, before any data is touched. (Semantic defects, right structure and wrong result, still execute and surface downstream, as in any pipeline; that is §1's residue, not something this gate claims to catch.) Imperative closes its loop only <em>after</em> execution, data read and compute spent; this one closes the structural class before.</p>
+<p>This is where <strong>Spark Connect</strong> earns its place: it is the governed replacement for the <code>spark-submit</code> / Jobs-API step of the traditional loop (§2.1), a plan-only front door to the platform. Connect splits Spark into a thin <strong>client</strong> that only builds a query plan and ships it over a gRPC URL, and a <strong>server</strong>, the driver and its executor pods, that runs that plan inside the cluster. The controller is only the client; it holds no engine. The driver and executors live server-side on the cluster and are the only things that touch data. So a plan authored by an agent that never held a session, submitted by a controller that holds no engine, runs on a cluster the controller never logs into. The credentials belong to the controller, never the agent; which prefix each credential can read is §3.3's per-tenant vending story. The boundary isolates here because a Connect client can submit a plan but cannot reach into the engine that runs it.</p>
+<p><strong>Feedback.</strong> Structural failures from the gate become the next iteration's input, and for that class of defect the loop closes at the gate, not at runtime. (Semantic defects, right structure and wrong result, still execute and surface downstream, as in any pipeline; that is §1's residue, not something this gate claims to catch.) Imperative closes its loop only <em>after</em> execution, data read and compute spent; this one closes the structural class before.</p>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 720 470" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>The agent-native dev loop: author, open a PR, gate on CI, reconcile over Connect</title>
 <desc>An untrusted agent authors an inert SDP spec (no session, credentials, or config) and its only action is to open a pull request. On CI the pull request is gated by spark-pipelines dry-run, which validates the dataflow graph without touching data: a valid spec reports Run is COMPLETED, a broken one fails with TABLE_OR_VIEW_NOT_FOUND and feeds back to the agent. Only on merge does a controller, never the agent, run spark-pipelines run over Spark Connect, which ships plans over mTLS to a cluster of driver and executor pods that materialize tables to the governed catalog and S3 using the controller's credential. The same loop runs against a local Connect server for development or the remote cluster for production by changing SPARK_REMOTE.</desc>
@@ -1195,9 +1284,9 @@ def reconcile_spec(spec_path, *, home=None, dry=False):
 </svg>
 </div><figcaption>The agent-native dev loop. An untrusted agent authors an inert SDP spec (no session, credentials, or config); its only action is to open a pull request. CI gates the PR with spark-pipelines dry-run, which validates the dataflow graph without touching data (valid: Run is COMPLETED; broken: TABLE_OR_VIEW_NOT_FOUND, fed back to the agent). Only on merge does a controller, never the agent, run spark-pipelines run over Spark Connect, shipping plans to a cluster that materializes tables with the controller's credential. The same loop runs locally or on the cluster by changing SPARK_REMOTE.</figcaption></figure>
 <h2 id="24-what-this-buys">2.4 What this buys</h2>
-<p>Compared with the obvious approach, an agent holding a <code>SparkSession</code>, this turns each liability into a property. The agent is <strong>untrusted</strong>: no session, no credentials, nothing to leak. Structural mistakes are <strong>caught before any data is touched</strong> (79 at the gate, §1.4.2) instead of discovered at runtime. A structurally-broken pipeline <strong>cannot burn cluster compute</strong>, because it is rejected before it runs (§1.4.3). The agent still completes real tasks under the boundary (§1.4, H5), while writing about <strong>half</strong> the code of imperative (§1.4.3). And its output is an inert, reviewable artifact, so the loop is auditable and, because nothing the agent writes is ever run <em>by</em> the agent, governable and multi-tenant (§3). The one price is that the agent iterates more against the gate, spending roughly <strong>2.3x</strong> the tokens to converge (§1.4.3): you pay in cheap model calls to save data-compute, wrong data, and blast radius. For an untrusted author on production data, that is the trade you want.</p>
+<p>Compared with the obvious approach, an agent holding a <code>SparkSession</code>, this turns each liability into a property, and the first property is for the agent itself. Because its whole surface is <em>declare the tables</em> (§2.2), there is no session lifecycle, endpoint, or credential to get right, so a fallible author spends its effort on transform logic instead of plumbing, part of why it writes about <strong>half</strong> the code of imperative (§1.4.3) and still completes the tasks (§1.4, H5). The rest are containment properties. The agent is <strong>untrusted</strong>: no session, no credentials, nothing to leak. Structural mistakes are <strong>caught before any data is touched</strong> (79 at the gate, §1.4.2) instead of discovered at runtime. A structurally-broken pipeline <strong>cannot burn cluster compute</strong>, because it is rejected before it runs (§1.4.3). And its output is an inert, reviewable artifact, so the loop is auditable and, because nothing the agent writes is ever run <em>by</em> the agent, governable and multi-tenant (§3). The one price is that the agent iterates more against the gate, spending roughly <strong>2.3x</strong> the tokens to converge (§1.4.3): you pay in cheap model calls to save data-compute, wrong data, and blast radius. For an untrusted author on production data, that is the trade you want.</p>
 <h2 id="25-develop-locally-promote-by-changing-one-endpoint">2.5 Develop locally, promote by changing one endpoint</h2>
-<p>Because that client is only a plan-builder pointed at a URL, the same agent, spec, and dry-run gate run against a <strong>local Connect server</strong> while developing, where iteration is fast and free, and <strong>promote to the remote cluster</strong> by changing one endpoint (<code>SPARK_REMOTE</code>), with no code change. A laptop's local Connect server and the EKS cluster are the same server role at two addresses; dev and prod are the same loop at two endpoints.</p>
+<p>Because that client is only a plan-builder pointed at a URL, the same agent, spec, and dry-run gate run against a <strong>local Connect server</strong> while developing, where iteration is fast and free, and <strong>promote to the remote cluster</strong> by changing one endpoint (<code>SPARK_REMOTE</code>), with no code change. A laptop's local Connect server and the EKS cluster are the same server role at two addresses; dev and prod are the same loop at two endpoints. And the swap happens entirely <em>outside</em> the agent's surface: the agent authors one inert spec that is byte-identical in dev and prod and never sees, sets, or even names <code>SPARK_REMOTE</code>, only the controller reads it. Where the pipeline runs is not the agent's concern, and cannot be.</p>
 <figure class="diagram"><div class="diagram-frame"><svg width="100%" viewBox="0 0 720 476" role="img" xmlns="http://www.w3.org/2000/svg" font-family="ui-sans-serif, system-ui, sans-serif">
 <title>Spark Connect: one client, one plan, two endpoints (dev-to-prod by changing SPARK_REMOTE)</title>
 <desc>The client side is identical in development and production: the agent authors inert @dp transforms, a CI dry-run gate checks them, and a controller builds one serialized query plan. The client holds no engine. It ships that same plan over gRPC to whatever SPARK_REMOTE URL is set. In development the URL points at a local Connect server where driver and executors run in one in-process JVM on a laptop (fast, free, ungoverned). In production the identical plan goes to the EKS Spark Connect cluster where a driver pod schedules executor pods that read the S3 warehouse through the Lakekeeper catalog behind an mTLS ingress (governed, per-tenant isolated, real data). Promoting from dev to prod changes only the endpoint URL, no code change; the server, driver plus executors, is where execution and data live and the client never holds an engine either way.</desc>
